@@ -959,6 +959,7 @@ const AdminApp = {
   filterUsersTable(q) {
     this.userSearchQuery = (q || '').toLowerCase().trim();
     this.renderSuperUsersTable();
+    this.renderHostAccountsTable();
   },
 
   renderSuperUsersTable() {
