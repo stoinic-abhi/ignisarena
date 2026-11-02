@@ -1,38 +1,18 @@
 /* ==========================================================================
-   IGNIS ARENA — 2026 WORLD-CLASS LIQUID GLASS & OBSIDIAN ESPORTS UI STACK
-   Inspiration: Apple iOS 26 Liquid Glass + Linear + Discord + BGMI Esports
+   IGNIS ARENA — TRUE APPLE iOS 26 LIQUID GLASS & SPATIAL DESIGN SYSTEM
+   Typography: SF Pro Display / Inter (Zero Cheap Arcade Fonts)
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
-:root, [data-skin="inferno"] {
-  --bg-obsidian: #08090D;
-  --bg-elevated: #0E1017;
-  --neon-main: #FF6B00;
-  --neon-sec: #FFC857;
-  --neon-glow: rgba(255, 107, 0, 0.35);
-  --gold-glow: rgba(255, 200, 87, 0.25);
-  --glass-surface: rgba(18, 21, 30, 0.72);
-  --glass-border: rgba(255, 255, 255, 0.09);
-  --glass-highlight: rgba(255, 255, 255, 0.16);
-}
-
-[data-skin="volt"] {
-  --neon-main: #CCFF00;
-  --neon-sec: #00F5D4;
-  --neon-glow: rgba(204, 255, 0, 0.35);
-}
-
-[data-skin="phantom"] {
-  --neon-main: #00F0FF;
-  --neon-sec: #7B2CBF;
-  --neon-glow: rgba(0, 240, 255, 0.35);
-}
-
-[data-skin="royale"] {
-  --neon-main: #FFC857;
-  --neon-sec: #FF6B00;
-  --neon-glow: rgba(255, 200, 87, 0.4);
+:root {
+  --bg-obsidian: #06070A;
+  --ios-orange: #FF6B00;
+  --ios-gold: #FFC857;
+  --ios-glass: rgba(22, 25, 34, 0.68);
+  --ios-glass-elevated: rgba(32, 36, 48, 0.75);
+  --ios-border: rgba(255, 255, 255, 0.09);
+  --ios-specular: rgba(255, 255, 255, 0.18);
 }
 
 * {
@@ -50,130 +30,100 @@ html, body {
   overflow-y: auto !important;
   background-color: var(--bg-obsidian);
   color: #F8FAFC;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif;
-  letter-spacing: -0.012em;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", system-ui, sans-serif !important;
+  letter-spacing: -0.018em;
   background-image: 
-    radial-gradient(circle at 50% -15%, var(--neon-glow) 0%, transparent 60%),
-    radial-gradient(circle at 85% 20%, rgba(255, 200, 87, 0.08) 0%, transparent 45%);
+    radial-gradient(circle at 50% -10%, rgba(255, 107, 0, 0.22) 0%, transparent 55%),
+    radial-gradient(circle at 90% 15%, rgba(255, 200, 87, 0.08) 0%, transparent 45%);
   background-attachment: fixed;
 }
 
-/* Gaming Stats & Numbers Typography (Rajdhani) */
-.font-teko, .font-mono, .stat-num {
-  font-family: 'Rajdhani', sans-serif !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.03em;
-  font-variant-numeric: tabular-nums;
+/* Force ALL legacy classes to use clean Apple SF Pro / Inter with Tabular Numerals */
+.font-russo, .font-teko, .font-chakra, .font-mono, .stat-num {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", system-ui, sans-serif !important;
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" 1, "cv01" 1 !important;
 }
 
-/* Headings Typography (SF Pro Display / Plus Jakarta) */
 .font-russo {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Plus Jakarta Sans", sans-serif !important;
   font-weight: 800 !important;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em !important;
+}
+
+.font-teko {
+  font-weight: 800 !important;
+  letter-spacing: -0.03em !important;
+}
+
+.font-mono {
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
 }
 
 /* ==========================================================================
-   iOS 26 LIQUID GLASS CARDS (20px Rounded Corners + Specular Rim)
+   iOS 26 LIQUID GLASS SURFACES (24px Squircle + Specular Top Rim)
    ========================================================================== */
 .laser-card, .clip-esports {
   clip-path: none !important;
-  border-radius: 20px !important;
-  background: linear-gradient(165deg, rgba(26, 30, 44, 0.78) 0%, rgba(12, 14, 22, 0.88) 100%) !important;
-  backdrop-filter: blur(28px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
-  border: 1px solid var(--glass-border) !important;
+  border-radius: 22px !important;
+  background: linear-gradient(165deg, rgba(30, 34, 46, 0.72) 0%, rgba(14, 16, 24, 0.84) 100%) !important;
+  backdrop-filter: blur(36px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(36px) saturate(200%) !important;
+  border: 1px solid var(--ios-border) !important;
   box-shadow: 
-    0 20px 40px -15px rgba(0, 0, 0, 0.85),
-    inset 0 1px 0 0 var(--glass-highlight) !important;
-  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), 
-              border-color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-              box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+    0 20px 45px -15px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 0 var(--ios-specular) !important;
+  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.24s ease;
 }
 
-.laser-card:hover {
-  border-color: rgba(255, 107, 0, 0.4) !important;
-  box-shadow: 
-    0 24px 48px -12px rgba(0, 0, 0, 0.9),
-    0 0 25px -5px var(--neon-glow),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.22) !important;
-}
-
-/* Smaller Pills, Buttons & Inputs (14px iOS Squircle) */
+/* iOS Pills, Inputs & Segmented Controls */
 .clip-esports-sm {
   clip-path: none !important;
   border-radius: 14px !important;
-  transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Remove legacy sharp corner brackets for clean Apple/Linear aesthetic */
 .hud-brackets::before, .hud-brackets::after {
   display: none !important;
 }
 
 /* ==========================================================================
-   DYNAMIC GRADIENT BUTTONS & SPRING MICRO-INTERACTIONS
+   iOS 26 TACTILE GRADIENT BUTTONS
    ========================================================================== */
 .btn-hyper {
   border-radius: 14px !important;
-  background: linear-gradient(135deg, var(--neon-main) 0%, var(--neon-sec) 100%) !important;
-  color: #08090D !important;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif !important;
+  background: linear-gradient(135deg, #FF6B00 0%, #FFA800 100%) !important;
+  color: #06070A !important;
   font-weight: 800 !important;
-  letter-spacing: 0.02em !important;
+  letter-spacing: -0.01em !important;
   box-shadow: 
-    0 8px 24px -4px var(--neon-glow),
-    inset 0 1px 1px rgba(255, 255, 255, 0.45) !important;
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease !important;
+    0 8px 22px -4px rgba(255, 107, 0, 0.45),
+    inset 0 1px 1px rgba(255, 255, 255, 0.5) !important;
+  transition: transform 0.18s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.18s ease !important;
 }
 
-.btn-hyper:hover {
-  transform: translateY(-1px);
-  box-shadow: 
-    0 12px 28px -4px var(--neon-glow),
-    inset 0 1px 1px rgba(255, 255, 255, 0.6) !important;
-}
-
-.btn-hyper:active {
-  transform: scale(0.95) !important;
-}
-
-button:active {
-  transform: scale(0.96);
+.btn-hyper:active, button:active {
+  transform: scale(0.96) !important;
 }
 
 .neon-text {
-  background: linear-gradient(135deg, var(--neon-main), var(--neon-sec));
+  background: linear-gradient(135deg, #FF6B00, #FFC857);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  text-shadow: 0 0 20px var(--neon-glow);
 }
 
 /* ==========================================================================
-   SKELETON SHIMMER & FLUID ANIMATIONS (60 FPS)
+   ANDROID APK FLOATING iOS TAB DOCK
    ========================================================================== */
-@keyframes shimmerSweep {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-.skeleton-shimmer {
-  background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0.03) 75%);
-  background-size: 200% 100%;
-  animation: shimmerSweep 1.8s infinite linear;
-}
-
-/* iOS Floating Bottom Tab Bar */
 .ios-floating-dock {
-  background: rgba(12, 14, 22, 0.82) !important;
-  backdrop-filter: blur(32px) saturate(200%) !important;
-  -webkit-backdrop-filter: blur(32px) saturate(200%) !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
-  box-shadow: 0 -10px 35px rgba(0, 0, 0, 0.8);
+  background: rgba(14, 16, 23, 0.84) !important;
+  backdrop-filter: blur(40px) saturate(210%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(210%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 
+    0 16px 40px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.18) !important;
 }
 
-/* Custom Minimalist Scrollbar */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: #08090D; }
-::-webkit-scrollbar-thumb { background: rgba(255, 107, 0, 0.4); border-radius: 9999px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255, 107, 0, 0.8); }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
