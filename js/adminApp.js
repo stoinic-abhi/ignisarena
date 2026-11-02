@@ -100,7 +100,7 @@ const AdminApp = {
 
     if (isOwner) {
       document.getElementById('dashboardTitle').innerText = 'SUPER ADMIN MASTER DECK';
-      document.getElementById('dashboardSubtitle').innerHTML = 'Full Control • <span class="text-[#FFC857]">Dual Scanners, Tournaments & 10% Vault</span>';
+      document.getElementById('dashboardSubtitle').innerHTML = 'Full Control • <span class="text-[#FFC857]">Tournaments, Dual Scanners &amp; 10% Vault</span>';
       document.getElementById('roleBadge').innerText = 'MASTER OWNER';
       this.fetchSuperAdminData();
       this.switchOwnerSection('overview');
@@ -155,7 +155,57 @@ const AdminApp = {
     if (tabKey === 'store') this.fetchAdminStoreProducts();
   },
 
-  /* ==================== TOURNAMENTS MANAGER: WIPE ALL & FAST ADD ==================== */
+  /* ==================== TOURNAMENTS MANAGER: PRESETS, ADD & FAST DELETE ==================== */
+  applyPreset(presetKey) {
+    const titleInp = document.getElementById('newTourneyTitle');
+    const catSel = document.getElementById('newTourneyCategory');
+    const subSel = document.getElementById('newTourneySubMode');
+    const ammoSel = document.getElementById('newTourneyAmmo');
+    const hsSel = document.getElementById('newTourneyHs');
+    const slotsInp = document.getElementById('newTourneySlots');
+    const feeInp = document.getElementById('newTourneyFee');
+    const killInp = document.getElementById('newTourneyPerKill');
+
+    if (presetKey === 'BR_SQUAD') {
+      titleInp.value = 'Bermuda Squad Championship Series';
+      catSel.value = 'BR';
+      subSel.value = 'Squad';
+      ammoSel.value = 'Standard';
+      hsSel.value = 'NO';
+      slotsInp.value = 12;
+      feeInp.value = 120;
+      killInp.value = 10;
+    } else if (presetKey === 'BR_SOLO') {
+      titleInp.value = 'Bermuda Solo Survival Cup';
+      catSel.value = 'BR';
+      subSel.value = 'Solo';
+      ammoSel.value = 'Standard';
+      hsSel.value = 'NO';
+      slotsInp.value = 48;
+      feeInp.value = 30;
+      killInp.value = 5;
+    } else if (presetKey === 'CS_4V4_UNLIM_HS') {
+      titleInp.value = 'CS 4v4 Unlimited (Headshot ON)';
+      catSel.value = 'CS';
+      subSel.value = 'Squad';
+      ammoSel.value = 'Unlimited';
+      hsSel.value = 'YES';
+      slotsInp.value = 8;
+      feeInp.value = 100;
+      killInp.value = 0;
+    } else if (presetKey === 'LW_1V1') {
+      titleInp.value = 'Lone Wolf 1v1 Gladiator Duel';
+      catSel.value = 'LW';
+      subSel.value = '1v1';
+      ammoSel.value = 'Unlimited';
+      hsSel.value = 'YES';
+      slotsInp.value = 2;
+      feeInp.value = 100;
+      killInp.value = 0;
+    }
+    this.updateNewTourneyPoolPreview();
+  },
+
   async wipeAllTournaments() {
     if (!confirm('DANGER: Kya aap SARE tournaments bilkul saaf (WIPE) karna chahte hain? Abhi poori list khali ho jayegi aur aap khud apne tournaments add kar sakenge.')) return;
     this.matches = [];
@@ -164,10 +214,11 @@ const AdminApp = {
     localStorage.setItem('ignis_tourney_seed_date_v4', 'MANUAL_CLEAN_SLATE');
     localStorage.setItem('ignis_tourney_seed_date', 'MANUAL_CLEAN_SLATE');
     this.renderSuperManageTournamentsTable();
+    this.renderHostMatches();
     if (document.getElementById('superTotalActiveRooms')) {
       document.getElementById('superTotalActiveRooms').innerText = '0';
     }
-    alert('SUCCESS: Sare tournaments delete ho chuke hain! Ab "+ CREATE CUSTOM TOURNAMENT" button dabakar apni marzi ke rooms banayein.');
+    alert('SUCCESS: Sare tournaments delete ho chuke hain! Ab "+ ADD NEW TOURNAMENT" button dabakar apni marzi ke rooms banayein.');
   },
 
   openAddTournamentModal() {
@@ -210,8 +261,8 @@ const AdminApp = {
     const total_slots = parseInt(document.getElementById('newTourneySlots')?.value, 10) || 8;
     const entry_fee = parseFloat(document.getElementById('newTourneyFee')?.value) || 50;
     const per_kill = parseFloat(document.getElementById('newTourneyPerKill')?.value) || 0;
-    const match_hour = parseInt(document.getElementById('newTourneyHour')?.value, 10) || 16;
-    const match_time = (document.getElementById('newTourneyTime')?.value || 'Today, 04:00 PM').trim();
+    const match_hour = parseInt(document.getElementById('newTourneyHour')?.value, 10) || 17;
+    const match_time = (document.getElementById('newTourneyTime')?.value || 'Today, 05:00 PM').trim();
 
     if (!title) {
       alert('Tournament ka Title likhna zaroori hai!');
@@ -250,7 +301,8 @@ const AdminApp = {
 
     document.getElementById('addTournamentModal')?.classList.add('hidden');
     this.renderSuperManageTournamentsTable();
-    alert(`Custom Tournament "${title}" ban gaya hai aur player app me live dikh raha hai!`);
+    this.renderHostMatches();
+    alert(`Tournament "${title}" successfully add ho chuka hai!`);
   },
 
   renderSuperManageTournamentsTable() {
@@ -295,6 +347,7 @@ const AdminApp = {
     this.matches = this.matches.filter(x => x.id !== id);
     SupabaseService.setLocal(SupabaseService.STORAGE_TOURNEY_KEY, this.matches);
     this.renderSuperManageTournamentsTable();
+    this.renderHostMatches();
   },
 
   /* ==================== DUAL QR SCANNERS CONTROLLER ==================== */
@@ -424,48 +477,52 @@ const AdminApp = {
     const tbody = document.getElementById('hostTableBody');
     if (!tbody) return;
     tbody.innerHTML = '';
+    this.matches = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
     document.getElementById('hostMatchCount').innerText = `${this.matches.length} Rooms`;
     const myHostId = this.currentHost ? this.currentHost.host_id : 'host_01';
 
-    this.matches.forEach((m, idx) => {
-      const isUnclaimed = !m.assigned_host || m.assigned_host === 'UNCLAIMED';
-      const isClaimedByMe = m.assigned_host === myHostId;
-      const isLockedByOther = !isUnclaimed && !isClaimedByMe;
-      const isLive = m.match_status === 'LIVE';
+    tbody.innerHTML = this.matches.length === 0
+      ? `<tr><td colspan="5" class="py-10 text-center text-slate-400 font-russo text-xs">Koi tournament nahi hai. Upar "+ ADD TOURNAMENT" button dabayein!</td></tr>`
+      : this.matches.map((m, idx) => {
+        const isUnclaimed = !m.assigned_host || m.assigned_host === 'UNCLAIMED';
+        const isClaimedByMe = m.assigned_host === myHostId;
+        const isLockedByOther = !isUnclaimed && !isClaimedByMe;
+        const isLive = m.match_status === 'LIVE';
 
-      const tr = document.createElement('tr');
-      tr.className = 'hover:bg-white/5';
-      tr.innerHTML = `
-        <td class="py-2.5 px-3">
-          <div class="font-russo text-white">${m.title}</div>
-          <div class="text-[10px] text-[#FFC857] font-mono">${m.match_time} • ${m.category} ${m.sub_mode} • ${m.ammo_mode} • HS: ${m.headshot_mode}</div>
-        </td>
-        <td class="py-2.5 px-3 font-mono">
-          <div class="text-white font-bold">${m.filled_slots}/${m.total_slots} Slots</div>
-          <div class="text-[10px] text-emerald-400">Fee: ₹${m.entry_fee} • Pool: ₹${m.prize_pool || 0}</div>
-        </td>
-        <td class="py-2.5 px-3 font-mono text-xs">
-          ${isUnclaimed ? `
-            <button type="button" onclick="AdminApp.claimTournamentLock('${m.id}')" class="bg-[#FF6B00] text-black font-russo text-[10px] px-2.5 py-1 clip-esports-sm cursor-pointer">CLAIM LOCK</button>
-          ` : isClaimedByMe ? `
-            <span class="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-lg text-[10px]">LOCKED BY YOU (${myHostId})</span>
-          ` : `<span class="bg-red-500/20 text-red-300 px-2 py-0.5 rounded-lg text-[10px]">LOCKED BY ${m.assigned_host}</span>`}
-        </td>
-        <td class="py-2.5 px-3">
-          <div class="flex gap-1">
-            <input id="inputRoom-${idx}" type="text" value="${m.room_id || ''}" placeholder="Room ID" ${isLockedByOther ? 'disabled' : ''} class="bg-black/70 border border-white/15 rounded-lg px-2 py-1 text-xs text-[#FFC857] font-mono w-24">
-            <input id="inputPass-${idx}" type="text" value="${m.room_password || ''}" placeholder="Pass" ${isLockedByOther ? 'disabled' : ''} class="bg-black/70 border border-white/15 rounded-lg px-2 py-1 text-xs text-emerald-300 font-mono w-20">
-          </div>
-        </td>
-        <td class="py-2.5 px-3 text-right space-x-1">
-          ${!isLockedByOther ? `
-            <button type="button" onclick="AdminApp.dispatchCredentials(${idx})" class="bg-[#FFC857]/20 text-[#FFC857] border border-[#FFC857]/40 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">PUSH IDP</button>
-            <button type="button" onclick="AdminApp.toggleLiveLock('${m.id}', '${isLive ? 'UPCOMING' : 'LIVE'}')" class="bg-red-500/20 text-red-300 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">${isLive ? 'UNBLOCK' : 'BLOCK'}</button>
-          ` : `<span class="text-slate-500 text-[10px] font-mono">Managed by ${m.assigned_host}</span>`}
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
+        return `
+          <tr class="hover:bg-white/5">
+            <td class="py-2.5 px-3">
+              <div class="font-russo text-white">${m.title}</div>
+              <div class="text-[10px] text-[#FFC857] font-mono">${m.match_time} • ${m.category} ${m.sub_mode} • ${m.ammo_mode} • HS: ${m.headshot_mode}</div>
+            </td>
+            <td class="py-2.5 px-3 font-mono">
+              <div class="text-white font-bold">${m.filled_slots}/${m.total_slots} Slots</div>
+              <div class="text-[10px] text-emerald-400">Fee: ₹${m.entry_fee} • Pool: ₹${m.prize_pool || 0}</div>
+            </td>
+            <td class="py-2.5 px-3 font-mono text-xs">
+              ${isUnclaimed ? `
+                <button type="button" onclick="AdminApp.claimTournamentLock('${m.id}')" class="bg-[#FF6B00] text-black font-russo text-[10px] px-2.5 py-1 clip-esports-sm cursor-pointer">CLAIM LOCK</button>
+              ` : isClaimedByMe ? `
+                <span class="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-lg text-[10px]">LOCKED BY YOU (${myHostId})</span>
+              ` : `<span class="bg-red-500/20 text-red-300 px-2 py-0.5 rounded-lg text-[10px]">LOCKED BY ${m.assigned_host}</span>`}
+            </td>
+            <td class="py-2.5 px-3">
+              <div class="flex gap-1">
+                <input id="inputRoom-${idx}" type="text" value="${m.room_id || ''}" placeholder="Room ID" ${isLockedByOther ? 'disabled' : ''} class="bg-black/70 border border-white/15 rounded-lg px-2 py-1 text-xs text-[#FFC857] font-mono w-24">
+                <input id="inputPass-${idx}" type="text" value="${m.room_password || ''}" placeholder="Pass" ${isLockedByOther ? 'disabled' : ''} class="bg-black/70 border border-white/15 rounded-lg px-2 py-1 text-xs text-emerald-300 font-mono w-20">
+              </div>
+            </td>
+            <td class="py-2.5 px-3 text-right space-x-1">
+              ${!isLockedByOther ? `
+                <button type="button" onclick="AdminApp.dispatchCredentials(${idx})" class="bg-[#FFC857]/20 text-[#FFC857] border border-[#FFC857]/40 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">PUSH IDP</button>
+                <button type="button" onclick="AdminApp.toggleLiveLock('${m.id}', '${isLive ? 'UPCOMING' : 'LIVE'}')" class="bg-red-500/20 text-red-300 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">${isLive ? 'UNBLOCK' : 'BLOCK'}</button>
+                <button type="button" onclick="AdminApp.openEditTournamentModal('${m.id}')" class="bg-cyan-500/20 text-cyan-300 px-2 py-1 rounded-lg text-[10px] font-russo cursor-pointer">EDIT</button>
+                <button type="button" onclick="AdminApp.fastDeleteTournament('${m.id}')" class="bg-red-500/20 text-red-300 px-2 py-1 rounded-lg text-[10px] font-russo cursor-pointer">DEL</button>
+              ` : `<span class="text-slate-500 text-[10px] font-mono">Managed by ${m.assigned_host}</span>`}
+            </td>
+          </tr>
+        `;
+      }).join('');
   },
 
   renderOperatorCustomRooms() {
@@ -514,10 +571,10 @@ const AdminApp = {
 
         <div class="flex flex-wrap gap-1.5 pt-1">
           ${!isCompleted ? `
-            <button type="button" onclick="AdminApp.acceptAndPushCustomRoom('${r.id}', ${idx})" class="bg-emerald-500 text-black font-russo text-[10px] px-3 py-1.5 rounded-xl cursor-pointer">ACCEPT & UNLOCK CHAT</button>
+            <button type="button" onclick="AdminApp.acceptAndPushCustomRoom('${r.id}', ${idx})" class="bg-emerald-500 text-black font-russo text-[10px] px-3 py-1.5 rounded-xl cursor-pointer">ACCEPT &amp; UNLOCK CHAT</button>
             <button type="button" onclick="AdminApp.settleCustomRoomWinner('${r.id}', '${r.team_a_app_id}')" class="bg-[#FFC857]/20 text-[#FFC857] font-russo text-[10px] px-2.5 py-1.5 rounded-xl cursor-pointer">WIN SIDE A (80%)</button>
             ${r.team_b_app_id ? `<button type="button" onclick="AdminApp.settleCustomRoomWinner('${r.id}', '${r.team_b_app_id}')" class="bg-cyan-500/20 text-cyan-300 font-russo text-[10px] px-2.5 py-1.5 rounded-xl cursor-pointer">WIN SIDE B (80%)</button>` : ''}
-            <button type="button" onclick="AdminApp.rejectCustomRoom('${r.id}')" class="bg-red-500/20 text-red-300 font-russo text-[10px] px-2 py-1.5 rounded-xl cursor-pointer">REJECT</button>
+            <button type="button" onclick="AdminApp.rejectCustomRoom('${r.id}')" class="bg-red-500/20 text-red-300 font-russo text-[10px] px-2.5 py-1.5 rounded-xl cursor-pointer">REJECT</button>
           ` : `<span class="text-xs font-russo text-emerald-400">MATCH SETTLED ✓</span>`}
           <button type="button" onclick="AdminApp.openOperatorChatModal('${r.id}')" class="bg-white/10 hover:bg-white/20 text-white font-russo text-[10px] px-3 py-1.5 rounded-xl cursor-pointer ml-auto">
             <i class="fa-solid fa-comments text-cyan-400 mr-1"></i>CHAT (${(r.chat_messages || []).length})
@@ -627,8 +684,8 @@ const AdminApp = {
     if (!m) return;
     document.getElementById('editMatchId').value = m.id;
     document.getElementById('editTitle').value = m.title;
-    document.getElementById('editTime').value = m.match_time || 'Today, 04:00 PM';
-    document.getElementById('editHour').value = m.match_hour ?? 16;
+    document.getElementById('editTime').value = m.match_time || 'Today, 05:00 PM';
+    document.getElementById('editHour').value = m.match_hour ?? 17;
     document.getElementById('editFee').value = m.entry_fee ?? 50;
     document.getElementById('editHeadshotMode').value = m.headshot_mode || 'NO';
     document.getElementById('editStatus').value = m.match_status || 'UPCOMING';
@@ -639,7 +696,7 @@ const AdminApp = {
     const id = document.getElementById('editMatchId').value;
     const title = document.getElementById('editTitle').value.trim();
     const match_time = document.getElementById('editTime').value.trim();
-    const match_hour = parseInt(document.getElementById('editHour').value, 10) || 16;
+    const match_hour = parseInt(document.getElementById('editHour').value, 10) || 17;
     const entry_fee = parseFloat(document.getElementById('editFee').value) || 0;
     const headshot_mode = document.getElementById('editHeadshotMode').value;
     const match_status = document.getElementById('editStatus').value;
