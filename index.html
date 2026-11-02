@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en" class="dark" data-skin="inferno">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#08090D">
+  <title>IGNIS ARENA — 2026 Pro Esports Platform</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            obsidian: '#08090D',
+            neonOrange: '#FF6B00',
+            electricGold: '#FFC857'
+          },
+          fontFamily: {
+            russo: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            teko: ['"Rajdhani"', 'sans-serif'],
+            chakra: ['"Inter"', 'sans-serif'],
+            mono: ['"Rajdhani"', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    .ticker-wrap { overflow: hidden; white-space: nowrap; background: rgba(8, 9, 13, 0.88); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255, 255, 255, 0.08); width: 100%; }
+    .ticker-move { display: inline-block; animation: tickerSlide 28s linear infinite; }
+    @keyframes tickerSlide { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .apk-safe-bottom { padding-bottom: 6.2rem; }
+  </style>
+</head>
+<body class="apk-safe-bottom lg:pb-16 select-none">
+
+  <canvas id="emberCanvas" class="fixed inset-0 pointer-events-none z-0 opacity-35"></canvas>
+
+  <!-- TOP LIQUID GLASS BROADCAST BAR -->
+  <div class="ticker-wrap py-1.5 relative z-30 text-[11px] font-mono tracking-wider">
+    <div class="ticker-move">
+      <span class="mx-4 text-slate-300"><i class="fa-solid fa-fire text-[#FF6B00] mr-1.5"></i> <strong class="text-white">IGNIS ARENA 2026:</strong> HOURLY PRO LOBBIES • CLAN WARS • INSTANT UTR CASHIER</span>
+      <span class="mx-4 text-[#FFC857]">● 60 FPS LIQUID GLASS ENGINE ACTIVE</span>
+      <span class="mx-4 text-emerald-400"><i class="fa-solid fa-shield-check mr-1"></i> VERIFIED FREE FIRE INDIA ESPORTS ECOSYSTEM</span>
+    </div>
+  </div>
+
+  <!-- FLOATING TOAST NOTIFICATIONS -->
+  <div id="toastContainer" class="fixed top-12 right-3 left-3 sm:left-auto sm:right-5 z-[100] flex flex-col gap-2 sm:max-w-sm pointer-events-none"></div>
+
+  <!-- ==================== MANDATORY ATHLETE REGISTRATION GATEWAY ==================== -->
+  <div id="playerAuthGate" class="fixed inset-0 z-50 bg-[#08090D]/95 backdrop-blur-2xl flex items-center justify-center p-4 overflow-y-auto">
+    <div class="laser-card max-w-md w-full p-6 sm:p-8 space-y-5 relative overflow-hidden my-auto">
+      <div class="text-center space-y-1.5">
+        <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl mx-auto shadow-2xl text-black" style="background: linear-gradient(135deg, #FF6B00, #FFC857);">
+          <i class="ph-bold ph-crosshair"></i>
+        </div>
+        <h2 class="font-russo text-2xl tracking-tight text-white mt-2">IGNIS ARENA</h2>
+        <p class="text-xs text-slate-400 font-medium">Create Your Official 2026 Esports Athlete Pass</p>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="font-semibold text-slate-300 block mb-1.5 text-[11px]">Full Real Name</label>
+          <input type="text" id="authFullNameInput" placeholder="e.g. Abhishek Jangra" class="w-full bg-black/60 border border-white/10 focus:border-[#FF6B00] clip-esports-sm px-4 py-3 text-white font-medium focus:outline-none">
+        </div>
+        <div>
+          <label class="font-semibold text-slate-300 block mb-1.5 text-[11px]">WhatsApp Number</label>
+          <input type="tel" id="authPhoneInput" placeholder="e.g. 9876543210" class="w-full bg-black/60 border border-white/10 focus:border-[#FF6B00] clip-esports-sm px-4 py-3 text-white font-mono text-sm focus:outline-none">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="font-semibold text-slate-300 block mb-1.5 text-[11px]">Free Fire UID</label>
+            <input type="text" id="authUidInput" placeholder="e.g. 2498104421" class="w-full bg-black/60 border border-white/10 focus:border-[#FF6B00] clip-esports-sm px-4 py-3 text-white font-mono text-sm focus:outline-none">
+          </div>
+          <div>
+            <label class="font-semibold text-slate-300 block mb-1.5 text-[11px]">In-Game Level</label>
+            <input type="text" id="authLevelInput" value="Level 68" class="w-full bg-black/60 border border-white/10 focus:border-[#FF6B00] clip-esports-sm px-4 py-3 text-white font-mono text-sm focus:outline-none">
+          </div>
+        </div>
+        <div>
+          <label class="font-semibold text-slate-300 block mb-1.5 text-[11px]">Exact Free Fire IGN</label>
+          <input type="text" id="authIgnInput" placeholder="e.g. IND_ViperX" class="w-full bg-black/60 border border-white/10 focus:border-[#FF6B00] clip-esports-sm px-4 py-3 text-white font-bold focus:outline-none">
+        </div>
+      </div>
+
+      <button type="button" onclick="PlayerApp.completePlayerAuth()" class="w-full py-3.5 btn-hyper clip-esports-sm text-xs flex items-center justify-center gap-2 cursor-pointer">
+        <span>GENERATE ATHLETE PASS</span>
+        <i class="ph-bold ph-arrow-right"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== MAIN AUTHENTICATED APK PORTAL ==================== -->
+  <div id="mainPlayerPortal" class="relative z-10 max-w-7xl mx-auto px-3 sm:px-6 pt-3 sm:pt-5 hidden">
+
+    <!-- STICKY iOS LIQUID GLASS TOP HEADER -->
+    <header class="sticky top-2 z-30 laser-card p-2.5 sm:p-4 mb-4 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5 cursor-pointer min-w-0 flex-1" onclick="PlayerApp.switchTab('matches')">
+        <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center text-black text-lg sm:text-xl shadow-lg flex-shrink-0" style="background: linear-gradient(135deg, var(--neon-main), var(--neon-sec));">
+          <i class="fa-solid fa-fire-flame-curved"></i>
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-1 truncate">
+            <span class="font-russo text-base sm:text-xl tracking-tight text-white">IGNIS</span>
+            <span class="font-russo text-base sm:text-xl tracking-tight neon-text">ARENA</span>
+          </div>
+          <div class="flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-400 font-mono truncate">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"></span>
+            <span id="headerAppIdQuick" class="text-[#FFC857] font-bold truncate">IGNIS-0000</span>
+            <span class="hidden sm:inline">•</span>
+            <span id="clockDisplay" class="hidden sm:inline text-slate-300">12:00 PM</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Desktop Segmented Glass Navigation -->
+      <nav class="hidden lg:flex items-center bg-black/50 p-1.5 rounded-2xl border border-white/10 gap-1 font-russo">
+        <button onclick="PlayerApp.switchTab('matches')" id="nav-btn-matches" class="px-3.5 py-2 clip-esports-sm text-xs text-black flex items-center gap-1.5 cursor-pointer" style="background: var(--neon-main);">
+          <i class="ph-bold ph-crosshair"></i><span>WARZONE</span>
+        </button>
+        <button onclick="PlayerApp.switchTab('mybattles')" id="nav-btn-mybattles" class="px-3.5 py-2 clip-esports-sm text-xs text-slate-400 hover:text-white flex items-center gap-1.5 cursor-pointer">
+          <i class="ph-bold ph-GameController"></i><span>MY ROOMS</span>
+          <span id="joinedBadgeCount" class="bg-white/15 text-white font-mono text-[10px] px-1.5 rounded-md">0</span>
+        </button>
+        <button onclick="PlayerApp.switchTab('clans')" id="nav-btn-clans" class="px-3.5 py-2 clip-esports-sm text-xs text-slate-400 hover:text-white flex items-center gap-1.5 cursor-pointer">
+          <i class="ph-bold ph-shield-star text-cyan-400"></i><span>CLANS</span>
+        </button>
+        <button onclick="PlayerApp.switchTab('hub')" id="nav-btn-hub" class="px-3.5 py-2 clip-esports-sm text-xs text-slate-400 hover:text-white flex items-center gap-1.5 cursor-pointer">
+          <i class="ph-bold ph-broadcast text-pink-400"></i><span>STREAM HUB</span>
+        </button>
+        <button onclick="PlayerApp.switchTab('leaderboard')" id="nav-btn-leaderboard" class="px-3.5 py-2 clip-esports-sm text-xs text-slate-400 hover:text-white flex items-center gap-1.5 cursor-pointer">
+          <i class="ph-bold ph-trophy text-[#FFC857]"></i><span>TOP 100</span>
+        </button>
+        <button onclick="PlayerApp.switchTab('wallet')" id="nav-btn-wallet" class="px-3.5 py-2 clip-esports-sm text-xs text-slate-400 hover:text-white flex items-center gap-1.5 cursor-pointer">
+          <i class="ph-bold ph-wallet"></i><span>VAULT</span>
+        </button>
+        <button onclick="PlayerApp.switchTab('profile')" id="nav-btn-profile" class="px-3.5 py-2 clip-esports-sm text-xs text-slate-400 hover:text-white flex items-center gap-1.5 cursor-pointer">
+          <i class="ph-bold ph-user-circle"></i><span>PROFILE</span>
+        </button>
+      </nav>
+
+      <!-- Right Controls: Notification Bell + Wallet Pill -->
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <button onclick="PlayerApp.openNotificationModal()" class="relative w-9 h-9 sm:w-10 sm:h-10 clip-esports-sm bg-white/5 border border-white/10 hover:border-[#FF6B00] flex items-center justify-center text-slate-200 hover:text-white cursor-pointer">
+          <i class="ph-bold ph-bell text-base"></i>
+          <span id="notifBadgeCount" class="absolute -top-1 -right-1 bg-[#FF6B00] text-black font-mono text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center">3</span>
+        </button>
+
+        <div onclick="PlayerApp.switchTab('wallet')" class="cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-1.5 clip-esports-sm flex items-center gap-2">
+          <div>
+            <div class="text-[8px] text-slate-400 font-semibold uppercase leading-none">BALANCE</div>
+            <div class="font-teko font-bold text-lg sm:text-xl text-[#FFC857] leading-none" id="headerBalance">₹0</div>
+          </div>
+          <span class="text-black font-black w-5 h-5 flex items-center justify-center text-xs rounded-lg" style="background: linear-gradient(135deg, var(--neon-main), var(--neon-sec));">+</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ==================== VIEW 1: WARZONES ==================== -->
+    <main id="view-matches" class="space-y-4 sm:space-y-5">
+      
+      <!-- Hero Spotlight + Active Operator Perk -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div class="lg:col-span-7 laser-card p-5 sm:p-7 flex flex-col justify-between">
+          <div class="space-y-2.5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="bg-[#FF6B00]/15 border border-[#FF6B00]/30 px-3 py-1 rounded-full text-[10px] sm:text-xs font-semibold text-[#FF6B00]">
+                <i class="fa-solid fa-bolt mr-1"></i> 08:00 AM – 11:00 PM HOURLY SERIES
+              </span>
+              <span class="bg-emerald-500/15 border border-emerald-500/30 px-3 py-1 rounded-full font-mono text-[10px] text-emerald-400">
+                ● LIVE AUTO-SORTED
+              </span>
+            </div>
+            <h1 class="font-russo text-lg sm:text-2xl text-white leading-snug">
+              SOLO • DUO • SQUAD &amp; <span class="neon-text">CLASH SQUAD PRO</span>
+            </h1>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Live aur Upcoming matches hamesha top par! Time nikal chuke matches automatic bottom me shift ho jate hain aur subah 8 AM wapas reset hote hain.
+            </p>
+          </div>
+
+          <div class="pt-4 mt-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+              <button onclick="PlayerApp.quickJoinNextMatch()" class="flex-1 sm:flex-initial btn-hyper clip-esports-sm text-xs px-4 py-2.5 cursor-pointer flex items-center justify-center gap-1.5">
+                <i class="ph-bold ph-lightning"></i>
+                <span>QUICK JOIN</span>
+              </button>
+              <button onclick="PlayerApp.switchWarzoneMode('custom')" class="flex-1 sm:flex-initial bg-white/5 hover:bg-white/10 border border-white/15 text-[#FFC857] font-russo clip-esports-sm text-xs px-4 py-2.5 cursor-pointer flex items-center justify-center gap-1.5">
+                <i class="ph-bold ph-sword"></i>
+                <span>CUSTOM WAGER</span>
+              </button>
+            </div>
+            <div class="flex items-center gap-5 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-white/10 pt-2.5 sm:pt-0">
+              <div>
+                <div class="text-[9px] text-slate-400 uppercase font-semibold">DAILY PRIZE POOL</div>
+                <div class="font-teko font-bold text-2xl sm:text-3xl text-emerald-400 leading-none">₹1,84,500</div>
+              </div>
+              <div>
+                <div class="text-[9px] text-slate-400 uppercase font-semibold">PAYOUT</div>
+                <div class="font-teko font-bold text-xl sm:text-2xl text-[#FFC857] leading-none">INSTANT UPI</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="characterDeckSection" class="lg:col-span-5 laser-card p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-2.5">
+              <span class="font-russo text-xs uppercase neon-text">ACTIVE CHARACTER PERK</span>
+              <span class="text-[10px] font-mono bg-white/10 px-2.5 py-0.5 rounded-full text-slate-300">SKILL BUFF</span>
+            </div>
+            <div id="activeCharBanner" class="bg-black/50 clip-esports-sm p-3 border border-white/10 mb-3"></div>
+          </div>
+          <div id="characterSelectorGrid" class="grid grid-cols-5 gap-2"></div>
+        </div>
+      </div>
+
+      <!-- MODE SWITCHER -->
+      <div class="grid grid-cols-2 gap-2 p-1.5 laser-card font-russo text-xs">
+        <button id="btnModeTournaments" onclick="PlayerApp.switchWarzoneMode('tournaments')" class="py-3 px-3 clip-esports-sm text-black flex items-center justify-center gap-2 cursor-pointer transition truncate" style="background: var(--neon-main);">
+          <i class="ph-bold ph-trophy"></i>
+          <span class="truncate">HOURLY TOURNAMENTS</span>
+        </button>
+        <button id="btnModeCustomPaid" onclick="PlayerApp.switchWarzoneMode('custom')" class="py-3 px-3 clip-esports-sm text-slate-300 hover:text-white flex items-center justify-center gap-2 cursor-pointer transition truncate">
+          <i class="ph-bold ph-headset text-[#FFC857]"></i>
+          <span class="truncate">PAID WAGER ROOMS</span>
+        </button>
+      </div>
+
+      <!-- TOURNAMENTS LIST & STATUS TABS -->
+      <div id="warzoneTournamentsSubView" class="space-y-3.5">
+        
+        <!-- 4 STATUS DIVISION TABS (ALL / LIVE / UPCOMING / COMPLETED) -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 laser-card font-russo text-xs text-center">
+          <button onclick="PlayerApp.setStatusFilter('all', this)" id="status-tab-all" class="py-2.5 clip-esports-sm text-black cursor-pointer transition" style="background: var(--neon-main);">
+            ALL ROOMS
+          </button>
+          <button onclick="PlayerApp.setStatusFilter('LIVE', this)" id="status-tab-LIVE" class="py-2.5 clip-esports-sm text-slate-400 hover:text-white cursor-pointer transition flex items-center justify-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+            <span>LIVE NOW</span>
+          </button>
+          <button onclick="PlayerApp.setStatusFilter('UPCOMING', this)" id="status-tab-UPCOMING" class="py-2.5 clip-esports-sm text-slate-400 hover:text-white cursor-pointer transition flex items-center justify-center gap-1.5">
+            <i class="ph-bold ph-clock text-[#FFC857]"></i>
+            <span>UPCOMING</span>
+          </button>
+          <button onclick="PlayerApp.setStatusFilter('COMPLETED', this)" id="status-tab-COMPLETED" class="py-2.5 clip-esports-sm text-slate-400 hover:text-white cursor-pointer transition flex items-center justify-center gap-1.5">
+            <i class="ph-bold ph-flag-checkered text-slate-400"></i>
+            <span>COMPLETED</span>
+          </button>
+        </div>
+
+        <!-- MODE & HOUR FILTER BAR -->
+        <div class="laser-card p-3 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5">
+          <div class="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 no-scrollbar font-russo text-[11px]">
+            <button onclick="PlayerApp.filterMatches('all', this)" class="filter-btn px-3 py-2 clip-esports-sm text-black cursor-pointer whitespace-nowrap" style="background: var(--neon-main);">ALL 5 MODES</button>
+            <button onclick="PlayerApp.filterMatches('Solo', this)" class="filter-btn px-3 py-2 clip-esports-sm bg-black/50 text-slate-300 border border-white/10 cursor-pointer whitespace-nowrap">SOLO BR</button>
+            <button onclick="PlayerApp.filterMatches('Duo', this)" class="filter-btn px-3 py-2 clip-esports-sm bg-black/50 text-slate-300 border border-white/10 cursor-pointer whitespace-nowrap">DUO BR</button>
+            <button onclick="PlayerApp.filterMatches('Squad', this)" class="filter-btn px-3 py-2 clip-esports-sm bg-black/50 text-slate-300 border border-white/10 cursor-pointer whitespace-nowrap">SQUAD BR</button>
+            <button onclick="PlayerApp.filterMatches('CS Limited', this)" class="filter-btn px-3 py-2 clip-esports-sm bg-black/50 text-slate-300 border border-white/10 cursor-pointer whitespace-nowrap">CS LIMITED</button>
+            <button onclick="PlayerApp.filterMatches('CS Unlimited', this)" class="filter-btn px-3 py-2 clip-esports-sm bg-black/50 text-slate-300 border border-white/10 cursor-pointer whitespace-nowrap">CS UNLIMITED</button>
+          </div>
+
+          <div class="grid grid-cols-2 sm:flex items-center gap-2">
+            <select id="hourSlotFilterSelect" onchange="PlayerApp.handleHourFilter(this.value)" class="w-full sm:w-auto bg-black/60 border border-white/15 clip-esports-sm px-3 py-2 text-xs text-[#FFC857] font-mono focus:outline-none">
+              <option value="all">All Hours (8AM-11PM)</option>
+              <option value="8">08:00 AM Batch</option>
+              <option value="9">09:00 AM Batch</option>
+              <option value="10">10:00 AM Batch</option>
+              <option value="11">11:00 AM Batch</option>
+              <option value="12">12:00 PM Batch</option>
+              <option value="13">01:00 PM Batch</option>
+              <option value="14">02:00 PM Batch</option>
+              <option value="15">03:00 PM Batch</option>
+              <option value="16">04:00 PM Batch</option>
+              <option value="17">05:00 PM Batch</option>
+              <option value="18">06:00 PM Batch</option>
+              <option value="19">07:00 PM Batch</option>
+              <option value="20">08:00 PM Batch</option>
+              <option value="21">09:00 PM Batch</option>
+              <option value="22">10:00 PM Batch</option>
+              <option value="23">11:00 PM Batch</option>
+            </select>
+            <input type="text" oninput="PlayerApp.handleSearch(this.value)" placeholder="Search Map/Mode..." class="w-full sm:w-44 bg-black/60 border border-white/15 clip-esports-sm px-3 py-2 text-xs text-white focus:outline-none">
+          </div>
+        </div>
+
+        <div id="matchesContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </div>
+
+      <!-- PAID CUSTOM ROOMS VIEW -->
+      <div id="warzoneCustomPaidSubView" class="hidden space-y-4">
+        <div class="laser-card p-5 sm:p-6 space-y-4">
+          <div class="border-b border-white/10 pb-3">
+            <h2 class="font-russo text-base sm:text-lg text-white flex items-center gap-2">
+              <i class="ph-bold ph-sliders text-[#FFC857]"></i>
+              <span>CONFIGURE CUSTOM PAID ROOM &amp; ASSIGN OPERATOR</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">Select 1v1 to 4v4 rules, assign Operator &amp; chat live!</p>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+            <div>
+              <label class="font-semibold text-slate-300 block mb-1 text-[11px]">Challenge Title</label>
+              <input id="customRoomTitle" type="text" placeholder="e.g. Viper vs Hunter" class="w-full bg-black/60 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-white focus:outline-none">
+            </div>
+            <div>
+              <label class="font-semibold text-[#FFC857] block mb-1 text-[11px]">Team Size</label>
+              <select id="customTeamSize" class="w-full bg-black/60 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-white font-bold focus:outline-none">
+                <option value="4v4 Squad">4v4 Clash Squad</option>
+                <option value="3v3 Trio">3v3 Trio</option>
+                <option value="2v2 Duo">2v2 Duo</option>
+                <option value="1v1 Solo">1v1 Solo</option>
+              </select>
+            </div>
+            <div>
+              <label class="font-semibold text-cyan-400 block mb-1 text-[11px]">CS Ammo Rule</label>
+              <select id="customAmmoMode" class="w-full bg-black/60 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-white font-bold focus:outline-none">
+                <option value="Unlimited Ammo">Unlimited Ammo</option>
+                <option value="Limited Ammo">Limited Ammo</option>
+              </select>
+            </div>
+            <div>
+              <label class="font-semibold text-emerald-400 block mb-1 text-[11px]">Gun Style</label>
+              <select id="customCombatStyle" class="w-full bg-black/60 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-white font-bold focus:outline-none">
+                <option value="One-Tap Only">One-Tap Only</option>
+                <option value="Spam / Full Auto">Full Auto Allowed</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div>
+              <label class="font-semibold text-pink-400 block mb-1 text-[11px]">Aim Rule</label>
+              <select id="customAimRule" class="w-full bg-black/60 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-white font-bold focus:outline-none">
+                <option value="Headshot Only">Headshot Only</option>
+                <option value="Body Shot Allowed">Body Shot Allowed</option>
+              </select>
+            </div>
+            <div>
+              <label class="font-semibold text-slate-300 block mb-1 text-[11px]">Map</label>
+              <select id="customMapSelect" class="w-full bg-black/60 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-white focus:outline-none">
+                <option value="Bermuda">Bermuda</option>
+                <option value="Purgatory">Purgatory</option>
+                <option value="Kalahari">Kalahari</option>
+              </select>
+            </div>
+            <div>
+              <label class="font-semibold text-slate-300 block mb-1 text-[11px]">Bet Per Team (₹)</label>
+              <input id="customRoomBet" type="number" value="200" min="50" oninput="PlayerApp.recalcCustomWagerMath()" class="w-full bg-black/60 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-[#FFC857] font-mono text-sm font-bold focus:outline-none">
+            </div>
+            <div>
+              <label class="font-semibold text-slate-300 block mb-1 text-[11px]">Operator</label>
+              <select id="customRoomOperator" class="w-full bg-black/60 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-emerald-300 font-mono focus:outline-none">
+                <option value="host_01">host_01 — Aman</option>
+                <option value="host_02">host_02 — Rohit</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2.5 bg-black/60 p-3 clip-esports-sm border border-white/10 text-center">
+            <div>
+              <span class="text-[9px] text-slate-400 font-semibold block">YOUR BET</span>
+              <strong id="wagerYourBet" class="font-teko text-2xl text-white">₹200</strong>
+            </div>
+            <div class="border-x border-white/10">
+              <span class="text-[9px] text-slate-400 font-semibold block">TOTAL POOL</span>
+              <strong id="wagerTotalPool" class="font-teko text-2xl text-cyan-400">₹400</strong>
+            </div>
+            <div>
+              <span class="text-[9px] text-emerald-400 font-semibold block">WINNER GETS</span>
+              <strong id="wagerWinnerGets" class="font-teko text-2xl text-emerald-400">₹350</strong>
+            </div>
+          </div>
+
+          <button type="button" onclick="PlayerApp.createPaidCustomChallenge()" class="w-full btn-hyper clip-esports-sm text-xs py-3.5 flex items-center justify-center gap-2 cursor-pointer">
+            <i class="ph-bold ph-paper-plane-tilt"></i>
+            <span>CREATE PAID WAGER ROOM</span>
+          </button>
+        </div>
+
+        <div id="customPaidRoomsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      </div>
+    </main>
+
+    <!-- ==================== VIEW 2: MY ROOMS + SCREENSHOT RESULT UPLOAD ==================== -->
+    <section id="view-mybattles" class="space-y-4 hidden">
+      <div class="laser-card p-5 sm:p-6">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3.5">
+          <div>
+            <h2 class="font-russo text-base sm:text-xl text-white flex items-center gap-2">
+              <i class="ph-bold ph-game-controller neon-text"></i>
+              <span>MY ARMED TOURNAMENTS &amp; RESULT PROOF</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">View Room ID/Password &amp; upload Booyah screenshot proof for instant payout.</p>
+          </div>
+          <button onclick="PlayerApp.openProofUploadModal('GENERAL')" class="btn-hyper clip-esports-sm text-xs px-4 py-2.5 cursor-pointer flex items-center gap-1.5">
+            <i class="ph-bold ph-camera"></i>
+            <span>UPLOAD MATCH SCREENSHOT</span>
+          </button>
+        </div>
+        <div id="joinedMatchesList" class="mt-4 space-y-3.5"></div>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW 3: OFFICIAL CLANS & TEAMS HUB ==================== -->
+    <section id="view-clans" class="space-y-4 hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div class="lg:col-span-5 laser-card p-5 sm:p-6 space-y-4">
+          <div class="border-b border-white/10 pb-3">
+            <span class="text-[10px] font-mono text-cyan-400 uppercase block">OFFICIAL TEAM SYSTEM</span>
+            <h2 class="font-russo text-base sm:text-lg text-white flex items-center gap-2">
+              <i class="ph-bold ph-shield-star text-cyan-400"></i>
+              <span>CREATE ESPORTS CLAN / TEAM</span>
+            </h2>
+          </div>
+
+          <div class="space-y-3 text-xs">
+            <div>
+              <label class="font-semibold text-slate-300 block mb-1">Official Team / Clan Name</label>
+              <input id="newClanNameInput" type="text" placeholder="e.g. TEAM SOUL INDIA" class="w-full bg-black/60 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-white font-bold focus:outline-none">
+            </div>
+            <div class="grid grid-cols-2 gap-2.5">
+              <div>
+                <label class="font-semibold text-slate-300 block mb-1">Clan Tag (Max 4)</label>
+                <input id="newClanTagInput" type="text" maxlength="4" placeholder="e.g. SOUL" class="w-full bg-black/60 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-[#FFC857] font-mono font-bold uppercase focus:outline-none">
+              </div>
+              <div>
+                <label class="font-semibold text-slate-300 block mb-1">Clan Crest Logo</label>
+                <select id="newClanLogoInput" class="w-full bg-black/60 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-white text-base focus:outline-none">
+                  <option value="🐉">🐉 Dragon</option>
+                  <option value="🐺">🐺 Wolf</option>
+                  <option value="🦅">🦅 Eagle</option>
+                  <option value="🦁">🦁 Lion</option>
+                  <option value="⚡">⚡ Volt</option>
+                  <option value="👑">👑 Crown</option>
+                </select>
+              </div>
+            </div>
+            <button type="button" onclick="PlayerApp.createOfficialClan()" class="w-full btn-hyper clip-esports-sm py-3 text-xs cursor-pointer">
+              + REGISTER OFFICIAL CLAN
+            </button>
+          </div>
+
+          <div class="bg-black/60 p-3.5 clip-esports-sm border border-white/10 space-y-2">
+            <span class="text-[10px] font-semibold text-[#FFC857] block uppercase">YOUR ACTIVE CLAN STATUS</span>
+            <div id="myActiveClanBanner" class="text-xs text-slate-300">No clan joined yet. Create or join a clan from the directory!</div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-7 laser-card p-5 sm:p-6 space-y-3.5">
+          <div class="border-b border-white/10 pb-3">
+            <h3 class="font-russo text-sm sm:text-base text-white uppercase flex items-center gap-2">
+              <i class="ph-bold ph-ranking text-[#FFC857]"></i>
+              <span>VERIFIED ESPORTS CLANS DIRECTORY</span>
+            </h3>
+            <p class="text-xs text-slate-400">Join an existing team or auto-load clan members into Squad tournaments.</p>
+          </div>
+          <div id="clansDirectoryContainer" class="space-y-2.5 max-h-[500px] overflow-y-auto pr-1"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW 4: ESPORTS HUB (STREAM + MISSIONS + GLOBAL CHAT) ==================== -->
+    <section id="view-hub" class="space-y-4 hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div class="lg:col-span-7 space-y-4">
+          <div class="laser-card p-4 sm:p-5 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="font-russo text-xs sm:text-sm text-white flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+                <span>IGNIS ARENA OFFICIAL LIVE STREAM CAST</span>
+              </span>
+              <span class="text-[10px] font-mono bg-red-500/20 text-red-400 px-2.5 py-0.5 rounded-full border border-red-500/30">60 FPS HD</span>
+            </div>
+            <div class="aspect-video w-full bg-black rounded-2xl overflow-hidden border border-white/10 relative">
+              <img src="https://images2.alphacoders.com/112/1126388.jpg" class="w-full h-full object-cover opacity-50" alt="Stream">
+              <div class="absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-black/40 backdrop-blur-[2px]">
+                <div class="w-14 h-14 rounded-full bg-[#FF6B00] text-black flex items-center justify-center text-2xl shadow-2xl mb-2 cursor-pointer transition hover:scale-110" onclick="window.open('https://youtube.com', '_blank')">
+                  <i class="fa-solid fa-play ml-1"></i>
+                </div>
+                <span class="font-russo text-sm sm:text-base text-white">FREE FIRE INDIA CHAMPIONSHIP — LIVE FINALS</span>
+                <span class="text-xs text-[#FFC857] mt-0.5">Tap to Watch Official YouTube Stream</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="laser-card p-4 sm:p-5 space-y-3">
+            <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
+              <h3 class="font-russo text-xs sm:text-sm text-white uppercase flex items-center gap-2">
+                <i class="ph-bold ph-check-square-offset text-emerald-400"></i>
+                <span>DAILY ATHLETE MISSIONS &amp; XP REWARDS</span>
+              </h3>
+              <span class="text-[10px] font-mono text-[#FFC857]">Daily Reset</span>
+            </div>
+            <div id="dailyMissionsContainer" class="space-y-2.5"></div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-5 space-y-4">
+          <div class="laser-card p-4 sm:p-5 flex flex-col justify-between space-y-3">
+            <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
+              <h3 class="font-russo text-xs sm:text-sm text-white uppercase flex items-center gap-2">
+                <i class="ph-bold ph-chats-circle text-cyan-400"></i>
+                <span>GLOBAL ATHLETE LOBBY CHAT</span>
+              </h3>
+              <span class="text-[10px] font-mono text-emerald-400">● Live</span>
+            </div>
+            <div id="globalChatMessagesBox" class="bg-black/60 p-3 rounded-2xl border border-white/10 h-64 overflow-y-auto space-y-2 text-xs"></div>
+            <div class="flex gap-2">
+              <input type="text" id="globalChatInput" onkeydown="if(event.key==='Enter') PlayerApp.sendGlobalChat()" placeholder="Recruit players or discuss matches..." class="flex-1 bg-black/60 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-xs text-white focus:outline-none">
+              <button type="button" onclick="PlayerApp.sendGlobalChat()" class="btn-hyper clip-esports-sm px-4 py-2.5 text-xs cursor-pointer"><i class="ph-bold ph-paper-plane-right"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW 5: 24-HR DYNAMIC TOP 100 EARNERS ==================== -->
+    <section id="view-leaderboard" class="space-y-4 hidden">
+      <div class="laser-card p-5 sm:p-6 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3.5">
+          <div>
+            <h2 class="font-russo text-base sm:text-xl text-white flex items-center gap-2">
+              <i class="ph-bold ph-trophy text-[#FFC857]"></i>
+              <span>TOP 100 EARNERS (24-HOUR ROTATION)</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">Rank #1: ₹4,000 descending to #100 • Player UIDs Hidden</p>
+          </div>
+          <span id="leaderboardRefreshBadge" class="text-xs font-mono bg-[#FFC857]/15 text-[#FFC857] border border-[#FFC857]/30 px-3 py-1 rounded-full self-start sm:self-auto">
+            24H CYCLE ACTIVE
+          </span>
+        </div>
+        <div class="bg-black/50 rounded-2xl p-2.5 border border-white/10 max-h-[560px] overflow-y-auto space-y-2" id="leaderboardList"></div>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW 6: PRO VAULT WITH DYNAMIC QR SCANNER ==================== -->
+    <section id="view-wallet" class="space-y-4 hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div class="lg:col-span-5 laser-card p-5 sm:p-6 space-y-4">
+          <div class="flex items-center justify-between border-b border-white/10 pb-3">
+            <span class="font-russo text-xs uppercase neon-text">LIQUID GLASS CASHIER VAULT</span>
+            <span class="text-[10px] font-mono bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 px-2.5 py-0.5 rounded-full">UPI 2.0 VERIFIED</span>
+          </div>
+
+          <div class="bg-black/60 rounded-2xl p-4 border border-white/10 space-y-3">
+            <div class="text-center pb-2.5 border-b border-white/10">
+              <span class="text-[10px] font-semibold text-slate-400 uppercase block">TOTAL PLAYABLE FUNDS</span>
+              <div class="font-teko font-bold text-5xl text-[#FFC857] mt-0.5 leading-none" id="walletDeckBalance">₹0.00</div>
+            </div>
+            <div class="grid grid-cols-2 gap-2.5 text-center text-xs">
+              <div class="p-2.5 bg-white/5 rounded-xl border border-white/10">
+                <span class="text-[9px] text-slate-400 block font-semibold">DEPOSIT WALLET</span>
+                <strong class="font-teko text-2xl text-white" id="walletDepositBal">₹0.00</strong>
+              </div>
+              <div class="p-2.5 bg-emerald-950/40 border border-emerald-500/30 rounded-xl">
+                <span class="text-[9px] text-emerald-400 block font-semibold">WINNINGS WALLET</span>
+                <strong class="font-teko text-2xl text-emerald-300" id="walletWinningsBal">₹0.00</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-1.5 p-1 bg-black/60 rounded-xl text-xs font-russo">
+            <button id="btnVaultTabDeposit" type="button" onclick="PlayerApp.switchVaultAction('deposit')" class="py-2.5 text-black clip-esports-sm cursor-pointer" style="background: var(--neon-main);">ADD CASH (QR)</button>
+            <button id="btnVaultTabWithdraw" type="button" onclick="PlayerApp.switchVaultAction('withdraw')" class="py-2.5 text-slate-400 hover:text-white clip-esports-sm cursor-pointer">WITHDRAW</button>
+          </div>
+
+          <div id="vaultFormDeposit" class="space-y-3">
+            <div class="grid grid-cols-3 gap-2 text-xs font-mono">
+              <button type="button" onclick="document.getElementById('depositInputAmt').value = '100'" class="p-2.5 bg-black/60 border border-white/15 text-white clip-esports-sm cursor-pointer">₹100</button>
+              <button type="button" onclick="document.getElementById('depositInputAmt').value = '200'" class="p-2.5 bg-black/60 border border-white/15 text-white clip-esports-sm cursor-pointer">₹200</button>
+              <button type="button" onclick="document.getElementById('depositInputAmt').value = '500'" class="p-2.5 bg-black/60 border border-white/15 text-white clip-esports-sm cursor-pointer">₹500</button>
+            </div>
+            <input type="number" id="depositInputAmt" value="200" class="w-full bg-black/60 border border-white/15 clip-esports-sm px-4 py-2.5 font-mono font-bold text-base text-white focus:outline-none">
+            <button onclick="PlayerApp.openDepositQrModal()" class="w-full btn-hyper py-3.5 clip-esports-sm text-xs flex items-center justify-center gap-2 cursor-pointer">
+              <i class="ph-bold ph-qr-code"></i><span>SCAN OFFICIAL PHONEPE QR</span>
+            </button>
+          </div>
+
+          <div id="vaultFormWithdraw" class="space-y-3 hidden">
+            <input type="text" id="withdrawUpiId" placeholder="Enter UPI ID (e.g. mobile@paytm)" class="w-full bg-black/60 border border-white/15 clip-esports-sm px-4 py-2.5 text-xs font-mono text-white focus:outline-none">
+            <input type="number" id="withdrawAmountInput" placeholder="Amount (Min ₹50)" class="w-full bg-black/60 border border-white/15 clip-esports-sm px-4 py-2.5 text-xs font-mono text-white focus:outline-none">
+            <button onclick="PlayerApp.submitWithdrawal()" class="w-full bg-emerald-500 text-black font-russo text-xs uppercase py-3.5 clip-esports-sm cursor-pointer">
+              TRANSFER TO BANK / UPI
+            </button>
+          </div>
+        </div>
+
+        <div class="lg:col-span-7 laser-card p-5 sm:p-6">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3 mb-3">
+            <h3 class="font-russo text-xs sm:text-sm uppercase text-white">FINANCIAL PASSBOOK</h3>
+            <div class="flex items-center gap-1 p-1 bg-black/60 rounded-xl text-[10px] font-russo">
+              <button id="btnHistTabDeposit" onclick="PlayerApp.switchHistoryView('deposit')" class="px-3 py-1 text-black clip-esports-sm cursor-pointer" style="background: var(--neon-main);">DEPOSITS</button>
+              <button id="btnHistTabWithdraw" onclick="PlayerApp.switchHistoryView('withdraw')" class="px-3 py-1 text-slate-400 clip-esports-sm cursor-pointer">WITHDRAWALS</button>
+            </div>
+          </div>
+          <div id="depositHistoryList" class="space-y-2 max-h-[380px] overflow-y-auto"></div>
+          <div id="withdrawHistoryList" class="space-y-2 max-h-[380px] overflow-y-auto hidden"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW 7: PROFILE HUB & SOCIALS ==================== -->
+    <section id="view-profile" class="space-y-4 hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div class="lg:col-span-5 space-y-4">
+          <div class="laser-card p-5 sm:p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-white/10 pb-3">
+              <span class="font-russo text-xs sm:text-sm text-white flex items-center gap-2">
+                <i class="ph-bold ph-identification-badge neon-text"></i>
+                <span>OFFICIAL ATHLETE PASS</span>
+              </span>
+              <button onclick="PlayerApp.copy(PlayerApp.state.user?.appId || '', 'App ID')" id="profileAppIdBadge" class="bg-[#FFC857]/15 border border-[#FFC857]/40 text-[#FFC857] font-mono text-xs font-bold px-3 py-1 clip-esports-sm cursor-pointer">
+                APP ID: ---
+              </button>
+            </div>
+
+            <div class="bg-black/60 p-4 rounded-2xl border border-white/10 space-y-4">
+              <div class="flex items-center gap-3.5">
+                <div class="relative cursor-pointer flex-shrink-0" onclick="PlayerApp.openAvatarModal()">
+                  <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl text-black shadow-lg" style="background: linear-gradient(135deg, var(--neon-main), var(--neon-sec));" id="profileAvatarDisplay">👑</div>
+                  <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-white text-black flex items-center justify-center text-[10px] rounded-full"><i class="fa-solid fa-camera"></i></div>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <h4 class="font-russo text-base sm:text-lg text-white truncate" id="profileIGN">Player</h4>
+                  <div class="text-xs text-slate-400 truncate">Name: <span class="font-semibold text-white" id="profileFullName">---</span></div>
+                  <div class="text-xs font-mono text-slate-400">WA: <span class="text-emerald-400 font-bold" id="profilePhone">---</span></div>
+                  <div class="text-xs font-mono text-slate-400">UID: <span class="text-[#FFC857] font-bold" id="profileUID">---</span></div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-4 gap-1.5 text-center bg-black/70 p-2.5 rounded-xl border border-white/10">
+                <div>
+                  <span class="text-[8px] font-semibold text-slate-400 block">PLAYED</span>
+                  <strong class="font-teko text-xl text-white" id="statPlayedBox">0</strong>
+                </div>
+                <div class="border-x border-white/10">
+                  <span class="text-[8px] font-semibold text-slate-400 block">BOOYAHS</span>
+                  <strong class="font-teko text-xl text-emerald-400" id="statWonBox">0</strong>
+                </div>
+                <div class="border-r border-white/10">
+                  <span class="text-[8px] font-semibold text-slate-400 block">WIN RATE</span>
+                  <strong class="font-teko text-xl text-[#FFC857]" id="statWinRateBox">0%</strong>
+                </div>
+                <div>
+                  <span class="text-[8px] font-semibold text-slate-400 block">EARNED</span>
+                  <strong class="font-teko text-xl text-cyan-400" id="statEarnedBox">₹0</strong>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2.5">
+                <button type="button" onclick="PlayerApp.openEditProfileModal()" class="py-2.5 bg-white/10 border border-white/15 text-white font-russo text-[10px] uppercase clip-esports-sm cursor-pointer">
+                  <i class="fa-solid fa-user-pen text-[#FFC857] mr-1"></i> EDIT PROFILE
+                </button>
+                <button type="button" onclick="PlayerApp.sharePlayerPassWhatsApp()" class="py-2.5 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-russo text-[10px] uppercase clip-esports-sm cursor-pointer">
+                  <i class="fa-brands fa-whatsapp mr-1"></i> SHARE PASS
+                </button>
+              </div>
+            </div>
+
+            <!-- 4-Color Theme Settings -->
+            <div class="bg-black/60 p-3.5 rounded-2xl border border-white/10 space-y-2.5">
+              <span class="font-russo text-[10px] text-slate-300 block uppercase">LIQUID GLASS ACCENT SKIN</span>
+              <div class="grid grid-cols-2 gap-2 text-[10px] font-russo">
+                <button type="button" onclick="PlayerApp.setSkin('inferno')" class="p-2.5 bg-black/80 border border-[#FF6B00] clip-esports-sm flex items-center gap-2 text-white cursor-pointer">
+                  <span class="w-3.5 h-3.5 rounded-full bg-[#FF6B00]"></span><span>NEON ORANGE</span>
+                </button>
+                <button type="button" onclick="PlayerApp.setSkin('royale')" class="p-2.5 bg-black/80 border border-white/15 clip-esports-sm flex items-center gap-2 text-white cursor-pointer">
+                  <span class="w-3.5 h-3.5 rounded-full bg-[#FFC857]"></span><span>ELECTRIC GOLD</span>
+                </button>
+                <button type="button" onclick="PlayerApp.setSkin('volt')" class="p-2.5 bg-black/80 border border-white/15 clip-esports-sm flex items-center gap-2 text-white cursor-pointer">
+                  <span class="w-3.5 h-3.5 rounded-full bg-[#CCFF00]"></span><span>VOLT ACID</span>
+                </button>
+                <button type="button" onclick="PlayerApp.setSkin('phantom')" class="p-2.5 bg-black/80 border border-white/15 clip-esports-sm flex items-center gap-2 text-white cursor-pointer">
+                  <span class="w-3.5 h-3.5 rounded-full bg-[#00F0FF]"></span><span>CYBER BLUE</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2.5">
+              <button type="button" onclick="PlayerApp.openModal('feedbackModal')" class="py-2.5 bg-[#FFC857]/15 border border-[#FFC857]/40 text-[#FFC857] font-russo text-[10px] uppercase clip-esports-sm cursor-pointer">
+                REPORT / SUPPORT
+              </button>
+              <button type="button" onclick="PlayerApp.logoutPlayer()" class="py-2.5 bg-red-950/50 border border-red-500/40 text-red-300 font-russo text-[10px] uppercase clip-esports-sm cursor-pointer">
+                LOGOUT ID
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT 7 COLS: APP ID SEARCH & SQUAD BINDER -->
+        <div class="lg:col-span-7 space-y-4">
+          <div class="laser-card p-5 sm:p-6 space-y-4">
+            <div class="border-b border-white/10 pb-3">
+              <h3 class="font-russo text-sm sm:text-base text-white flex items-center gap-2">
+                <i class="ph-bold ph-magnifying-glass neon-text"></i>
+                <span>LIVE APP ID SEARCH &amp; PERMANENT SQUAD BINDER</span>
+              </h3>
+            </div>
+
+            <div class="flex gap-2">
+              <input type="text" id="searchAppIdInput" placeholder="Enter App ID (e.g. IGNIS-4491)" class="flex-1 bg-black/60 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-xs text-white font-mono focus:outline-none">
+              <button type="button" onclick="PlayerApp.searchPlayerByAppId()" class="btn-hyper clip-esports-sm px-5 py-2.5 text-xs cursor-pointer">
+                SEARCH
+              </button>
+            </div>
+            <div id="searchedPlayerResultCard" class="hidden"></div>
+
+            <div class="bg-black/60 p-3.5 rounded-2xl border border-white/10 space-y-2.5">
+              <span class="text-[10px] font-russo text-white block">QUICK BIND FRIEND TO SQUAD ROSTER:</span>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                <input type="text" id="newMateAppId" placeholder="App ID (IGNIS-5520)" class="bg-black border border-white/15 clip-esports-sm px-3 py-2 text-white font-mono">
+                <input type="text" id="newMateIgn" placeholder="In-Game Name" class="bg-black border border-white/15 clip-esports-sm px-3 py-2 text-white font-bold">
+                <button type="button" onclick="PlayerApp.addSquadmateToRoster()" class="py-2 btn-hyper clip-esports-sm text-xs cursor-pointer">
+                  + BIND MATE
+                </button>
+              </div>
+            </div>
+
+            <div id="savedSquadRosterList" class="space-y-2"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ==================== iOS 26 LIQUID GLASS FLOATING BOTTOM TAB BAR ==================== -->
+  <nav class="lg:hidden fixed bottom-0 left-0 right-0 z-40 ios-floating-dock px-1.5 py-2 grid grid-cols-6 gap-0.5 font-russo">
+    <button onclick="PlayerApp.switchTab('matches')" id="m-nav-matches" class="flex flex-col items-center justify-center gap-1 py-1 cursor-pointer transition" style="color: var(--neon-main);">
+      <i class="fa-solid fa-crosshairs text-base"></i>
+      <span class="text-[9px] tracking-tight truncate">WARZONE</span>
+    </button>
+    <button onclick="PlayerApp.switchTab('mybattles')" id="m-nav-mybattles" class="relative flex flex-col items-center justify-center gap-1 text-slate-500 py-1 cursor-pointer transition">
+      <i class="fa-solid fa-door-open text-base"></i>
+      <span class="text-[9px] tracking-tight truncate">ROOMS</span>
+      <span id="mJoinedBadge" class="absolute top-0 right-2.5 bg-[#FF6B00] text-black text-[8px] font-mono font-extrabold px-1.5 rounded-full">0</span>
+    </button>
+    <button onclick="PlayerApp.switchTab('clans')" id="m-nav-clans" class="flex flex-col items-center justify-center gap-1 text-slate-500 py-1 cursor-pointer transition">
+      <i class="fa-solid fa-shield-halved text-base"></i>
+      <span class="text-[9px] tracking-tight truncate">CLANS</span>
+    </button>
+    <button onclick="PlayerApp.switchTab('hub')" id="m-nav-hub" class="flex flex-col items-center justify-center gap-1 text-slate-500 py-1 cursor-pointer transition">
+      <i class="fa-solid fa-satellite-dish text-base"></i>
+      <span class="text-[9px] tracking-tight truncate">STREAM</span>
+    </button>
+    <button onclick="PlayerApp.switchTab('wallet')" id="m-nav-wallet" class="flex flex-col items-center justify-center gap-1 text-slate-500 py-1 cursor-pointer transition">
+      <i class="fa-solid fa-vault text-base"></i>
+      <span class="text-[9px] tracking-tight truncate">VAULT</span>
+    </button>
+    <button onclick="PlayerApp.switchTab('profile')" id="m-nav-profile" class="flex flex-col items-center justify-center gap-1 text-slate-500 py-1 cursor-pointer transition">
+      <i class="fa-solid fa-id-badge text-base"></i>
+      <span class="text-[9px] tracking-tight truncate">PROFILE</span>
+    </button>
+  </nav>
+
+  <!-- ==================== ALL LIQUID GLASS MODALS ==================== -->
+
+  <!-- MODAL 1: NOTIFICATION DRAWER -->
+  <div id="notificationModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-md w-full p-5 relative max-h-[85vh] flex flex-col justify-between space-y-3.5">
+      <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
+        <div>
+          <span class="text-[10px] font-mono text-[#FFC857] block">BROADCASTS &amp; ALERTS</span>
+          <h3 class="font-russo text-base text-white">NOTIFICATION CENTER</h3>
+        </div>
+        <button onclick="PlayerApp.closeModal('notificationModal')" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <div id="notificationsListBox" class="space-y-2.5 overflow-y-auto max-h-[55vh] pr-1"></div>
+      <button onclick="PlayerApp.clearAllNotifications()" class="w-full py-2.5 bg-white/10 text-slate-300 font-russo text-[10px] uppercase clip-esports-sm cursor-pointer">
+        CLEAR ALL NOTIFICATIONS
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL 2: PHONEPE QR SCANNER CASHIER -->
+  <div id="depositModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-sm w-full p-5 text-center relative max-h-[92vh] overflow-y-auto space-y-3.5">
+      <button onclick="PlayerApp.closeModal('depositModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+      <div class="flex items-center justify-center gap-2">
+        <div class="w-7 h-7 bg-[#5f259f] text-white flex items-center justify-center rounded-full font-bold text-xs">पे</div>
+        <h3 class="font-russo text-base text-white">PHONEPE UPI OFFICIAL QR</h3>
+      </div>
+
+      <div class="p-3 bg-white rounded-2xl inline-block shadow-2xl">
+        <img id="userDepositQrImg" src="https://i.ibb.co/vzB79fV/phonepe-qr.png" alt="PhonePe QR" class="w-44 h-44 object-contain mx-auto">
+      </div>
+
+      <div class="flex items-center justify-between bg-black/70 px-3.5 py-2.5 clip-esports-sm border border-white/10 text-xs font-mono">
+        <span class="truncate">UPI: <strong class="text-[#FFC857]" id="userDepositUpiText">ignisarena@ybl</strong></span>
+        <button onclick="PlayerApp.copy(document.getElementById('userDepositUpiText').innerText, 'UPI ID')" class="text-[10px] text-white bg-white/10 px-2.5 py-1 rounded-lg cursor-pointer ml-2">COPY</button>
+      </div>
+
+      <div class="text-left space-y-1.5">
+        <label class="text-[10px] font-russo text-slate-300 block">ENTER 12-DIGIT UTR NUMBER:</label>
+        <input type="text" id="depositUtrNumberInput" maxlength="12" placeholder="e.g. 431209845123" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-sm text-[#FFC857] font-mono font-bold focus:outline-none">
+      </div>
+
+      <button onclick="PlayerApp.submitDepositWithUtr()" class="w-full btn-hyper py-3.5 clip-esports-sm text-xs cursor-pointer">
+        SUBMIT UTR &amp; VERIFY DEPOSIT
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL 3: MATCH RESULT SCREENSHOT PROOF UPLOAD -->
+  <div id="proofUploadModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-sm w-full p-5 space-y-3.5 relative">
+      <button onclick="PlayerApp.closeModal('proofUploadModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+      <div>
+        <span class="text-[10px] font-mono text-emerald-400 uppercase block">ANTI-CHEAT &amp; PAYOUT VERIFICATION</span>
+        <h3 class="font-russo text-base text-white">UPLOAD BOOYAH SCREENSHOT</h3>
+      </div>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="font-semibold text-slate-300 block mb-1">Match Title / Room ID</label>
+          <input type="text" id="proofMatchTitleInput" placeholder="e.g. 02:00 PM Bermuda Squad" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-white">
+        </div>
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="font-semibold text-slate-300 block mb-1">Your Position</label>
+            <select id="proofPositionInput" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2.5 text-[#FFC857] font-bold">
+              <option value="1st (#1 Booyah)">1st (#1 Booyah)</option>
+              <option value="2nd Place">2nd Place</option>
+              <option value="3rd Place">3rd Place</option>
+              <option value="Kill Bounty Only">Kill Bounty Only</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-semibold text-slate-300 block mb-1">Confirmed Kills</label>
+            <input type="number" id="proofKillsInput" value="5" min="0" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-white font-mono">
+          </div>
+        </div>
+        <div>
+          <label class="font-semibold text-slate-300 block mb-1">Select Scoreboard Screenshot</label>
+          <input type="file" id="proofFileInput" accept="image/*" onchange="PlayerApp.handleProofImageSelect(event)" class="hidden">
+          <button type="button" onclick="document.getElementById('proofFileInput').click()" class="w-full py-2.5 bg-white/10 border border-white/20 clip-esports-sm text-[#FFC857] font-russo text-[10px] cursor-pointer">
+            <i class="fa-solid fa-image mr-1"></i> <span id="proofFileLabel">CHOOSE SCREENSHOT FROM GALLERY</span>
+          </button>
+          <img id="proofPreviewImg" class="hidden w-full h-28 object-cover rounded-xl mt-2 border border-white/15" alt="Proof">
+        </div>
+      </div>
+      <button type="button" onclick="PlayerApp.submitMatchProofToAdmin()" class="w-full btn-hyper py-3 clip-esports-sm text-xs cursor-pointer">
+        SUBMIT RESULT PROOF FOR PAYOUT
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL 4: JOIN TOURNAMENT SLOT -->
+  <div id="joinModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-lg w-full p-5 relative max-h-[92vh] overflow-y-auto space-y-3.5">
+      <button onclick="PlayerApp.closeModal('joinModal')" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-slate-300 cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+      <div>
+        <h3 class="font-russo text-base text-white">LOCK TOURNAMENT SLOT</h3>
+        <p class="text-xs text-slate-400" id="joinModalSubtitle">Bermuda Championship</p>
+      </div>
+
+      <div id="squadTeammatesSection" class="hidden space-y-2">
+        <span class="text-[10px] font-russo neon-text block">BOUND TEAMMATES (AUTO-LOADED):</span>
+        <div id="squadTeammatesList" class="space-y-2"></div>
+      </div>
+
+      <div>
+        <div class="flex items-center justify-between text-xs mb-1.5 font-russo">
+          <span class="text-slate-300">PICK SLOT:</span>
+          <span class="font-mono neon-text" id="selectedSlotDisplay">Slot #1</span>
+        </div>
+        <div id="slotMatrixGrid" class="grid grid-cols-6 sm:grid-cols-8 gap-1.5 bg-black/70 p-2.5 rounded-2xl border border-white/10 max-h-36 overflow-y-auto"></div>
+      </div>
+
+      <div class="bg-black/70 p-3.5 rounded-2xl space-y-1 border border-white/10 text-xs">
+        <div class="flex justify-between">
+          <span class="text-slate-400">Athlete ID:</span>
+          <span class="font-mono font-bold text-white" id="modalPlayerSummary">IND_ViperX</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">Base Entry Fee:</span>
+          <span class="font-mono text-slate-300" id="modalBaseFee">₹50.00</span>
+        </div>
+        <div class="flex justify-between text-emerald-400">
+          <span>80% Added to Prize Pool:</span>
+          <span class="font-mono font-bold" id="modalPoolContribution">+₹40.00</span>
+        </div>
+        <div class="flex justify-between border-t border-white/10 pt-1.5 text-sm font-russo">
+          <span class="text-white">NET PAYABLE:</span>
+          <span class="font-mono text-[#FFC857]" id="modalFinalPayable">₹50.00</span>
+        </div>
+      </div>
+
+      <button onclick="PlayerApp.confirmSlotBooking()" class="w-full btn-hyper py-3.5 clip-esports-sm text-xs flex items-center justify-center gap-2 cursor-pointer">
+        <i class="fa-solid fa-lock"></i><span>PAY &amp; LOCK SLOT NOW</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL 5: TOURNAMENT DETAILS & STANDINGS -->
+  <div id="tournamentDetailsModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-2xl w-full p-5 sm:p-6 relative max-h-[90vh] overflow-y-auto space-y-4">
+      <button onclick="PlayerApp.closeModal('tournamentDetailsModal')" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-slate-300 cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+      <div>
+        <span id="detailModalModeBadge" class="text-[10px] font-mono text-[#FFC857] uppercase block">BERMUDA • SOLO BR</span>
+        <h3 class="font-russo text-base sm:text-lg text-white pr-6" id="detailModalTitle">Standings &amp; Roster</h3>
+      </div>
+      <div id="detailModalWinnerBanner" class="bg-emerald-950/40 border border-emerald-500/40 p-3.5 rounded-2xl flex flex-wrap items-center justify-between gap-2 text-xs"></div>
+      <div class="space-y-2">
+        <div class="flex items-center justify-between text-xs font-russo text-slate-300">
+          <span>PARTICIPANTS &amp; KILLS</span>
+          <span id="detailModalCount" class="font-mono text-[#FFC857]">0 Players</span>
+        </div>
+        <div class="overflow-x-auto bg-black/70 rounded-2xl border border-white/10">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b border-white/10 text-slate-400 font-russo text-[10px]">
+                <th class="py-2.5 px-3">SLOT</th>
+                <th class="py-2.5 px-3">IGN</th>
+                <th class="py-2.5 px-3">KILLS</th>
+                <th class="py-2.5 px-3 text-right">PRIZE</th>
+              </tr>
+            </thead>
+            <tbody id="detailModalPlayersTable" class="divide-y divide-white/10 font-mono"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 6: PAID CUSTOM ROOM LIVE OPERATOR CHAT -->
+  <div id="paidRoomChatModal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-xl w-full p-5 relative max-h-[90vh] flex flex-col justify-between space-y-3.5">
+      <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
+        <div class="min-w-0 pr-4">
+          <span id="chatModalRulesSub" class="text-[10px] font-mono text-[#FFC857] block truncate">4v4 • Unlimited</span>
+          <h3 class="font-russo text-base text-white truncate" id="chatModalTitle">Operator Direct Chat</h3>
+        </div>
+        <button onclick="PlayerApp.closeModal('paidRoomChatModal')" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <div id="paidRoomChatMessagesBox" class="bg-black/70 p-3.5 rounded-2xl border border-white/10 h-72 overflow-y-auto space-y-2 text-xs"></div>
+      <div class="flex gap-2">
+        <input type="text" id="paidRoomChatInput" onkeydown="if(event.key==='Enter') PlayerApp.sendPaidRoomMessage()" placeholder="Message Operator or Captain..." class="flex-1 bg-black/70 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-xs text-white focus:outline-none">
+        <button type="button" onclick="PlayerApp.sendPaidRoomMessage()" class="btn-hyper clip-esports-sm px-4 py-2.5 text-xs cursor-pointer"><i class="fa-solid fa-paper-plane"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 7: AVATAR SELECTOR -->
+  <div id="avatarSelectorModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-md w-full p-5 space-y-3.5 max-h-[85vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
+        <h3 class="font-russo text-sm text-white">SELECT ATHLETE AVATAR</h3>
+        <button onclick="PlayerApp.closeModal('avatarSelectorModal')" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div id="avatarGridList" class="grid grid-cols-6 gap-2"></div>
+    </div>
+  </div>
+
+  <!-- MODAL 8: FEEDBACK & REPORT -->
+  <div id="feedbackModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-sm w-full p-5 relative space-y-3.5">
+      <button onclick="PlayerApp.closeModal('feedbackModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+      <h3 class="font-russo text-sm text-white">SEND FEEDBACK / REPORT CHEATER</h3>
+      <div class="space-y-3 text-xs">
+        <select id="feedbackCategory" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-white">
+          <option value="Cheater / Emulator Report">Report Cheater / Hack</option>
+          <option value="Payment / Cashier Query">Payment / UTR Query</option>
+          <option value="Custom Room ID Issue">Room ID Issue</option>
+        </select>
+        <textarea id="feedbackText" rows="3" placeholder="Describe issue or cheater UID..." class="w-full bg-black/70 border border-white/15 clip-esports-sm p-3.5 text-white"></textarea>
+      </div>
+      <button type="button" onclick="PlayerApp.submitFeedback()" class="w-full btn-hyper py-3 clip-esports-sm text-xs cursor-pointer">
+        SUBMIT TO SUPER ADMIN
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL 9: EDIT PROFILE -->
+  <div id="editProfileModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-sm w-full p-5 relative space-y-3.5">
+      <button onclick="PlayerApp.closeModal('editProfileModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+      <h3 class="font-russo text-sm text-white">UPDATE ATHLETE PROFILE</h3>
+      <div class="space-y-3 text-xs">
+        <input type="text" id="editProfName" placeholder="Full Name" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-white">
+        <input type="text" id="editProfIgn" placeholder="Free Fire IGN" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-white font-bold">
+        <input type="text" id="editProfUid" placeholder="Free Fire UID" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-[#FFC857] font-mono">
+        <input type="tel" id="editProfPhone" placeholder="WhatsApp Number" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-emerald-400 font-mono">
+      </div>
+      <button type="button" onclick="PlayerApp.saveEditedProfile()" class="w-full btn-hyper py-3 clip-esports-sm text-xs cursor-pointer">
+        SAVE CHANGES
+      </button>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="js/characters.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/supabaseClient.js"></script>
+  <script src="js/playerApp.js"></script>
+</body>
+</html>
