@@ -1,4 +1,4 @@
-// js/playerApp.js — Real Photo DP, Live Profile Inspect & Esports Engine (100% Uncut)
+// js/playerApp.js — Real Photo DP, 2-Way Friends System, XP Level Engine & All-Time Ledger (100% Uncut)
 
 const PlayerApp = {
   BASE_FF_WALLPAPER: 'https://images2.alphacoders.com/112/1126388.jpg',
@@ -13,6 +13,7 @@ const PlayerApp = {
     headshotFilter: 'ALL',
     statusFilter: 'ALL',
     selectedScannerIndex: 1,
+    activeHistoryView: 'all',
     platformSettings: null,
     pendingJoinMatchId: null,
     activeChatRoomId: null,
@@ -45,10 +46,10 @@ const PlayerApp = {
 
         <div class="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-1 z-10">
           <div class="flex flex-wrap items-center gap-1">
-            <span class="bg-black/80 px-2 py-0.5 text-[10px] font-bold text-[#FFC857] rounded-md border border-white/10">
+            <span class="bg-black/80 backdrop-blur-md px-2 py-0.5 text-[10px] font-bold text-[#FFC857] rounded-md border border-white/10">
               ${m.category} • ${m.sub_mode}
             </span>
-            <span class="bg-black/80 px-2 py-0.5 text-[10px] font-semibold text-cyan-300 rounded-md border border-white/10">
+            <span class="bg-black/80 backdrop-blur-md px-2 py-0.5 text-[10px] font-semibold text-cyan-300 rounded-md border border-white/10">
               ${m.ammo_mode}
             </span>
             ${hsBadge}
@@ -83,7 +84,7 @@ const PlayerApp = {
     this.checkSavedSession();
     await this.fetchMatches();
     await this.fetchCustomPaidRooms();
-    await this.fetchStoreProducts();
+    await this.loadAllTimeTransactions();
     this.loadNotifications();
     this.setupRealtimeSync();
     this.recalcCustomWagerMath();
@@ -102,6 +103,8 @@ const PlayerApp = {
         this.state.user = JSON.parse(saved);
         if (!this.state.user.profilePhoto) this.state.user.profilePhoto = this.DEFAULT_DP;
         if (!this.state.user.friendsList) this.state.user.friendsList = [];
+        if (!this.state.user.friendRequests) this.state.user.friendRequests = [];
+        if (!this.state.user.xp) this.state.user.xp = 0;
         document.getElementById('playerAuthGate')?.classList.add('hidden');
         document.getElementById('mainPlayerPortal')?.classList.remove('hidden');
         SupabaseService.upsertPlayerProfile(this.state.user);
@@ -136,6 +139,7 @@ const PlayerApp = {
     this.state.user = {
       appId, fullName, username, phone, email, password, uid, ign, level,
       ignisLevel: 1,
+      xp: 0,
       bio: '🔥 Official Ignis Arena Athlete | Ready for Wagers',
       profilePhoto: this.DEFAULT_DP,
       firstDepositDone: false,
@@ -143,7 +147,8 @@ const PlayerApp = {
       tournamentsWon: 0,
       depositBal: 0,
       winningsBal: 0,
-      friendsList: []
+      friendsList: [],
+      friendRequests: []
     };
 
     localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
@@ -155,7 +160,7 @@ const PlayerApp = {
     this.showToast(`Welcome ${ign}! App ID: ${appId}`);
   },
 
-  /* ==================== REAL PROFILE PHOTO UPLOAD WITH CANVAS COMPRESSION ==================== */
+  /* ==================== REAL PROFILE PHOTO UPLOAD ==================== */
   handleProfilePhotoUpload(e) {
     const file = e.target.files && e.target.files[0];
     if (!file || !this.state.user) return;
@@ -186,7 +191,26 @@ const PlayerApp = {
     reader.readAsDataURL(file);
   },
 
-  /* ==================== PROFILE FRIEND SEARCH & FULL PROFILE VIEW ==================== */
+  /* ==================== XP & REAL-TIME LEVEL PROGRESSION ENGINE ==================== */
+  addXpPoints(amount, reason = '') {
+    if (!this.state.user) return;
+    this.state.user.xp = (this.state.user.xp || 0) + Number(amount);
+    
+    // Level formula: 1 Level per 100 XP
+    const calculatedLevel = Math.max(1, Math.floor(this.state.user.xp / 100) + 1);
+    if (calculatedLevel > (this.state.user.ignisLevel || 1)) {
+      this.state.user.ignisLevel = calculatedLevel;
+      this.showToast(`🎉 LEVEL UP! You reached Ignis Level ${calculatedLevel}!`);
+    } else if (reason) {
+      this.showToast(`+${amount} XP Earned (${reason})`);
+    }
+
+    localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
+    SupabaseService.upsertPlayerProfile(this.state.user);
+    this.updateUI();
+  },
+
+  /* ==================== 2-WAY FRIEND REQUEST & SQUAD CO-PAY SYSTEM ==================== */
   openAddFriendsModal() {
     document.getElementById('searchFriendAppIdInput').value = '';
     document.getElementById('searchedUserProfileDisplay').classList.add('hidden');
@@ -203,6 +227,11 @@ const PlayerApp = {
 
     if (!p) {
       box.innerHTML = `<div class="p-4 bg-red-950/40 border border-red-500/40 rounded-2xl text-xs text-red-300 text-center">Koi player nahi mila is App ID ya IGN ke sath.</div>`;
+      return;
+    }
+
+    if (this.state.user && p.app_id.toUpperCase() === this.state.user.appId.toUpperCase()) {
+      box.innerHTML = `<div class="p-3 bg-white/5 border border-white/10 rounded-xl text-xs text-slate-400 text-center">Yeh aapka apna profile pass hai!</div>`;
       return;
     }
 
@@ -232,35 +261,76 @@ const PlayerApp = {
         </div>
 
         ${!isAlreadyFriend ? `
-          <button onclick="PlayerApp.addSearchedPlayerAsFriend('${p.app_id}', '${p.ign}', '${p.profile_photo || this.DEFAULT_DP}')" class="w-full btn-hyper py-2.5 text-xs cursor-pointer">
-            + Add to Teammates / Friends
+          <button onclick="PlayerApp.sendFriendRequestTo('${p.app_id}', '${p.ign}', '${p.profile_photo || this.DEFAULT_DP}')" class="w-full btn-hyper py-2.5 text-xs cursor-pointer">
+            <i class="ph-bold ph-paper-plane mr-1"></i> Send Friend Request
           </button>
         ` : `
-          <div class="text-center font-bold text-xs text-emerald-400 py-1">✓ Already in your Friends Roster</div>
+          <div class="text-center font-bold text-xs text-emerald-400 py-1">✓ Already Friends & Teammate</div>
         `}
       </div>
     `;
   },
 
-  addSearchedPlayerAsFriend(appId, ign, photo) {
+  async sendFriendRequestTo(targetAppId, targetIgn, targetPhoto) {
     if (!this.state.user) return;
-    this.state.user.friendsList = this.state.user.friendsList || [];
-    if (!this.state.user.friendsList.some(f => f.appId === appId)) {
-      this.state.user.friendsList.push({ appId, ign, profilePhoto: photo });
-      localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
-      SupabaseService.upsertPlayerProfile(this.state.user);
-      this.updateUI();
-      this.closeModal('addFriendsModal');
-      this.showToast(`${ign} added to your Friends Roster!`);
+    
+    // In local architecture, we store requests in targets' account in db
+    const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
+    const target = allPlayers.find(x => x.app_id.toUpperCase() === targetAppId.toUpperCase());
+    
+    if (target) {
+      target.friendRequests = target.friendRequests || [];
+      if (!target.friendRequests.some(r => r.appId === this.state.user.appId)) {
+        target.friendRequests.push({
+          appId: this.state.user.appId,
+          ign: this.state.user.ign,
+          profilePhoto: this.state.user.profilePhoto || this.DEFAULT_DP,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        });
+        SupabaseService.setLocal('ignis_players_db', allPlayers);
+      }
     }
+
+    this.closeModal('addFriendsModal');
+    this.showToast(`Friend Request sent to ${targetIgn}! Unke accept karne par aap sath squad khel sakenge.`);
   },
 
   openFriendsListModal() {
     const container = document.getElementById('friendsRosterContainer');
+    const reqContainer = document.getElementById('pendingRequestsContainer');
     if (!container || !this.state.user) return;
+
+    // 1. Pending Requests (Accept / Decline)
+    const requests = this.state.user.friendRequests || [];
+    if (reqContainer) {
+      reqContainer.innerHTML = requests.length === 0
+        ? `<div class="text-[11px] text-slate-400 font-medium">Koi pending friend request nahi hai.</div>`
+        : `
+          <span class="text-[10px] font-bold text-[#FFC857] block uppercase">Pending Requests (${requests.length}):</span>
+          <div class="space-y-1.5">
+            ${requests.map((r, idx) => `
+              <div class="p-2.5 bg-black/60 rounded-xl border border-white/10 flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                  <img src="${r.profilePhoto || this.DEFAULT_DP}" class="w-8 h-8 rounded-full object-cover">
+                  <div class="min-w-0">
+                    <strong class="text-white text-xs block truncate">${r.ign}</strong>
+                    <span class="text-[9px] text-[#FFC857] font-mono">${r.appId}</span>
+                  </div>
+                </div>
+                <div class="flex gap-1.5 flex-shrink-0">
+                  <button onclick="PlayerApp.acceptFriendRequest(${idx})" class="btn-hyper px-2.5 py-1 text-[10px] cursor-pointer">Accept</button>
+                  <button onclick="PlayerApp.declineFriendRequest(${idx})" class="bg-red-500/20 text-red-300 px-2 py-1 rounded-lg text-[10px] cursor-pointer">Decline</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+    }
+
+    // 2. Accepted Friends Roster
     const friends = this.state.user.friendsList || [];
     container.innerHTML = friends.length === 0
-      ? `<div class="text-center py-8 text-slate-500 text-xs">Koi friend nahi hai abhi. "Add Friends" se search karein!</div>`
+      ? `<div class="text-center py-6 text-slate-500 text-xs">Koi friend nahi hai abhi. "Add Friends" se search karke request bhejein!</div>`
       : friends.map((f, idx) => `
         <div class="flex items-center justify-between p-3 bg-black/50 border border-white/10 rounded-xl">
           <div class="flex items-center gap-2.5">
@@ -270,10 +340,58 @@ const PlayerApp = {
               <span class="text-[10px] text-[#FFC857] font-mono">${f.appId}</span>
             </div>
           </div>
-          <button onclick="PlayerApp.removeFriend(${idx})" class="text-red-400 text-xs p-1"><i class="fa-solid fa-trash"></i></button>
+          <button onclick="PlayerApp.removeFriend(${idx})" class="text-red-400 text-xs p-1 cursor-pointer"><i class="fa-solid fa-trash"></i></button>
         </div>
       `).join('');
+
     this.openModal('friendsListModal');
+  },
+
+  acceptFriendRequest(idx) {
+    if (!this.state.user) return;
+    const req = this.state.user.friendRequests[idx];
+    if (!req) return;
+
+    this.state.user.friendsList = this.state.user.friendsList || [];
+    if (!this.state.user.friendsList.some(f => f.appId === req.appId)) {
+      this.state.user.friendsList.push({
+        appId: req.appId,
+        ign: req.ign,
+        profilePhoto: req.profilePhoto
+      });
+    }
+
+    // Also add to sender's friendlist
+    const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
+    const sender = allPlayers.find(x => x.app_id.toUpperCase() === req.appId.toUpperCase());
+    if (sender) {
+      sender.friendsList = sender.friendsList || [];
+      if (!sender.friendsList.some(f => f.appId === this.state.user.appId)) {
+        sender.friendsList.push({
+          appId: this.state.user.appId,
+          ign: this.state.user.ign,
+          profilePhoto: this.state.user.profilePhoto || this.DEFAULT_DP
+        });
+        SupabaseService.setLocal('ignis_players_db', allPlayers);
+      }
+    }
+
+    this.state.user.friendRequests.splice(idx, 1);
+    this.addXpPoints(25, 'Friend Added');
+    localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
+    SupabaseService.upsertPlayerProfile(this.state.user);
+    this.openFriendsListModal();
+    this.updateUI();
+    this.showToast(`You and ${req.ign} are now Friends!`);
+  },
+
+  declineFriendRequest(idx) {
+    if (!this.state.user) return;
+    this.state.user.friendRequests.splice(idx, 1);
+    localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
+    SupabaseService.upsertPlayerProfile(this.state.user);
+    this.openFriendsListModal();
+    this.updateUI();
   },
 
   removeFriend(idx) {
@@ -347,7 +465,7 @@ const PlayerApp = {
       return passCat && passSub && passAmmo && passHs && passStat;
     });
 
-    // Smart Sort: LIVE (Top) -> UPCOMING (Middle) -> COMPLETED (Bottom)
+    // Auto-Sort: LIVE (Top) -> UPCOMING (Middle) -> COMPLETED (Bottom)
     filtered.sort((a, b) => {
       const ecoA = this.calculateMatchEconomics(a);
       const ecoB = this.calculateMatchEconomics(b);
@@ -490,6 +608,7 @@ const PlayerApp = {
 
     document.getElementById('customRoomTitle').value = '';
     await this.fetchCustomPaidRooms();
+    this.addXpPoints(30, 'Paid Room Created');
     this.updateUI();
     this.showToast(`Paid Room Created! Host: ${operator}`);
   },
@@ -551,7 +670,7 @@ const PlayerApp = {
     await this.fetchCustomPaidRooms();
   },
 
-  /* ==================== TAB 4: WALLET & STORE ==================== */
+  /* ==================== TAB 4: WALLET & ALL-TIME LEDGER ==================== */
   async openDepositQrModal() {
     await this.loadPlatformConfig();
     this.selectDepositScanner(1);
@@ -569,168 +688,156 @@ const PlayerApp = {
     const amt = parseFloat(document.getElementById('depositInputAmt')?.value) || 200;
     const utr = (document.getElementById('depositUtrNumberInput')?.value || '').trim();
     if (!utr || utr.length < 10 || !this.state.user) { this.showToast('Enter valid 12-digit UTR!'); return; }
+    
     await SupabaseService.submitDepositRequest(this.state.user.appId, this.state.user.ign, amt, utr, `Scanner #${this.state.selectedScannerIndex}`);
+    
+    // Track in local persistent ledger
+    const ledger = SupabaseService.getLocal('ignis_all_time_transactions', []);
+    ledger.unshift({
+      id: 'TXN-' + Math.floor(1000 + Math.random() * 9000),
+      app_id: this.state.user.appId,
+      type: 'DEPOSIT',
+      amount: amt,
+      note: `UPI QR Top-Up (UTR: ${utr})`,
+      status: 'PENDING',
+      timestamp: new Date().toLocaleString()
+    });
+    SupabaseService.setLocal('ignis_all_time_transactions', ledger);
+
     document.getElementById('depositUtrNumberInput').value = '';
     this.closeModal('depositModal');
+    await this.loadAllTimeTransactions();
     this.showToast('Deposit UTR Submitted for Approval!');
   },
 
-  async fetchStoreProducts() {
-    const { data } = await SupabaseService.getStoreProducts();
-    this.state.storeProducts = data || [];
-    this.renderStoreProducts();
-  },
-
-  renderStoreProducts() {
-    const box = document.getElementById('storeProductsContainer');
-    if (!box) return;
-    box.innerHTML = this.state.storeProducts.map(p => `
-      <div class="bg-black/40 rounded-2xl border border-white/10 p-3 space-y-2">
-        <img src="${p.image_url}" class="w-full h-24 object-cover rounded-xl" alt="Product">
-        <h4 class="font-bold text-xs text-white truncate">${p.title}</h4>
-        <div class="flex justify-between items-center pt-1">
-          <strong class="text-emerald-400 text-sm">₹${p.price_coins}</strong>
-          <button onclick="PlayerApp.redeemStoreItem('${p.id}')" class="btn-hyper px-3 py-1 text-[10px]">Redeem</button>
-        </div>
-      </div>
-    `).join('');
-  },
-
-  async redeemStoreItem(prodId) {
-    if (!this.state.user) return;
-    const p = this.state.storeProducts.find(x => x.id === prodId);
-    if (!p || Number(this.state.user.winningsBal || 0) < p.price_coins) { this.showToast('Insufficient Winnings balance!'); return; }
-    this.state.user.winningsBal -= p.price_coins;
+  async submitWithdrawal() {
+    const upi = (document.getElementById('withdrawUpiId')?.value || '').trim();
+    const amt = parseFloat(document.getElementById('withdrawAmountInput')?.value) || 0;
+    if (!upi.includes('@') || amt < 50 || amt > Number(this.state.user?.winningsBal || 0)) {
+      this.showToast('Check UPI ID & Winnings Balance (Min ₹50)');
+      return;
+    }
+    this.state.user.winningsBal -= amt;
     localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
     await SupabaseService.upsertPlayerProfile(this.state.user);
-    this.updateUI();
-    this.showToast(`Redeemed ${p.title}!`);
-  },
 
-  /* ==================== TAB 5: PROFILE & SETTINGS ==================== */
-  openEditProfileModal() {
-    if (!this.state.user) return;
-    document.getElementById('editProfName').value = this.state.user.fullName || '';
-    document.getElementById('editProfUsername').value = this.state.user.username || '';
-    document.getElementById('editProfBio').value = this.state.user.bio || '';
-    document.getElementById('editProfIgn').value = this.state.user.ign || '';
-    document.getElementById('editProfUid').value = this.state.user.uid || '';
-    document.getElementById('editProfPhone').value = this.state.user.phone || '';
-    document.getElementById('editProfEmail').value = this.state.user.email || '';
-    this.openModal('editProfileModal');
-  },
-
-  async saveEditedProfile() {
-    if (!this.state.user) return;
-    this.state.user.fullName = document.getElementById('editProfName')?.value.trim() || this.state.user.fullName;
-    this.state.user.username = document.getElementById('editProfUsername')?.value.trim() || this.state.user.username;
-    this.state.user.bio = document.getElementById('editProfBio')?.value.trim() || this.state.user.bio;
-    this.state.user.ign = document.getElementById('editProfIgn')?.value.trim() || this.state.user.ign;
-    this.state.user.uid = document.getElementById('editProfUid')?.value.trim() || this.state.user.uid;
-    this.state.user.phone = document.getElementById('editProfPhone')?.value.trim() || this.state.user.phone;
-    this.state.user.email = document.getElementById('editProfEmail')?.value.trim() || this.state.user.email;
-    const pass = document.getElementById('editProfPassword')?.value.trim();
-    if (pass) this.state.user.password = pass;
-
-    localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
-    await SupabaseService.upsertPlayerProfile(this.state.user);
-    this.closeModal('editProfileModal');
-    this.updateUI();
-    this.showToast('Profile Settings Saved!');
-  },
-
-  /* ==================== SCREENSHOT PROOF UPLOAD ==================== */
-  handleProofImageSelect(e) {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      this.state.tempProofBase64 = ev.target.result;
-      document.getElementById('proofPreviewImg').src = ev.target.result;
-      document.getElementById('proofPreviewImg').classList.remove('hidden');
-      document.getElementById('proofFileLabel').innerText = '✓ Attached';
-    };
-    reader.readAsDataURL(file);
-  },
-
-  async submitMatchProofToAdmin() {
-    if (!this.state.tempProofBase64 || !this.state.user) { this.showToast('Attach screenshot first!'); return; }
-    await SupabaseService.submitMatchProof({
-      id: 'PRF-' + Math.floor(1000 + Math.random() * 9000),
+    // Track in persistent ledger
+    const ledger = SupabaseService.getLocal('ignis_all_time_transactions', []);
+    ledger.unshift({
+      id: 'WTH-' + Math.floor(1000 + Math.random() * 9000),
       app_id: this.state.user.appId,
-      player_ign: this.state.user.ign,
-      match_title: document.getElementById('proofMatchTitleInput')?.value || 'Match Proof',
-      position: document.getElementById('proofPositionInput')?.value || '1st Place',
-      kills: parseInt(document.getElementById('proofKillsInput')?.value, 10) || 0,
-      screenshot: this.state.tempProofBase64,
-      status: 'PENDING',
-      created_at: new Date().toISOString()
+      type: 'WITHDRAWAL',
+      amount: amt,
+      note: `Bank Cashout to ${upi}`,
+      status: 'PROCESSING',
+      timestamp: new Date().toLocaleString()
     });
-    this.closeModal('proofUploadModal');
-    this.showToast('Match Proof Sent to Host/Admin!');
+    SupabaseService.setLocal('ignis_all_time_transactions', ledger);
+
+    document.getElementById('withdrawAmountInput').value = '';
+    await this.loadAllTimeTransactions();
+    this.updateUI();
+    this.showToast(`₹${amt} withdrawal initiated!`);
   },
 
-  /* ==================== 5-TAB NAVIGATION ROUTER ==================== */
-  switchTab(tabId) {
-    if (typeof AudioEngine !== 'undefined' && AudioEngine.playClick) AudioEngine.playClick();
-    this.state.currentTab = tabId;
-    ['tournaments', 'roomidp', 'paidmatches', 'wallet', 'profile'].forEach(t => {
-      const isCur = (t === tabId);
-      document.getElementById(`view-${t}`)?.classList.toggle('hidden', !isCur);
+  switchVaultAction(action) {
+    const isDep = action === 'deposit';
+    document.getElementById('vaultFormDeposit')?.classList.toggle('hidden', !isDep);
+    document.getElementById('vaultFormWithdraw')?.classList.toggle('hidden', isDep);
+    const b1 = document.getElementById('btnVaultTabDeposit');
+    const b2 = document.getElementById('btnVaultTabWithdraw');
+    if (b1 && b2) {
+      b1.style.background = isDep ? '#FF6B00' : 'transparent';
+      b1.style.color = isDep ? '#06070A' : '#94a3b8';
+      b2.style.background = !isDep ? '#FF6B00' : 'transparent';
+      b2.style.color = !isDep ? '#06070A' : '#94a3b8';
+    }
+  },
 
-      const dBtn = document.getElementById(`nav-btn-${t}`);
-      if (dBtn) {
-        dBtn.style.background = isCur ? '#FF6B00' : 'transparent';
-        dBtn.style.color = isCur ? '#06070A' : '#94a3b8';
+  switchHistoryView(type) {
+    this.state.activeHistoryView = type;
+    ['all', 'deposit', 'withdraw'].forEach(t => {
+      const btn = document.getElementById(`btnHistTab${t.charAt(0).toUpperCase() + t.slice(1)}`);
+      if (btn) {
+        btn.className = (t === type) ? 'px-2.5 py-1 bg-[#FF6B00] text-black rounded-lg cursor-pointer font-bold' : 'px-2.5 py-1 bg-white/10 text-slate-300 rounded-lg cursor-pointer';
       }
+    });
+    this.renderAllTimeLedger();
+  },
 
-      const mBtn = document.getElementById(`m-nav-${t}`);
-      if (mBtn) mBtn.style.color = isCur ? '#FF6B00' : '#94a3b8';
+  async loadAllTimeTransactions() {
+    this.renderAllTimeLedger();
+  },
+
+  renderAllTimeLedger() {
+    const container = document.getElementById('allTimeLedgerList');
+    if (!container || !this.state.user) return;
+
+    const allTxns = SupabaseService.getLocal('ignis_all_time_transactions', []);
+    const myTxns = allTxns.filter(t => t.app_id === this.state.user.appId);
+
+    const filtered = myTxns.filter(t => {
+      if (this.state.activeHistoryView === 'all') return true;
+      if (this.state.activeHistoryView === 'deposit') return t.type === 'DEPOSIT';
+      if (this.state.activeHistoryView === 'withdraw') return t.type === 'WITHDRAWAL';
+      return true;
     });
 
-    if (tabId === 'roomidp') this.renderMyBattles();
-    if (tabId === 'wallet') this.fetchStoreProducts();
+    container.innerHTML = filtered.length === 0
+      ? `<div class="py-10 text-center text-slate-500 text-xs">Koi transaction record nahi mila.</div>`
+      : filtered.map(t => {
+        const isDep = t.type === 'DEPOSIT';
+        return `
+          <div class="p-3 bg-black/50 rounded-xl border border-white/10 flex items-center justify-between gap-2 text-xs">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div class="w-8 h-8 rounded-lg ${isDep ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'} flex items-center justify-center font-bold">
+                <i class="${isDep ? 'ph-bold ph-arrow-down-left' : 'ph-bold ph-arrow-up-right'}"></i>
+              </div>
+              <div class="min-w-0">
+                <strong class="text-white block truncate">${t.note}</strong>
+                <span class="text-[10px] text-slate-400">${t.timestamp}</span>
+              </div>
+            </div>
+            <div class="text-right flex-shrink-0">
+              <strong class="${isDep ? 'text-emerald-400' : 'text-red-400'} font-bold block text-sm">${isDep ? '+' : '-'}₹${t.amount}</strong>
+              <span class="text-[9px] font-mono ${t.status === 'APPROVED' ? 'text-emerald-400' : 'text-[#FFC857]'}">${t.status}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
   },
 
-  getTotalBalance() {
-    if (!this.state.user) return 0;
-    return Number(this.state.user.depositBal || 0) + Number(this.state.user.winningsBal || 0);
-  },
-
-  quickJoinNextMatch() {
-    const openMatch = this.state.tournaments.find(m => !this.calculateMatchEconomics(m).isLocked);
-    if (openMatch) this.openJoinModal(openMatch.id);
-  },
-
-  async fetchMatches() {
-    const res = await SupabaseService.getTournaments();
-    this.state.tournaments = (res && res.data) ? res.data : [];
-    this.renderTournaments();
-  },
-
-  async fetchCustomPaidRooms() {
-    const res = await SupabaseService.getCustomPaidRooms();
-    this.state.customPaidRooms = (res && res.data) ? res.data : [];
-    this.renderCustomPaidRooms();
-  },
-
-  setupRealtimeSync() {
-    SupabaseService.subscribeToTournaments(async () => {
-      const saved = localStorage.getItem('ignis_player_session');
-      if (saved) this.state.user = JSON.parse(saved);
-      await this.loadPlatformConfig();
-      await this.fetchMatches();
-      await this.fetchCustomPaidRooms();
-      await this.fetchStoreProducts();
-      this.updateUI();
-    });
-  },
-
+  /* ==================== SQUAD CO-PAY / DUO REGISTRATION ==================== */
   openJoinModal(matchId) {
     const match = this.state.tournaments.find(m => m.id === matchId);
-    if (!match) return;
+    if (!match || !this.state.user) return;
     this.state.pendingJoinMatchId = matchId;
     const fee = Number(match.entry_fee ?? 0);
+
+    document.getElementById('joinModalSubtitle').innerText = `${match.title} (${match.ammo_mode} • HS: ${match.headshot_mode})`;
+    
+    // Squad / Duo Teammate Selection from Friends List
+    const isTeamMode = match.sub_mode !== 'Solo' && match.sub_mode !== '1v1';
+    const squadSec = document.getElementById('squadFriendsCoPaySection');
+    const dList = document.getElementById('squadTeammateDropdownsList');
+    
+    if (squadSec && dList) {
+      squadSec.classList.toggle('hidden', !isTeamMode);
+      if (isTeamMode) {
+        const count = match.sub_mode === 'Duo' || match.sub_mode === '2v2' ? 1 : 3;
+        const friends = this.state.user.friendsList || [];
+        dList.innerHTML = Array.from({ length: count }, (_, i) => `
+          <div class="flex items-center gap-2">
+            <span class="text-slate-400 text-xs font-bold w-16">Mate #${i + 2}:</span>
+            <select id="squad-mate-select-${i}" class="flex-1 bg-black/60 border border-white/15 px-3 py-1.5 rounded-xl text-white text-xs">
+              <option value="">-- Pick from Friends Roster --</option>
+              ${friends.map(f => `<option value="${f.appId}">${f.ign} (${f.appId})</option>`).join('')}
+            </select>
+          </div>
+        `).join('');
+      }
+    }
+
     const grid = document.getElementById('slotMatrixGrid');
     grid.innerHTML = '';
     const total = match.total_slots ?? 48;
@@ -778,7 +885,8 @@ const PlayerApp = {
     }
 
     this.state.user.matchesPlayed = (this.state.user.matchesPlayed || 0) + 1;
-    this.state.user.ignisLevel = Math.max(1, Math.floor((this.state.user.matchesPlayed || 1) / 2) + ((this.state.user.tournamentsWon || 0) * 2));
+    this.addXpPoints(50, 'Tournament Joined');
+
     localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
     await SupabaseService.upsertPlayerProfile(this.state.user);
 
@@ -788,7 +896,64 @@ const PlayerApp = {
     await this.fetchMatches();
     this.updateUI();
     this.switchTab('roomidp');
-    this.showToast(`Slot #${this.state.selectedSlotNumber} Locked!`);
+    this.showToast(`Slot #${this.state.selectedSlotNumber} Locked! Check Room IDP.`);
+  },
+
+  /* ==================== 5-TAB NAVIGATION ROUTER ==================== */
+  switchTab(tabId) {
+    if (typeof AudioEngine !== 'undefined' && AudioEngine.playClick) AudioEngine.playClick();
+    this.state.currentTab = tabId;
+    ['tournaments', 'roomidp', 'paidmatches', 'wallet', 'profile'].forEach(t => {
+      const isCur = (t === tabId);
+      document.getElementById(`view-${t}`)?.classList.toggle('hidden', !isCur);
+
+      const dBtn = document.getElementById(`nav-btn-${t}`);
+      if (dBtn) {
+        dBtn.style.background = isCur ? '#FF6B00' : 'transparent';
+        dBtn.style.color = isCur ? '#06070A' : '#94a3b8';
+      }
+
+      const mBtn = document.getElementById(`m-nav-${t}`);
+      if (mBtn) mBtn.style.color = isCur ? '#FF6B00' : '#94a3b8';
+    });
+
+    if (tabId === 'roomidp') this.renderMyBattles();
+    if (tabId === 'wallet') this.loadAllTimeTransactions();
+  },
+
+  getTotalBalance() {
+    if (!this.state.user) return 0;
+    return Number(this.state.user.depositBal || 0) + Number(this.state.user.winningsBal || 0);
+  },
+
+  quickJoinNextMatch() {
+    const openMatch = this.state.tournaments.find(m => !this.calculateMatchEconomics(m).isLocked);
+    if (openMatch) this.openJoinModal(openMatch.id);
+  },
+
+  async fetchMatches() {
+    const res = await SupabaseService.getTournaments();
+    this.state.tournaments = (res && res.data) ? res.data : [];
+    this.renderTournaments();
+  },
+
+  async fetchCustomPaidRooms() {
+    const res = await SupabaseService.getCustomPaidRooms();
+    this.state.customPaidRooms = (res && res.data) ? res.data : [];
+    this.renderCustomPaidRooms();
+  },
+
+  setupRealtimeSync() {
+    SupabaseService.subscribeToTournaments(async () => {
+      const saved = localStorage.getItem('ignis_player_session');
+      if (saved) this.state.user = JSON.parse(saved);
+      await this.loadPlatformConfig();
+      await this.fetchMatches();
+      await this.fetchCustomPaidRooms();
+      await this.loadAllTimeTransactions();
+      this.loadNotifications();
+      this.updateUI();
+    });
   },
 
   updateUI() {
@@ -814,13 +979,30 @@ const PlayerApp = {
     const matches = Number(this.state.user.matchesPlayed || 0);
     const wins = Number(this.state.user.tournamentsWon || 0);
     const winRate = matches > 0 ? Math.round((wins / matches) * 100) : 0;
-    const calculatedLevel = Math.max(1, Math.floor(matches / 2) + (wins * 2));
+    const currentLevel = Number(this.state.user.ignisLevel || 1);
+    const currentXp = Number(this.state.user.xp || 0);
+    const xpInThisLevel = currentXp % 100;
 
     document.getElementById('statPlayedBox').innerText = matches;
     document.getElementById('statWonBox').innerText = wins;
     document.getElementById('statFriendsCountBox').innerText = (this.state.user.friendsList || []).length;
-    document.getElementById('statIgnisLevelBox').innerText = `LVL ${calculatedLevel}`;
+    document.getElementById('statIgnisLevelBox').innerText = `LVL ${currentLevel}`;
     document.getElementById('statWinRateBox').innerText = `${winRate}%`;
+
+    // Real-Time XP Bar
+    if (document.getElementById('levelProgressTitle')) {
+      document.getElementById('levelProgressTitle').innerText = `Ignis Level ${currentLevel} Athlete`;
+      document.getElementById('levelXpFractionText').innerText = `${xpInThisLevel} / 100 XP`;
+      document.getElementById('levelXpProgressBar').style.width = `${xpInThisLevel}%`;
+    }
+
+    // Pending Friend Requests Badge
+    const pendingReqs = (this.state.user.friendRequests || []).length;
+    const pBadge = document.getElementById('pendingFriendReqBadge');
+    if (pBadge) {
+      pBadge.innerText = pendingReqs;
+      pBadge.classList.toggle('hidden', pendingReqs === 0);
+    }
 
     this.renderTournaments();
     this.renderCustomPaidRooms();
@@ -836,7 +1018,7 @@ const PlayerApp = {
     const container = document.getElementById('toastContainer');
     if (!container) return;
     const toast = document.createElement('div');
-    toast.className = `p-3 rounded-2xl border border-white/15 bg-[#12151E]/95 backdrop-blur-xl text-white shadow-2xl text-xs font-bold`;
+    toast.className = `p-3.5 rounded-2xl border border-white/15 bg-[#12151E]/95 backdrop-blur-xl text-white shadow-2xl text-xs font-bold`;
     toast.innerHTML = `<span>${msg}</span>`;
     container.appendChild(toast);
     setTimeout(() => toast.remove(), 2400);
