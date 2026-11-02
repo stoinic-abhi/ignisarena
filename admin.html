@@ -28,7 +28,7 @@
       </div>
       <div>
         <h2 class="font-russo text-xl text-white tracking-tight">IGNIS // COMMAND DECK</h2>
-        <p class="text-xs text-slate-400 font-medium mt-0.5">Clearance & Master Control</p>
+        <p class="text-xs text-slate-400 font-medium mt-0.5">Host & Super Admin Portal</p>
       </div>
 
       <div class="grid grid-cols-2 gap-1.5 p-1 bg-black/70 rounded-2xl border border-white/10 text-xs font-russo">
@@ -36,7 +36,7 @@
         <button id="tabOwnerLoginBtn" type="button" onclick="AdminApp.switchAuthMode('owner')" class="py-2.5 clip-esports-sm text-slate-400 hover:text-white cursor-pointer">SUPER ADMIN</button>
       </div>
 
-      <!-- Operator Host Login Form (Supports host_01 to host_05) -->
+      <!-- Operator Host Login Form -->
       <div id="hostLoginForm" class="space-y-3 text-left text-xs">
         <div>
           <label class="text-[11px] font-semibold text-slate-400 block mb-1">SELECT OR TYPE HOST ID</label>
@@ -96,8 +96,8 @@
 
     <!-- OPERATOR DESKTOP NAVIGATION TABS -->
     <div id="desktopHostNav" class="hidden lg:flex items-center gap-2 laser-card p-2 font-russo text-xs">
-      <button onclick="AdminApp.switchHostSection('tournaments')" id="d-host-tab-tournaments" class="px-4 py-2 clip-esports-sm text-black cursor-pointer transition" style="background: #FF6B00;"><i class="ph-bold ph-trophy mr-1"></i> 1. TOURNAMENTS (BR/CS/LW)</button>
-      <button onclick="AdminApp.switchHostSection('wager')" id="d-host-tab-wager" class="px-4 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer transition"><i class="ph-bold ph-sword mr-1"></i> 2. PAID MATCHES (BOOKMARKS & CHAT)</button>
+      <button onclick="AdminApp.switchHostSection('tournaments')" id="d-host-tab-tournaments" class="px-4 py-2 clip-esports-sm text-black cursor-pointer transition" style="background: #FF6B00;"><i class="ph-bold ph-trophy mr-1"></i> 1. TOURNAMENTS & ADD ROOMS</button>
+      <button onclick="AdminApp.switchHostSection('wager')" id="d-host-tab-wager" class="px-4 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer transition"><i class="ph-bold ph-sword mr-1"></i> 2. PAID MATCHES & 80/10/10 SETTLE</button>
       <button onclick="AdminApp.switchHostSection('accounts')" id="d-host-tab-accounts" class="px-4 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer transition"><i class="ph-bold ph-users mr-1 text-cyan-400"></i> 3. ATHLETE DIRECTORY (ALL ACCOUNTS)</button>
       <button onclick="AdminApp.switchHostSection('transfer')" id="d-host-tab-transfer" class="px-4 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer transition"><i class="ph-bold ph-currency-inr mr-1"></i> 4. SEND CASH (₹)</button>
       <button onclick="AdminApp.switchHostSection('wallet')" id="d-host-tab-wallet" class="px-4 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer transition"><i class="ph-bold ph-wallet mr-1"></i> 5. HOST WALLET</button>
@@ -109,7 +109,6 @@
       <button onclick="AdminApp.switchOwnerSection('tournaments-manage')" id="d-owner-tab-tournaments-manage" class="px-3.5 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer whitespace-nowrap transition"><i class="ph-bold ph-trophy mr-1 text-[#FF6B00]"></i> TOURNAMENT MANAGER</button>
       <button onclick="AdminApp.switchOwnerSection('qr')" id="d-owner-tab-qr" class="px-3.5 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer whitespace-nowrap transition"><i class="ph-bold ph-qr-code mr-1 text-[#FFC857]"></i> DUAL QR SCANNERS</button>
       <button onclick="AdminApp.switchOwnerSection('deposits')" id="d-owner-tab-deposits" class="px-3.5 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer whitespace-nowrap transition"><i class="ph-bold ph-check-circle mr-1 text-emerald-400"></i> DEPOSITS (+20%)</button>
-      <button onclick="AdminApp.switchOwnerSection('store')" id="d-owner-tab-store" class="px-3.5 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer whitespace-nowrap transition"><i class="ph-bold ph-shopping-bag mr-1 text-[#FF6B00]"></i> STORE & REDEEMS</button>
       <button onclick="AdminApp.switchOwnerSection('users')" id="d-owner-tab-users" class="px-3.5 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer whitespace-nowrap transition"><i class="ph-bold ph-users mr-1 text-cyan-400"></i> ALL USERS</button>
       <button onclick="AdminApp.switchOwnerSection('operators')" id="d-owner-tab-operators" class="px-3.5 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer whitespace-nowrap transition"><i class="ph-bold ph-shield-star mr-1 text-[#FFC857]"></i> 5 HOSTS</button>
       <button onclick="AdminApp.switchOwnerSection('broadcast')" id="d-owner-tab-broadcast" class="px-3.5 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer whitespace-nowrap transition"><i class="ph-bold ph-megaphone mr-1 text-pink-400"></i> BROADCAST</button>
@@ -125,7 +124,7 @@
               <i class="ph-bold ph-broadcast neon-text"></i>
               <span>HOURLY TOURNAMENTS (HOST FULL CONTROLS)</span>
             </h2>
-            <p class="text-xs text-slate-400">Add tournaments, claim lock, push credentials, settle prizes, or delete matches.</p>
+            <p class="text-xs text-slate-400">Add tournaments, claim lock, push credentials, settle prizes, or delete matches[cite: 2].</p>
           </div>
           <div class="flex items-center gap-2">
             <button type="button" onclick="AdminApp.openAddTournamentModal()" class="btn-hyper font-russo text-[11px] px-3.5 py-1.5 rounded-xl cursor-pointer flex items-center gap-1.5">
@@ -549,7 +548,42 @@
     </button>
   </nav>
 
-  <!-- MODALS -->
+  <!-- ==================== AUTOMATED TOURNAMENT SETTLEMENT MODAL ==================== -->
+  <div id="tournamentSettleModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-lg w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between border-b border-white/10 pb-2.5">
+        <div>
+          <span class="text-[10px] text-emerald-400 font-bold uppercase block">Automated Prize Disbursement</span>
+          <h3 class="font-russo text-base text-white" id="settleMatchHeaderTitle">Settle Match & Disburse Prizes</h3>
+        </div>
+        <button onclick="document.getElementById('tournamentSettleModal').classList.add('hidden')"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <div class="bg-black/60 p-3 rounded-xl border border-white/10 space-y-1 text-xs">
+        <div class="flex justify-between text-slate-300"><span>Total Match Entry Pool:</span><strong class="text-white font-mono" id="settleTotalPoolDisplay">₹0</strong></div>
+        <div class="flex justify-between text-[#FFC857]"><span>Host 10% Cut:</span><strong class="font-mono" id="settleHostCutDisplay">-₹0</strong></div>
+        <div class="flex justify-between text-cyan-400"><span>Admin 10% Cut:</span><strong class="font-mono" id="settleAdminCutDisplay">-₹0</strong></div>
+        <div class="flex justify-between text-emerald-400 font-bold pt-1 border-t border-white/10"><span>Remaining for Winner & Kills:</span><strong class="font-mono" id="settleRemainingPoolDisplay">₹0</strong></div>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="font-semibold text-slate-300 block mb-1">Select Booyah Winner (1st Rank)</label>
+          <select id="settleBooyahWinnerSelect" class="w-full bg-black/80 border border-white/15 px-3 py-2 text-white font-bold rounded-xl"></select>
+        </div>
+        <div>
+          <label class="font-semibold text-slate-300 block mb-1">Enter Confirmed Kills Per Player (₹/Kill Auto-Added):</label>
+          <div id="settlePlayerKillsList" class="space-y-1.5 max-h-48 overflow-y-auto bg-black/40 p-2.5 rounded-xl border border-white/10"></div>
+        </div>
+      </div>
+
+      <button type="button" onclick="AdminApp.executeMatchSettlementCalculation()" class="w-full btn-hyper py-3.5 text-xs font-russo cursor-pointer">
+        ⚡ EXECUTE SETTLEMENT & SEND CASH TO WALLETS
+      </button>
+    </div>
+  </div>
+
+  <!-- ADD TOURNAMENT MODAL -->
   <div id="addTournamentModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-xl w-full p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
