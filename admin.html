@@ -28,7 +28,7 @@
       </div>
       <div>
         <h2 class="font-russo text-xl text-white tracking-tight">IGNIS // COMMAND DECK</h2>
-        <p class="text-xs text-slate-400 font-medium mt-0.5">Clearance &amp; Master Control</p>
+        <p class="text-xs text-slate-400 font-medium mt-0.5">Clearance & Master Control</p>
       </div>
 
       <div class="grid grid-cols-2 gap-1.5 p-1 bg-black/70 rounded-2xl border border-white/10 text-xs font-russo">
@@ -97,9 +97,10 @@
     <!-- OPERATOR DESKTOP NAVIGATION TABS -->
     <div id="desktopHostNav" class="hidden lg:flex items-center gap-2 laser-card p-2 font-russo text-xs">
       <button onclick="AdminApp.switchHostSection('tournaments')" id="d-host-tab-tournaments" class="px-4 py-2 clip-esports-sm text-black cursor-pointer transition" style="background: #FF6B00;"><i class="ph-bold ph-trophy mr-1"></i> 1. TOURNAMENTS (BR/CS/LW)</button>
-      <button onclick="AdminApp.switchHostSection('wager')" id="d-host-tab-wager" class="px-4 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer transition"><i class="ph-bold ph-sword mr-1"></i> 2. PAID MATCHES (BOOKMARKS &amp; CHAT)</button>
-      <button onclick="AdminApp.switchHostSection('transfer')" id="d-host-tab-transfer" class="px-4 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer transition"><i class="ph-bold ph-currency-inr mr-1"></i> 3. SEND CASH (₹)</button>
-      <button onclick="AdminApp.switchHostSection('wallet')" id="d-host-tab-wallet" class="px-4 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer transition"><i class="ph-bold ph-wallet mr-1"></i> 4. HOST WALLET</button>
+      <button onclick="AdminApp.switchHostSection('wager')" id="d-host-tab-wager" class="px-4 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer transition"><i class="ph-bold ph-sword mr-1"></i> 2. PAID MATCHES (BOOKMARKS & CHAT)</button>
+      <button onclick="AdminApp.switchHostSection('accounts')" id="d-host-tab-accounts" class="px-4 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer transition"><i class="ph-bold ph-users mr-1 text-cyan-400"></i> 3. ATHLETE DIRECTORY (ALL ACCOUNTS)</button>
+      <button onclick="AdminApp.switchHostSection('transfer')" id="d-host-tab-transfer" class="px-4 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer transition"><i class="ph-bold ph-currency-inr mr-1"></i> 4. SEND CASH (₹)</button>
+      <button onclick="AdminApp.switchHostSection('wallet')" id="d-host-tab-wallet" class="px-4 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer transition"><i class="ph-bold ph-wallet mr-1"></i> 5. HOST WALLET</button>
     </div>
 
     <!-- SUPER ADMIN DESKTOP NAVIGATION TABS -->
@@ -108,7 +109,7 @@
       <button onclick="AdminApp.switchOwnerSection('tournaments-manage')" id="d-owner-tab-tournaments-manage" class="px-3.5 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer whitespace-nowrap transition"><i class="ph-bold ph-trophy mr-1 text-[#FF6B00]"></i> TOURNAMENT MANAGER</button>
       <button onclick="AdminApp.switchOwnerSection('qr')" id="d-owner-tab-qr" class="px-3.5 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer whitespace-nowrap transition"><i class="ph-bold ph-qr-code mr-1 text-[#FFC857]"></i> DUAL QR SCANNERS</button>
       <button onclick="AdminApp.switchOwnerSection('deposits')" id="d-owner-tab-deposits" class="px-3.5 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer whitespace-nowrap transition"><i class="ph-bold ph-check-circle mr-1 text-emerald-400"></i> DEPOSITS (+20%)</button>
-      <button onclick="AdminApp.switchOwnerSection('store')" id="d-owner-tab-store" class="px-3.5 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer whitespace-nowrap transition"><i class="ph-bold ph-shopping-bag mr-1 text-[#FF6B00]"></i> STORE &amp; REDEEMS</button>
+      <button onclick="AdminApp.switchOwnerSection('store')" id="d-owner-tab-store" class="px-3.5 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer whitespace-nowrap transition"><i class="ph-bold ph-shopping-bag mr-1 text-[#FF6B00]"></i> STORE & REDEEMS</button>
       <button onclick="AdminApp.switchOwnerSection('users')" id="d-owner-tab-users" class="px-3.5 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer whitespace-nowrap transition"><i class="ph-bold ph-users mr-1 text-cyan-400"></i> ALL USERS</button>
       <button onclick="AdminApp.switchOwnerSection('operators')" id="d-owner-tab-operators" class="px-3.5 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer whitespace-nowrap transition"><i class="ph-bold ph-shield-star mr-1 text-[#FFC857]"></i> 5 HOSTS</button>
       <button onclick="AdminApp.switchOwnerSection('broadcast')" id="d-owner-tab-broadcast" class="px-3.5 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer whitespace-nowrap transition"><i class="ph-bold ph-megaphone mr-1 text-pink-400"></i> BROADCAST</button>
@@ -122,13 +123,13 @@
           <div>
             <h2 class="text-sm font-russo text-white uppercase flex items-center gap-2">
               <i class="ph-bold ph-broadcast neon-text"></i>
-              <span>HOURLY TOURNAMENTS (BR • CLASH SQUAD • LONE WOLF)</span>
+              <span>HOURLY TOURNAMENTS (HOST FULL CONTROLS)</span>
             </h2>
-            <p class="text-xs text-slate-400">Claim room lock, push Room ID/Password, edit details, or delete room.</p>
+            <p class="text-xs text-slate-400">Add tournaments, claim lock, push credentials, settle prizes, or delete matches.</p>
           </div>
           <div class="flex items-center gap-2">
             <button type="button" onclick="AdminApp.openAddTournamentModal()" class="btn-hyper font-russo text-[11px] px-3.5 py-1.5 rounded-xl cursor-pointer flex items-center gap-1.5">
-              <i class="fa-solid fa-plus"></i> + ADD TOURNAMENT
+              <i class="fa-solid fa-plus"></i> + ADD NEW TOURNAMENT
             </button>
             <span class="text-xs font-mono text-[#FFC857]" id="hostMatchCount">0 Rooms</span>
           </div>
@@ -138,14 +139,14 @@
           <table class="w-full text-left text-xs min-w-[880px]">
             <thead class="sticky top-0 bg-[#06070A] z-10">
               <tr class="text-slate-400 border-b border-white/10 font-russo text-[10px]">
-                <th class="py-2.5 px-3">TOURNAMENT &amp; RULES</th>
-                <th class="py-2.5 px-3">SLOTS &amp; POOL</th>
+                <th class="py-2.5 px-3">TOURNAMENT TITLE</th>
+                <th class="py-2.5 px-3">SLOTS & POOL</th>
                 <th class="py-2.5 px-3">HOST LOCK</th>
-                <th class="py-2.5 px-3">ROOM ID &amp; PASS</th>
+                <th class="py-2.5 px-3">ROOM ID & PASS</th>
                 <th class="py-2.5 px-3 text-right">ACTION CONTROLS</th>
               </tr>
             </thead>
-            <tbody id="hostTableBody" class="divide-y divide-white/10"></tbody>
+            <tbody id="hostTableBody" class="divide-y divide-white/10 font-mono"></tbody>
           </table>
         </div>
       </section>
@@ -156,11 +157,25 @@
           <div>
             <h2 class="text-sm font-russo uppercase text-[#FFC857] flex items-center gap-2">
               <i class="ph-bold ph-sword"></i>
-              <span>PAID CUSTOM MATCHES (BOOKMARKS, EDIT PRICE, CHAT &amp; 80/10/10 SETTLEMENT)</span>
+              <span>PAID CUSTOM MATCHES (BOOKMARKS, EDIT PRICE, CHAT & 80/10/10 SETTLEMENT)</span>
             </h2>
           </div>
         </div>
         <div id="operatorCustomRoomsList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      </section>
+
+      <!-- All Accounts Directory (For Host) -->
+      <section id="host-sec-accounts" class="laser-card p-4 sm:p-6 space-y-4 hidden">
+        <div class="flex items-center justify-between border-b border-white/10 pb-3">
+          <h2 class="text-sm font-russo text-cyan-400 uppercase">ATHLETE DIRECTORY (ALL PLAYER ACCOUNTS & BALANCES)</h2>
+          <input type="text" oninput="AdminApp.filterUsersTable(this.value)" placeholder="Search Player by App ID, IGN, Phone..." class="bg-black/60 border border-white/15 px-3 py-1.5 rounded-xl text-xs text-white">
+        </div>
+        <div class="overflow-x-auto max-h-96">
+          <table class="w-full text-left text-xs min-w-[700px]">
+            <thead class="sticky top-0 bg-[#06070A]"><tr class="border-b border-white/10 text-slate-400"><th>APP ID</th><th>IGN & USERNAME</th><th>FF UID & PHONE</th><th>DEPOSIT (₹)</th><th>WINNINGS (₹)</th><th>LEVEL</th></tr></thead>
+            <tbody id="hostAccountsTableBody" class="divide-y divide-white/10 font-mono"></tbody>
+          </table>
+        </div>
       </section>
 
       <!-- Host Direct Money Transfer Section -->
@@ -247,7 +262,7 @@
           <div>
             <h3 class="font-russo text-base sm:text-lg text-white uppercase flex items-center gap-2">
               <i class="ph-bold ph-trophy text-[#FF6B00]"></i>
-              <span>CUSTOM TOURNAMENT MANAGER (CLEAN SLATE &amp; ADD YOUR OWN)</span>
+              <span>CUSTOM TOURNAMENT MANAGER (CLEAN SLATE & ADD YOUR OWN)</span>
             </h3>
             <p class="text-xs text-slate-400 mt-0.5">Sare pre-seeded tournaments 1-click me saaf karein aur apne mutabik nayi rooms add karein.</p>
           </div>
@@ -266,9 +281,9 @@
             <thead class="sticky top-0 bg-[#06070A] z-10">
               <tr class="text-slate-400 border-b border-white/10 font-russo text-[10px]">
                 <th class="py-2.5 px-3">TOURNAMENT TITLE</th>
-                <th class="py-2.5 px-3">CATEGORY &amp; MODE</th>
+                <th class="py-2.5 px-3">CATEGORY & MODE</th>
                 <th class="py-2.5 px-3">RULES (AMMO / HS)</th>
-                <th class="py-2.5 px-3">FEE &amp; POOL</th>
+                <th class="py-2.5 px-3">FEE & POOL</th>
                 <th class="py-2.5 px-3">STATUS</th>
                 <th class="py-2.5 px-3 text-right">FAST ACTION</th>
               </tr>
@@ -283,7 +298,7 @@
         <div class="border-b border-white/10 pb-3">
           <h3 class="font-russo text-base text-[#FFC857] uppercase flex items-center gap-2">
             <i class="ph-bold ph-qr-code text-lg"></i>
-            <span>DUAL QR SCANNERS &amp; RECEIVING UPI GATEWAYS</span>
+            <span>DUAL QR SCANNERS & RECEIVING UPI GATEWAYS</span>
           </h3>
           <p class="text-xs text-slate-400 mt-0.5">Gallery se scanner ki photo upload karein ya image URL daalein. Save karte hi live update ho jayega.</p>
         </div>
@@ -336,7 +351,7 @@
 
         <button type="button" onclick="AdminApp.saveDualQrSettings()" class="w-full btn-hyper clip-esports-sm py-3.5 text-xs flex items-center justify-center gap-2 cursor-pointer">
           <i class="ph-bold ph-cloud-arrow-up text-base"></i>
-          <span>SAVE &amp; BROADCAST BOTH QR SCANNERS LIVE</span>
+          <span>SAVE & BROADCAST BOTH QR SCANNERS LIVE</span>
         </button>
       </section>
 
@@ -360,7 +375,7 @@
             <thead class="sticky top-0 bg-[#06070A]">
               <tr class="text-slate-400 border-b border-white/10 font-russo text-[10px]">
                 <th class="py-2.5 px-3">REQ ID / SCANNER</th>
-                <th class="py-2.5 px-3">PLAYER APP ID &amp; IGN</th>
+                <th class="py-2.5 px-3">PLAYER APP ID & IGN</th>
                 <th class="py-2.5 px-3">AMOUNT (₹)</th>
                 <th class="py-2.5 px-3">12-DIGIT UTR</th>
                 <th class="py-2.5 px-3">STATUS</th>
@@ -377,7 +392,7 @@
         <div class="border-b border-white/10 pb-3">
           <h3 class="font-russo text-sm sm:text-base text-[#FFC857] uppercase flex items-center gap-2">
             <i class="ph-bold ph-shopping-bag-open"></i>
-            <span>IGNIS STORE — PRODUCTS &amp; REDEEM CODES MANAGER</span>
+            <span>IGNIS STORE — PRODUCTS & REDEEM CODES MANAGER</span>
           </h3>
         </div>
 
@@ -417,8 +432,8 @@
             <thead class="sticky top-0 bg-[#06070A]">
               <tr class="text-slate-400 border-b border-white/10 font-russo text-[10px]">
                 <th class="py-2.5 px-3">APP ID</th>
-                <th class="py-2.5 px-3">IGN &amp; USERNAME</th>
-                <th class="py-2.5 px-3">FF UID &amp; CONTACT</th>
+                <th class="py-2.5 px-3">IGN & USERNAME</th>
+                <th class="py-2.5 px-3">FF UID & CONTACT</th>
                 <th class="py-2.5 px-3">DEPOSIT (₹)</th>
                 <th class="py-2.5 px-3">WINNINGS (₹)</th>
                 <th class="py-2.5 px-3">STATS</th>
@@ -455,7 +470,7 @@
           <table class="w-full text-left text-xs min-w-[700px]">
             <thead class="bg-[#06070A]">
               <tr class="text-slate-400 border-b border-white/10 font-russo text-[10px]">
-                <th class="py-2.5 px-3">HOST ID &amp; NAME</th>
+                <th class="py-2.5 px-3">HOST ID & NAME</th>
                 <th class="py-2.5 px-3">PASSWORD</th>
                 <th class="py-2.5 px-3">COMMISSION EARNED</th>
                 <th class="py-2.5 px-3">STATUS</th>
@@ -479,7 +494,7 @@
 
       <!-- Super Admin Section 9: REPORTS -->
       <section id="owner-sec-feedbacks" class="laser-card p-5 space-y-4 hidden">
-        <h3 class="font-russo text-sm text-[#FFC857] uppercase">ATHLETE DISPUTES &amp; REPORTS INBOX</h3>
+        <h3 class="font-russo text-sm text-[#FFC857] uppercase">ATHLETE DISPUTES & REPORTS INBOX</h3>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs min-w-[700px]">
             <thead>
