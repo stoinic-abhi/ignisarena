@@ -18,6 +18,7 @@ const AdminApp = {
   depositRequestsList: [],
   feedbacksList: [],
   activeAdminChatRoomId: null,
+  activeSettleMatchId: null,
 
   async init() {
     if (typeof SupabaseService !== 'undefined' && SupabaseService.init) {
@@ -100,7 +101,7 @@ const AdminApp = {
 
     if (isOwner) {
       document.getElementById('dashboardTitle').innerText = 'SUPER ADMIN MASTER DECK';
-      document.getElementById('dashboardSubtitle').innerHTML = 'Full Control • <span class="text-[#FFC857]">Tournaments, Dual Scanners &amp; 10% Vault</span>';
+      document.getElementById('dashboardSubtitle').innerHTML = 'Full Control • <span class="text-[#FFC857]">Tournaments, Dual Scanners & 10% Vault</span>';
       document.getElementById('roleBadge').innerText = 'MASTER OWNER';
       this.fetchSuperAdminData();
       this.switchOwnerSection('overview');
@@ -122,7 +123,7 @@ const AdminApp = {
 
   switchHostSection(tabKey) {
     this.activeHostTab = tabKey;
-    ['tournaments', 'wager', 'transfer', 'wallet'].forEach(t => {
+    ['tournaments', 'wager', 'accounts', 'transfer', 'wallet'].forEach(t => {
       const isCur = (t === tabKey);
       document.getElementById(`host-sec-${t}`)?.classList.toggle('hidden', !isCur);
       const dBtn = document.getElementById(`d-host-tab-${t}`);
@@ -133,6 +134,7 @@ const AdminApp = {
       const mBtn = document.getElementById(`m-host-tab-${t}`);
       if (mBtn) mBtn.style.color = isCur ? '#FF6B00' : '#64748b';
     });
+    if (tabKey === 'accounts') this.renderHostAccountsTable();
   },
 
   switchOwnerSection(tabKey) {
@@ -290,7 +292,7 @@ const AdminApp = {
       room_id: '',
       room_password: '',
       match_status: 'UPCOMING',
-      assigned_host: 'UNCLAIMED',
+      assigned_host: this.currentHost?.host_id || 'UNCLAIMED',
       created_at: new Date().toISOString()
     };
 
@@ -348,6 +350,117 @@ const AdminApp = {
     SupabaseService.setLocal(SupabaseService.STORAGE_TOURNEY_KEY, this.matches);
     this.renderSuperManageTournamentsTable();
     this.renderHostMatches();
+  },
+
+  /* ==================== AUTOMATED TOURNAMENT SETTLEMENT ENGINE ==================== */
+  async openSettleTournamentModal(tournamentId) {
+    this.activeSettleMatchId = tournamentId;
+    const match = this.matches.find(m => m.id === tournamentId);
+    if (!match) return;
+
+    document.getElementById('settleMatchHeaderTitle').innerText = `Settle: ${match.title}`;
+    const fee = Number(match.entry_fee || 0);
+    const slots = Number(match.filled_slots || match.total_slots || 8);
+    const totalPool = fee * slots;
+    const hostCut = Math.round(totalPool * 0.10);
+    const adminCut = Math.round(totalPool * 0.10);
+    const remainingForWinnerAndKills = totalPool - hostCut - adminCut;
+
+    document.getElementById('settleTotalPoolDisplay').innerText = `₹${totalPool}`;
+    document.getElementById('settleHostCutDisplay').innerText = `-₹${hostCut} (10%)`;
+    document.getElementById('settleAdminCutDisplay').innerText = `-₹${adminCut} (10%)`;
+    document.getElementById('settleRemainingPoolDisplay').innerText = `₹${remainingForWinnerAndKills}`;
+
+    const winnerSelect = document.getElementById('settleBooyahWinnerSelect');
+    const killsList = document.getElementById('settlePlayerKillsList');
+    winnerSelect.innerHTML = '';
+    killsList.innerHTML = '';
+
+    const { data: players } = await SupabaseService.getJoinedPlayers(tournamentId);
+    const roster = players && players.length > 0 ? players : [
+      { leader_app_id: 'IGNIS-4491', leader_ign: 'AURA_Sniper', slot_number: 1 },
+      { leader_app_id: 'IGNIS-1940', leader_ign: 'GodL_Shadow', slot_number: 2 }
+    ];
+
+    roster.forEach(p => {
+      winnerSelect.innerHTML += `<option value="${p.leader_app_id}">Slot #${p.slot_number}: ${p.leader_ign} (${p.leader_app_id})</option>`;
+      killsList.innerHTML += `
+        <div class="flex items-center justify-between py-1 border-b border-white/5">
+          <span class="text-white font-bold">#${p.slot_number} ${p.leader_ign} <span class="text-slate-400 font-mono text-[10px]">(${p.leader_app_id})</span></span>
+          <div class="flex items-center gap-1">
+            <span class="text-[10px] text-slate-400">Kills:</span>
+            <input type="number" id="kill-input-${p.leader_app_id}" value="0" min="0" class="w-14 bg-black border border-white/20 text-center text-amber-300 font-mono rounded">
+          </div>
+        </div>
+      `;
+    });
+
+    document.getElementById('tournamentSettleModal')?.classList.remove('hidden');
+  },
+
+  async executeMatchSettlementCalculation() {
+    const match = this.matches.find(m => m.id === this.activeSettleMatchId);
+    if (!match) return;
+
+    const winnerAppId = document.getElementById('settleBooyahWinnerSelect')?.value;
+    const perKillBounty = Number(match.per_kill || 0);
+    const fee = Number(match.entry_fee || 0);
+    const slots = Number(match.filled_slots || match.total_slots || 8);
+    const totalPool = fee * slots;
+
+    const hostCut = Math.round(totalPool * 0.10);
+    const adminCut = Math.round(totalPool * 0.10);
+
+    const { data: roster } = await SupabaseService.getJoinedPlayers(match.id);
+    const list = roster && roster.length > 0 ? roster : [
+      { leader_app_id: 'IGNIS-4491', leader_ign: 'AURA_Sniper' },
+      { leader_app_id: 'IGNIS-1940', leader_ign: 'GodL_Shadow' }
+    ];
+
+    let totalKillPayout = 0;
+    for (const p of list) {
+      const kills = parseInt(document.getElementById(`kill-input-${p.leader_app_id}`)?.value, 10) || 0;
+      if (kills > 0 && perKillBounty > 0) {
+        const killPrize = kills * perKillBounty;
+        totalKillPayout += killPrize;
+        await SupabaseService.creditPlayerWalletByAppId(p.leader_app_id, killPrize, 'winnings', false);
+      }
+    }
+
+    const winnerNetPayout = Math.max(0, totalPool - hostCut - adminCut - totalKillPayout);
+    if (winnerAppId) {
+      await SupabaseService.creditPlayerWalletByAppId(winnerAppId, winnerNetPayout, 'winnings', true);
+    }
+
+    if (this.currentHost) {
+      this.currentHost.commission_balance = Number(this.currentHost.commission_balance || 0) + hostCut;
+      document.getElementById('liveCommissionText').innerText = `₹${this.currentHost.commission_balance.toFixed(0)}`;
+    }
+
+    await SupabaseService.toggleMatchStatus(match.id, 'COMPLETED');
+    document.getElementById('tournamentSettleModal')?.classList.add('hidden');
+    await this.fetchHostWorkspaceData();
+
+    alert(`MATCH SETTLED SUCCESSFULLY!\n• Winner Payout (80% net): ₹${winnerNetPayout}\n• Kill Payouts: ₹${totalKillPayout}\n• Host Commission (10%): ₹${hostCut}\n• Admin Cut (10%): ₹${adminCut}`);
+  },
+
+  /* ==================== ALL ACCOUNTS VIEWER ==================== */
+  async renderHostAccountsTable() {
+    const tbody = document.getElementById('hostAccountsTableBody');
+    if (!tbody) return;
+    const { data: users } = await SupabaseService.getAllPlayers();
+    this.usersList = users || [];
+
+    tbody.innerHTML = this.usersList.map(u => `
+      <tr class="hover:bg-white/5">
+        <td class="py-2.5 px-3 text-[#FFC857] font-bold">${u.app_id}</td>
+        <td class="py-2.5 px-3"><strong class="text-white block">${u.ign}</strong><span class="text-[10px] text-slate-400">${u.username || ''}</span></td>
+        <td class="py-2.5 px-3"><div>UID: ${u.uid}</div><div class="text-[10px] text-emerald-400">WA: ${u.phone}</div></td>
+        <td class="py-2.5 px-3 text-white font-bold">₹${Number(u.deposit_bal || 0).toFixed(0)}</td>
+        <td class="py-2.5 px-3 text-emerald-400 font-bold">₹${Number(u.winnings_bal || 0).toFixed(0)}</td>
+        <td class="py-2.5 px-3 text-cyan-300">${u.level}</td>
+      </tr>
+    `).join('');
   },
 
   /* ==================== DUAL QR SCANNERS CONTROLLER ==================== */
@@ -481,48 +594,47 @@ const AdminApp = {
     document.getElementById('hostMatchCount').innerText = `${this.matches.length} Rooms`;
     const myHostId = this.currentHost ? this.currentHost.host_id : 'host_01';
 
-    tbody.innerHTML = this.matches.length === 0
-      ? `<tr><td colspan="5" class="py-10 text-center text-slate-400 font-russo text-xs">Koi tournament nahi hai. Upar "+ ADD TOURNAMENT" button dabayein!</td></tr>`
-      : this.matches.map((m, idx) => {
-        const isUnclaimed = !m.assigned_host || m.assigned_host === 'UNCLAIMED';
-        const isClaimedByMe = m.assigned_host === myHostId;
-        const isLockedByOther = !isUnclaimed && !isClaimedByMe;
-        const isLive = m.match_status === 'LIVE';
+    tbody.innerHTML = this.matches.map((m, idx) => {
+      const isUnclaimed = !m.assigned_host || m.assigned_host === 'UNCLAIMED';
+      const isClaimedByMe = m.assigned_host === myHostId;
+      const isLockedByOther = !isUnclaimed && !isClaimedByMe;
+      const isLive = m.match_status === 'LIVE';
 
-        return `
-          <tr class="hover:bg-white/5">
-            <td class="py-2.5 px-3">
-              <div class="font-russo text-white">${m.title}</div>
-              <div class="text-[10px] text-[#FFC857] font-mono">${m.match_time} • ${m.category} ${m.sub_mode} • ${m.ammo_mode} • HS: ${m.headshot_mode}</div>
-            </td>
-            <td class="py-2.5 px-3 font-mono">
-              <div class="text-white font-bold">${m.filled_slots}/${m.total_slots} Slots</div>
-              <div class="text-[10px] text-emerald-400">Fee: ₹${m.entry_fee} • Pool: ₹${m.prize_pool || 0}</div>
-            </td>
-            <td class="py-2.5 px-3 font-mono text-xs">
-              ${isUnclaimed ? `
-                <button type="button" onclick="AdminApp.claimTournamentLock('${m.id}')" class="bg-[#FF6B00] text-black font-russo text-[10px] px-2.5 py-1 clip-esports-sm cursor-pointer">CLAIM LOCK</button>
-              ` : isClaimedByMe ? `
-                <span class="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-lg text-[10px]">LOCKED BY YOU (${myHostId})</span>
-              ` : `<span class="bg-red-500/20 text-red-300 px-2 py-0.5 rounded-lg text-[10px]">LOCKED BY ${m.assigned_host}</span>`}
-            </td>
-            <td class="py-2.5 px-3">
-              <div class="flex gap-1">
-                <input id="inputRoom-${idx}" type="text" value="${m.room_id || ''}" placeholder="Room ID" ${isLockedByOther ? 'disabled' : ''} class="bg-black/70 border border-white/15 rounded-lg px-2 py-1 text-xs text-[#FFC857] font-mono w-24">
-                <input id="inputPass-${idx}" type="text" value="${m.room_password || ''}" placeholder="Pass" ${isLockedByOther ? 'disabled' : ''} class="bg-black/70 border border-white/15 rounded-lg px-2 py-1 text-xs text-emerald-300 font-mono w-20">
-              </div>
-            </td>
-            <td class="py-2.5 px-3 text-right space-x-1">
-              ${!isLockedByOther ? `
-                <button type="button" onclick="AdminApp.dispatchCredentials(${idx})" class="bg-[#FFC857]/20 text-[#FFC857] border border-[#FFC857]/40 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">PUSH IDP</button>
-                <button type="button" onclick="AdminApp.toggleLiveLock('${m.id}', '${isLive ? 'UPCOMING' : 'LIVE'}')" class="bg-red-500/20 text-red-300 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">${isLive ? 'UNBLOCK' : 'BLOCK'}</button>
-                <button type="button" onclick="AdminApp.openEditTournamentModal('${m.id}')" class="bg-cyan-500/20 text-cyan-300 px-2 py-1 rounded-lg text-[10px] font-russo cursor-pointer">EDIT</button>
-                <button type="button" onclick="AdminApp.fastDeleteTournament('${m.id}')" class="bg-red-500/20 text-red-300 px-2 py-1 rounded-lg text-[10px] font-russo cursor-pointer">DEL</button>
-              ` : `<span class="text-slate-500 text-[10px] font-mono">Managed by ${m.assigned_host}</span>`}
-            </td>
-          </tr>
-        `;
-      }).join('');
+      return `
+        <tr class="hover:bg-white/5">
+          <td class="py-2.5 px-3">
+            <div class="font-russo text-white">${m.title}</div>
+            <div class="text-[10px] text-[#FFC857] font-mono">${m.match_time} • ${m.category} ${m.sub_mode} • ${m.ammo_mode} • HS: ${m.headshot_mode}</div>
+          </td>
+          <td class="py-2.5 px-3 font-mono">
+            <div class="text-white font-bold">${m.filled_slots}/${m.total_slots} Slots</div>
+            <div class="text-[10px] text-emerald-400">Fee: ₹${m.entry_fee} • Pool: ₹${m.prize_pool || 0}</div>
+          </td>
+          <td class="py-2.5 px-3 font-mono text-xs">
+            ${isUnclaimed ? `
+              <button type="button" onclick="AdminApp.claimTournamentLock('${m.id}')" class="bg-[#FF6B00] text-black font-russo text-[10px] px-2.5 py-1 clip-esports-sm cursor-pointer">CLAIM LOCK</button>
+            ` : isClaimedByMe ? `
+              <span class="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-lg text-[10px]">LOCKED BY YOU (${myHostId})</span>
+            ` : `<span class="bg-red-500/20 text-red-300 px-2 py-0.5 rounded-lg text-[10px]">LOCKED BY ${m.assigned_host}</span>`}
+          </td>
+          <td class="py-2.5 px-3">
+            <div class="flex gap-1">
+              <input id="inputRoom-${idx}" type="text" value="${m.room_id || ''}" placeholder="Room ID" ${isLockedByOther ? 'disabled' : ''} class="bg-black/70 border border-white/15 rounded-lg px-2 py-1 text-xs text-[#FFC857] font-mono w-24">
+              <input id="inputPass-${idx}" type="text" value="${m.room_password || ''}" placeholder="Pass" ${isLockedByOther ? 'disabled' : ''} class="bg-black/70 border border-white/15 rounded-lg px-2 py-1 text-xs text-emerald-300 font-mono w-20">
+            </div>
+          </td>
+          <td class="py-2.5 px-3 text-right space-x-1">
+            ${!isLockedByOther ? `
+              <button type="button" onclick="AdminApp.dispatchCredentials(${idx})" class="bg-[#FFC857]/20 text-[#FFC857] border border-[#FFC857]/40 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">PUSH IDP</button>
+              <button type="button" onclick="AdminApp.openSettleTournamentModal('${m.id}')" class="bg-emerald-500 text-black font-russo px-2.5 py-1 rounded-lg text-[10px] cursor-pointer">SETTLE ⚡</button>
+              <button type="button" onclick="AdminApp.toggleLiveLock('${m.id}', '${isLive ? 'UPCOMING' : 'LIVE'}')" class="bg-red-500/20 text-red-300 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">${isLive ? 'UNBLOCK' : 'BLOCK'}</button>
+              <button type="button" onclick="AdminApp.openEditTournamentModal('${m.id}')" class="bg-cyan-500/20 text-cyan-300 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">EDIT</button>
+              <button type="button" onclick="AdminApp.fastDeleteTournament('${m.id}')" class="bg-red-500/20 text-red-300 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">DEL</button>
+            ` : `<span class="text-slate-500 text-[10px] font-mono">Managed by ${m.assigned_host}</span>`}
+          </td>
+        </tr>
+      `;
+    }).join('');
   },
 
   renderOperatorCustomRooms() {
@@ -571,10 +683,10 @@ const AdminApp = {
 
         <div class="flex flex-wrap gap-1.5 pt-1">
           ${!isCompleted ? `
-            <button type="button" onclick="AdminApp.acceptAndPushCustomRoom('${r.id}', ${idx})" class="bg-emerald-500 text-black font-russo text-[10px] px-3 py-1.5 rounded-xl cursor-pointer">ACCEPT &amp; UNLOCK CHAT</button>
+            <button type="button" onclick="AdminApp.acceptAndPushCustomRoom('${r.id}', ${idx})" class="bg-emerald-500 text-black font-russo text-[10px] px-3 py-1.5 rounded-xl cursor-pointer">ACCEPT & UNLOCK CHAT</button>
             <button type="button" onclick="AdminApp.settleCustomRoomWinner('${r.id}', '${r.team_a_app_id}')" class="bg-[#FFC857]/20 text-[#FFC857] font-russo text-[10px] px-2.5 py-1.5 rounded-xl cursor-pointer">WIN SIDE A (80%)</button>
             ${r.team_b_app_id ? `<button type="button" onclick="AdminApp.settleCustomRoomWinner('${r.id}', '${r.team_b_app_id}')" class="bg-cyan-500/20 text-cyan-300 font-russo text-[10px] px-2.5 py-1.5 rounded-xl cursor-pointer">WIN SIDE B (80%)</button>` : ''}
-            <button type="button" onclick="AdminApp.rejectCustomRoom('${r.id}')" class="bg-red-500/20 text-red-300 font-russo text-[10px] px-2.5 py-1.5 rounded-xl cursor-pointer">REJECT</button>
+            <button type="button" onclick="AdminApp.rejectCustomRoom('${r.id}')" class="bg-red-500/20 text-red-300 font-russo text-[10px] px-2 py-1.5 rounded-xl cursor-pointer">REJECT</button>
           ` : `<span class="text-xs font-russo text-emerald-400">MATCH SETTLED ✓</span>`}
           <button type="button" onclick="AdminApp.openOperatorChatModal('${r.id}')" class="bg-white/10 hover:bg-white/20 text-white font-russo text-[10px] px-3 py-1.5 rounded-xl cursor-pointer ml-auto">
             <i class="fa-solid fa-comments text-cyan-400 mr-1"></i>CHAT (${(r.chat_messages || []).length})
