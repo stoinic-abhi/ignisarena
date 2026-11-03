@@ -2,25 +2,25 @@
   "name": "Ignis Arena",
   "short_name": "IgnisArena",
   "description": "Official Free Fire India Esports Tournament Platform",
-  "start_url": "/ignisarena/",
-  "scope": "/ignisarena/",
-  "id": "/ignisarena/",
+  "start_url": "index.html",
+  "scope": "./",
+  "id": "ignis-arena-app",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#06070A",
   "theme_color": "#06070A",
   "icons": [
     {
-      "src": "logo.png",
+      "src": "assets/app-icon.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
-      "src": "logo.png",
+      "src": "assets/app-icon.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     }
   ]
 }
