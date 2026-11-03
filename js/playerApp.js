@@ -1,8 +1,10 @@
-// js/playerApp.js — Complete Uncut Player Engine (Cloud Await on Init + Fixed Tournament Visibility + Live Search)
+// js/playerApp.js — Complete Uncut Player Engine (All 10 Points Fixed: 9:16 Splash, Complete Profile, Anti-Flicker, Callback & Wallet Sync)
 
 const PlayerApp = {
   BASE_FF_WALLPAPER: 'https://images2.alphacoders.com/112/1126388.jpg',
   DEFAULT_DP: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&q=80',
+  _lastTourneyRenderHash: '',
+  _lastCustomRoomRenderHash: '',
 
   state: {
     user: null,
@@ -26,11 +28,34 @@ const PlayerApp = {
     notifications: []
   },
 
+  /* ==================== POINT 2, 3, 6 & 8: STABILIZE SUPABASE SYNC & STOP BLINKING ==================== */
+  stabilizeSupabaseBridge() {
+    if (typeof SupabaseService === 'undefined') return;
+
+    // 1. Stop Red/Green Blinking Badge completely — show clean steady status only
+    SupabaseService.mountCloudStatusBadge = function (statusText, isError = false) {
+      const badge = document.getElementById('ignisCloudLiveBadge');
+      if (badge) badge.style.display = 'none';
+    };
+    const existingBadge = document.getElementById('ignisCloudLiveBadge');
+    if (existingBadge) existingBadge.style.display = 'none';
+
+    // 2. Prevent pullAllFromCloud from overwriting recent local writes (6.5 second write lock)
+    SupabaseService.setLocal = function (key, val) {
+      localStorage.setItem(key, JSON.stringify(val));
+      this._lastLocalWriteTime = Date.now();
+      window.dispatchEvent(new Event('storage'));
+      if (this.isCloudConnected && !this._isSyncingFromCloud) {
+        this.pushKeyToCloud(key, val);
+      }
+    };
+  },
+
   buildIgnisBrandedPosterHTML(m, eco) {
     const statusBadge = eco.isCompleted
       ? `<span class="bg-[#FFC857] text-black font-extrabold text-[9px] px-2.5 py-0.5 rounded-full shadow">COMPLETED</span>`
       : eco.isLive
-      ? `<span class="bg-red-600 text-white font-extrabold text-[9px] px-2.5 py-0.5 rounded-full animate-pulse shadow">LIVE</span>`
+      ? `<span class="bg-red-600 text-white font-extrabold text-[9px] px-2.5 py-0.5 rounded-full shadow">LOCKED / LIVE</span>`
       : `<span class="bg-emerald-500 text-black font-extrabold text-[9px] px-2.5 py-0.5 rounded-full shadow">OPEN</span>`;
 
     const hsBadge = m.headshot_mode === 'YES'
@@ -77,20 +102,34 @@ const PlayerApp = {
   },
 
   async init() {
+    this.stabilizeSupabaseBridge();
     this.initAtmosphericCanvas();
-    // Wait for Supabase Cloud pull first so other phones immediately see live data
+
+    // Point 7: Show 9:16 Splash Poster for ~2.3 seconds on initial app open, then transition smoothly
+    const splashEl = document.getElementById('ignisSplashScreen');
+    const alreadyShownThisTab = sessionStorage.getItem('ignis_splash_done');
+    const splashDelay = alreadyShownThisTab ? 400 : 2300;
+
     if (SupabaseService.isCloudConnected) {
       await SupabaseService.pullAllFromCloud(true);
     }
     await this.loadPlatformConfig();
-    this.checkSavedSession();
-    await this.fetchMatches();
-    await this.fetchCustomPaidRooms();
-    await this.loadAllTimeTransactions();
+    await this.fetchMatches(true);
+    await this.fetchCustomPaidRooms(true);
     this.loadNotifications();
     this.setupRealtimeSync();
     this.recalcCustomWagerMath();
-    this.switchTab('tournaments');
+
+    setTimeout(() => {
+      sessionStorage.setItem('ignis_splash_done', 'true');
+      if (splashEl) {
+        splashEl.style.opacity = '0';
+        setTimeout(() => splashEl.classList.add('hidden'), 450);
+      }
+      this.checkSavedSession();
+      this.loadAllTimeTransactions();
+      this.switchTab('tournaments');
+    }, splashDelay);
   },
 
   async loadPlatformConfig() {
@@ -98,7 +137,7 @@ const PlayerApp = {
     this.state.platformSettings = data;
   },
 
-  /* ==================== SIGN IN & STRICT UNIQUE REGISTER GATEWAY ==================== */
+  /* ==================== POINT 1 & 7: PERSISTENT LOGIN + "COMPLETE YOUR PROFILE" FLOW ==================== */
   switchAuthMode(mode) {
     this.state.authMode = mode;
     const isSignIn = mode === 'signin';
@@ -118,15 +157,59 @@ const PlayerApp = {
     document.getElementById('playerRegisterForm')?.classList.toggle('hidden', isSignIn);
   },
 
+  isProfileComplete(userObj) {
+    if (!userObj) return false;
+    if (userObj.profileCompleted === true) return true;
+    const hasUid = String(userObj.uid || '').trim().length >= 5 && userObj.uid !== 'Not Set';
+    const hasIgn = String(userObj.ign || '').trim().length >= 2 && userObj.ign !== 'Player' && userObj.ign !== 'Not Set';
+    const hasEmail = String(userObj.email || '').trim().includes('@');
+    return hasUid && hasIgn && hasEmail;
+  },
+
+  checkSavedSession() {
+    const saved = localStorage.getItem('ignis_player_session');
+    if (saved) {
+      try {
+        const sessionUser = JSON.parse(saved);
+        const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
+        const dbMatch = allPlayers.find(p => (p.app_id || '').toUpperCase() === (sessionUser.appId || '').toUpperCase());
+        if (dbMatch) {
+          const mapped = SupabaseService.mapDbRecordToUser(dbMatch);
+          mapped.profileCompleted = sessionUser.profileCompleted || this.isProfileComplete(mapped);
+          this.state.user = mapped;
+          localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
+        } else {
+          this.state.user = sessionUser;
+          SupabaseService.upsertPlayerProfile(this.state.user);
+        }
+
+        document.getElementById('playerAuthGate')?.classList.add('hidden');
+        document.getElementById('mainPlayerPortal')?.classList.remove('hidden');
+        this.updateUI();
+
+        // Point 1: Show Complete Profile modal ONLY if UID, IGN or Gmail are missing
+        if (!this.isProfileComplete(this.state.user)) {
+          this.openCompleteProfileModal();
+        } else {
+          document.getElementById('completeProfileModal')?.classList.add('hidden');
+          document.getElementById('incompleteProfileBanner')?.classList.add('hidden');
+        }
+        return;
+      } catch (e) {
+        console.warn('Session parse recovery:', e);
+      }
+    }
+
+    const existingPlayers = SupabaseService.getLocal('ignis_players_db', []);
+    this.switchAuthMode(existingPlayers.length > 0 ? 'signin' : 'register');
+    document.getElementById('playerAuthGate')?.classList.remove('hidden');
+    document.getElementById('mainPlayerPortal')?.classList.add('hidden');
+  },
+
   checkLiveRegisterAvailability() {
     const usernameRaw = (document.getElementById('authUsernameInput')?.value || '').trim();
-    const uid = (document.getElementById('authUidInput')?.value || '').trim();
-    const ign = (document.getElementById('authIgnInput')?.value || '').trim();
     const phone = (document.getElementById('authPhoneInput')?.value || '').trim();
-
     const uBadge = document.getElementById('regUsernameLiveBadge');
-    const uidBadge = document.getElementById('regUidLiveBadge');
-    const ignBadge = document.getElementById('regIgnLiveBadge');
     const errBox = document.getElementById('registerConflictErrorBox');
 
     if (uBadge) {
@@ -138,25 +221,7 @@ const PlayerApp = {
       }
     }
 
-    if (uidBadge) {
-      if (!uid) uidBadge.innerText = '';
-      else {
-        const res = SupabaseService.checkIdentityConflict({ uid });
-        uidBadge.innerText = res.hasConflict ? '✗ UID Used' : '✓ Unique';
-        uidBadge.className = res.hasConflict ? 'text-[9px] font-bold text-red-400' : 'text-[9px] font-bold text-emerald-400';
-      }
-    }
-
-    if (ignBadge) {
-      if (!ign) ignBadge.innerText = '';
-      else {
-        const res = SupabaseService.checkIdentityConflict({ ign });
-        ignBadge.innerText = res.hasConflict ? '✗ Taken' : '✓ Unique';
-        ignBadge.className = res.hasConflict ? 'text-[9px] font-bold text-red-400' : 'text-[9px] font-bold text-emerald-400';
-      }
-    }
-
-    const overall = SupabaseService.checkIdentityConflict({ username: usernameRaw, uid, ign, phone });
+    const overall = SupabaseService.checkIdentityConflict({ username: usernameRaw, phone });
     if (errBox) {
       if (overall.hasConflict) {
         errBox.innerText = overall.message;
@@ -168,42 +233,12 @@ const PlayerApp = {
     return overall;
   },
 
-  checkSavedSession() {
-    const saved = localStorage.getItem('ignis_player_session');
-    if (saved) {
-      try {
-        const sessionUser = JSON.parse(saved);
-        const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
-        const dbMatch = allPlayers.find(p => (p.app_id || '').toUpperCase() === (sessionUser.appId || '').toUpperCase());
-        if (dbMatch) {
-          this.state.user = SupabaseService.mapDbRecordToUser(dbMatch);
-          localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
-        } else {
-          this.state.user = sessionUser;
-          SupabaseService.upsertPlayerProfile(this.state.user);
-        }
-
-        document.getElementById('playerAuthGate')?.classList.add('hidden');
-        document.getElementById('mainPlayerPortal')?.classList.remove('hidden');
-        this.updateUI();
-        return;
-      } catch (e) {
-        localStorage.removeItem('ignis_player_session');
-      }
-    }
-
-    const existingPlayers = SupabaseService.getLocal('ignis_players_db', []);
-    this.switchAuthMode(existingPlayers.length > 0 ? 'signin' : 'register');
-    document.getElementById('playerAuthGate')?.classList.remove('hidden');
-    document.getElementById('mainPlayerPortal')?.classList.add('hidden');
-  },
-
   async loginExistingPlayer() {
     const idInput = (document.getElementById('loginIdentifierInput')?.value || '').trim();
     const passInput = (document.getElementById('loginPasswordInput')?.value || '').trim();
 
     if (!idInput || !passInput) {
-      alert('Please enter your @Username / App ID / WhatsApp Number and Password!');
+      alert('Please enter your @Username / WhatsApp Number / App ID and Password!');
       return;
     }
 
@@ -214,25 +249,28 @@ const PlayerApp = {
     }
 
     this.state.user = res.player;
+    this.state.user.profileCompleted = this.isProfileComplete(this.state.user);
     localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
+
     document.getElementById('playerAuthGate')?.classList.add('hidden');
     document.getElementById('mainPlayerPortal')?.classList.remove('hidden');
     this.updateUI();
-    this.showToast(`Welcome back, ${this.state.user.username} (${this.state.user.appId})!`);
+    this.switchTab('tournaments');
+
+    if (!this.state.user.profileCompleted) {
+      this.openCompleteProfileModal();
+    }
+    this.showToast(`Welcome back, ${this.state.user.username}!`);
   },
 
   async completePlayerAuth() {
     const fullName = (document.getElementById('authFullNameInput')?.value || '').trim();
     const usernameRaw = (document.getElementById('authUsernameInput')?.value || '').trim().toLowerCase().replace(/\s+/g, '_');
     const phone = (document.getElementById('authPhoneInput')?.value || '').trim();
-    const email = (document.getElementById('authEmailInput')?.value || '').trim();
-    const uid = (document.getElementById('authUidInput')?.value || '').trim();
-    const ign = (document.getElementById('authIgnInput')?.value || '').trim();
-    const level = (document.getElementById('authLevelInput')?.value || '').trim() || 'Level 70';
     const password = (document.getElementById('authPasswordInput')?.value || '').trim();
 
-    if (!fullName || !usernameRaw || phone.length < 10 || uid.length < 5 || !ign || !password) {
-      alert("Please fill Full Name, Unique @Username, 10-digit WhatsApp Number, FF UID, IGN, and Password.");
+    if (!fullName || !usernameRaw || phone.length < 10 || !password) {
+      alert("Please fill Full Name, Unique @Username, 10-digit WhatsApp Number, and Password.");
       return;
     }
 
@@ -242,7 +280,7 @@ const PlayerApp = {
       await SupabaseService.pullAllFromCloud(true);
     }
 
-    const conflictCheck = SupabaseService.checkIdentityConflict({ username, uid, ign, phone });
+    const conflictCheck = SupabaseService.checkIdentityConflict({ username, phone });
     if (conflictCheck.hasConflict) {
       alert(`⚠️ REGISTRATION BLOCKED:\n${conflictCheck.message}`);
       this.checkLiveRegisterAvailability();
@@ -256,12 +294,21 @@ const PlayerApp = {
     }
 
     const newUser = {
-      appId, fullName, username, phone, email, password, uid, ign, level,
+      appId,
+      fullName,
+      username,
+      phone,
+      email: '',
+      password,
+      uid: '',
+      ign: username.replace(/^@/, ''),
+      level: 'Level 70',
       ignisLevel: 1,
       xp: 0,
       bio: '🔥 Official Ignis Arena Athlete | Ready for Wagers',
       profilePhoto: this.DEFAULT_DP,
       firstDepositDone: false,
+      profileCompleted: false,
       matchesPlayed: 0,
       tournamentsWon: 0,
       depositBal: 0,
@@ -277,7 +324,93 @@ const PlayerApp = {
     document.getElementById('playerAuthGate')?.classList.add('hidden');
     document.getElementById('mainPlayerPortal')?.classList.remove('hidden');
     this.updateUI();
-    alert(`🎉 Unique Athlete Account Created!\n\n• Username: ${username}\n• App ID: ${appId}\n• FF UID: ${uid}\n\nAb har player aapko "${username}" ya "${appId}" se Instagram ki tarah search kar sakta hai!`);
+    this.switchTab('tournaments');
+
+    // Immediately open Complete Your Profile step to collect UID, IGN & Gmail
+    this.openCompleteProfileModal();
+  },
+
+  openCompleteProfileModal() {
+    if (!this.state.user) return;
+    if (this.isProfileComplete(this.state.user)) {
+      document.getElementById('completeProfileModal')?.classList.add('hidden');
+      return;
+    }
+    document.getElementById('compUidInput').value = this.state.user.uid || '';
+    document.getElementById('compIgnInput').value = (this.state.user.ign && this.state.user.ign !== this.state.user.username?.replace(/^@/, '')) ? this.state.user.ign : '';
+    document.getElementById('compEmailInput').value = this.state.user.email || '';
+    document.getElementById('compLevelInput').value = this.state.user.level || 'Level 70';
+    document.getElementById('completeProfileModal')?.classList.remove('hidden');
+  },
+
+  checkCompleteProfileConflicts() {
+    if (!this.state.user) return { hasConflict: false };
+    const uid = (document.getElementById('compUidInput')?.value || '').trim();
+    const ign = (document.getElementById('compIgnInput')?.value || '').trim();
+    const uidBadge = document.getElementById('compUidBadge');
+    const ignBadge = document.getElementById('compIgnBadge');
+    const errBox = document.getElementById('compProfileErrorBox');
+
+    if (uidBadge) {
+      if (!uid) uidBadge.innerText = '';
+      else {
+        const c = SupabaseService.checkIdentityConflict({ uid }, this.state.user.appId);
+        uidBadge.innerText = c.hasConflict ? '✗ UID Used' : '✓ Unique';
+        uidBadge.className = c.hasConflict ? 'text-[9px] font-bold text-red-400' : 'text-[9px] font-bold text-emerald-400';
+      }
+    }
+    if (ignBadge) {
+      if (!ign) ignBadge.innerText = '';
+      else {
+        const c = SupabaseService.checkIdentityConflict({ ign }, this.state.user.appId);
+        ignBadge.innerText = c.hasConflict ? '✗ Taken' : '✓ Unique';
+        ignBadge.className = c.hasConflict ? 'text-[9px] font-bold text-red-400' : 'text-[9px] font-bold text-emerald-400';
+      }
+    }
+
+    const overall = SupabaseService.checkIdentityConflict({ uid, ign }, this.state.user.appId);
+    if (errBox) {
+      if (overall.hasConflict) {
+        errBox.innerText = overall.message;
+        errBox.classList.remove('hidden');
+      } else {
+        errBox.classList.add('hidden');
+      }
+    }
+    return overall;
+  },
+
+  async submitCompleteProfile() {
+    if (!this.state.user) return;
+    const uid = (document.getElementById('compUidInput')?.value || '').trim();
+    const ign = (document.getElementById('compIgnInput')?.value || '').trim();
+    const email = (document.getElementById('compEmailInput')?.value || '').trim();
+    const level = (document.getElementById('compLevelInput')?.value || '').trim() || 'Level 70';
+
+    if (uid.length < 5 || ign.length < 2 || !email.includes('@')) {
+      alert('Kripya apni sahi Free Fire UID, Exact IGN aur valid Gmail address fill karein!');
+      return;
+    }
+
+    const conflict = this.checkCompleteProfileConflicts();
+    if (conflict.hasConflict) {
+      alert(conflict.message);
+      return;
+    }
+
+    this.state.user.uid = uid;
+    this.state.user.ign = ign;
+    this.state.user.email = email;
+    this.state.user.level = level;
+    this.state.user.profileCompleted = true;
+
+    localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
+    await SupabaseService.upsertPlayerProfile(this.state.user);
+
+    document.getElementById('completeProfileModal')?.classList.add('hidden');
+    document.getElementById('incompleteProfileBanner')?.classList.add('hidden');
+    this.updateUI();
+    this.showToast(`Profile Completed! Welcome ${ign} (${this.state.user.appId})`);
   },
 
   logoutPlayer() {
@@ -387,7 +520,7 @@ const PlayerApp = {
                 <strong class="text-white font-extrabold truncate">${p.username || '@' + (p.ign || 'player').toLowerCase()}</strong>
                 <i class="ph-fill ph-seal-check text-cyan-400 text-xs"></i>
               </div>
-              <div class="text-[11px] text-slate-300 truncate">${p.ign} • <span class="text-[#FFC857] font-mono">${p.app_id}</span></div>
+              <div class="text-[11px] text-slate-300 truncate">IGN: ${p.ign || '---'} • <span class="text-[#FFC857] font-mono">UID: ${p.uid || '---'}</span></div>
             </div>
           </div>
           <span class="text-[10px] font-bold ${isFriend ? 'bg-emerald-500/20 text-emerald-300' : 'bg-cyan-500/20 text-cyan-300'} px-3 py-1.5 rounded-xl flex-shrink-0">
@@ -426,11 +559,11 @@ const PlayerApp = {
           </div>
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-1.5">
-              <h4 class="font-extrabold text-white text-base truncate">${p.username || '@' + p.ign.toLowerCase()}</h4>
+              <h4 class="font-extrabold text-white text-base truncate">${p.username || '@' + (p.ign || 'player').toLowerCase()}</h4>
               <i class="ph-fill ph-seal-check text-cyan-400 text-sm"></i>
             </div>
             <div class="text-xs font-bold text-slate-200">${p.full_name || 'Athlete'}</div>
-            <div class="text-[10px] text-[#FFC857] font-mono mt-0.5">${p.app_id} • IGN: ${p.ign} • UID: ${p.uid}</div>
+            <div class="text-[10px] text-[#FFC857] font-mono mt-0.5">${p.app_id} • IGN: ${p.ign || '---'} • UID: ${p.uid || '---'}</div>
           </div>
         </div>
 
@@ -492,7 +625,9 @@ const PlayerApp = {
       const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
       const fresh = allPlayers.find(p => (p.app_id || '').toUpperCase() === this.state.user.appId.toUpperCase());
       if (fresh) {
-        this.state.user = SupabaseService.mapDbRecordToUser(fresh);
+        const mapped = SupabaseService.mapDbRecordToUser(fresh);
+        mapped.profileCompleted = this.state.user.profileCompleted || this.isProfileComplete(mapped);
+        this.state.user = mapped;
         localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
       }
     }
@@ -601,9 +736,10 @@ const PlayerApp = {
     this.updateUI();
   },
 
-  /* ==================== TAB 1: TOURNAMENTS (FIXED VISIBILITY & STATUS) ==================== */
+  /* ==================== POINT 5 & 6: MANUAL ROOM LOCK/UNLOCK & ZERO FLICKERING ==================== */
   setCategoryFilter(cat) {
     this.state.categoryFilter = cat;
+    this._lastTourneyRenderHash = '';
     ['ALL', 'BR', 'CS', 'LW'].forEach(c => {
       const btn = document.getElementById(`cat-tab-${c}`);
       if (btn) {
@@ -612,7 +748,7 @@ const PlayerApp = {
         btn.style.color = isCur ? '#06070A' : '#cbd5e1';
       }
     });
-    this.renderTournaments();
+    this.renderTournaments(true);
   },
 
   applyAdvancedTourneyFilters() {
@@ -620,7 +756,8 @@ const PlayerApp = {
     this.state.ammoFilter = document.getElementById('filterAmmoSelect')?.value || 'ALL';
     this.state.headshotFilter = document.getElementById('filterHeadshotSelect')?.value || 'ALL';
     this.state.statusFilter = document.getElementById('filterStatusSelect')?.value || 'ALL';
-    this.renderTournaments();
+    this._lastTourneyRenderHash = '';
+    this.renderTournaments(true);
   },
 
   calculateMatchEconomics(m) {
@@ -628,10 +765,11 @@ const PlayerApp = {
     const filled = Number(m.filled_slots ?? 0);
     const totalSlots = Number(m.total_slots ?? 48);
 
-    // Status is strictly controlled by Admin/Host ('UPCOMING', 'LIVE', 'COMPLETED')
-    const computedStatus = m.match_status || 'UPCOMING';
-    const isLive = computedStatus === 'LIVE';
-    const isCompleted = computedStatus === 'COMPLETED';
+    // Point 5: Strictly Manual Lock/Unlock! Never auto-lock based on match_hour
+    const rawStatus = String(m.match_status || 'UPCOMING').toUpperCase();
+    const isCompleted = rawStatus === 'COMPLETED';
+    const isLive = rawStatus === 'LIVE' || rawStatus === 'LOCKED';
+    const computedStatus = isCompleted ? 'COMPLETED' : isLive ? 'LIVE' : 'UPCOMING';
     const isLocked = isLive || isCompleted || filled >= totalSlots;
 
     const maxPotentialPool = Number(m.max_prize_pool) || Math.round(fee * totalSlots * 0.80);
@@ -641,10 +779,9 @@ const PlayerApp = {
     return { fee, filled, totalSlots, computedStatus, isLive, isCompleted, isLocked, live80Pool, maxPotentialPool, poolDisplayText };
   },
 
-  renderTournaments() {
+  renderTournaments(forceRender = false) {
     const container = document.getElementById('matchesContainer');
     if (!container) return;
-    container.innerHTML = '';
 
     const filtered = this.state.tournaments.filter(m => {
       const eco = this.calculateMatchEconomics(m);
@@ -660,12 +797,26 @@ const PlayerApp = {
       const ecoA = this.calculateMatchEconomics(a);
       const ecoB = this.calculateMatchEconomics(b);
       const weight = (eco) => {
-        if (eco.computedStatus === 'LIVE') return 1;
-        if (eco.computedStatus === 'UPCOMING') return 2;
+        if (eco.computedStatus === 'UPCOMING') return 1;
+        if (eco.computedStatus === 'LIVE') return 2;
         return 3;
       };
       return weight(ecoA) - weight(ecoB);
     });
+
+    // Point 6: Prevent DOM Flickering! Only rebuild DOM if tournament data or joined state actually changed
+    const currentHash = JSON.stringify({
+      list: filtered.map(x => ({ id: x.id, f: x.filled_slots, s: x.match_status, r: x.room_id, t: x.title, e: x.entry_fee })),
+      joined: this.state.joinedMatches.map(j => j.id),
+      filters: [this.state.categoryFilter, this.state.subModeFilter, this.state.ammoFilter, this.state.headshotFilter, this.state.statusFilter]
+    });
+
+    if (!forceRender && this._lastTourneyRenderHash === currentHash) {
+      return;
+    }
+    this._lastTourneyRenderHash = currentHash;
+
+    container.innerHTML = '';
 
     if (filtered.length === 0) {
       container.innerHTML = `<div class="col-span-full laser-card p-8 text-center text-slate-400 text-xs">No tournaments available right now. Create one from Admin Panel!</div>`;
@@ -705,7 +856,7 @@ const PlayerApp = {
             </button>
           ` : eco.isLocked ? `
             <button disabled class="w-full bg-white/5 text-slate-500 font-bold text-xs py-2.5 rounded-xl cursor-not-allowed">
-              ${eco.isCompleted ? 'Completed' : 'Live / Locked'}
+              ${eco.isCompleted ? 'Match Completed' : eco.filled >= eco.totalSlots ? 'Room Full' : 'Locked by Host'}
             </button>
           ` : `
             <button onclick="PlayerApp.openJoinModal('${m.id}')" class="w-full btn-hyper py-2.5 text-xs flex items-center justify-center gap-1.5 cursor-pointer">
@@ -752,7 +903,7 @@ const PlayerApp = {
       `).join('');
   },
 
-  /* ==================== TAB 3: PAID ROOMS (CREATE, EDIT, DELETE & JOIN) ==================== */
+  /* ==================== POINT 2 & 5: TAB 3 — 1-CLICK PAID ROOM CREATION (ALWAYS UNLOCKED BY DEFAULT) ==================== */
   recalcCustomWagerMath() {
     const bet = parseFloat(document.getElementById('customRoomBet')?.value) || 200;
     const totalPool = bet * 2;
@@ -764,7 +915,12 @@ const PlayerApp = {
 
   async createPaidCustomChallenge() {
     if (!this.state.user) return;
-    const title = (document.getElementById('customRoomTitle')?.value || '').trim() || `${this.state.user.ign}'s Room`;
+    if (!this.isProfileComplete(this.state.user)) {
+      this.openCompleteProfileModal();
+      return;
+    }
+
+    const title = (document.getElementById('customRoomTitle')?.value || '').trim() || `${this.state.user.ign}'s Challenge`;
     const teamSize = document.getElementById('customTeamSize')?.value || 'CS 4v4';
     const ammoMode = document.getElementById('customAmmoMode')?.value || 'Unlimited';
     const hsMode = document.getElementById('customAimRule')?.value || 'YES';
@@ -772,35 +928,59 @@ const PlayerApp = {
     const operator = document.getElementById('customRoomOperator')?.value || 'ANY_HOST';
 
     if (bet < 50 || bet > this.getTotalBalance()) {
-      this.showToast('Check balance or minimum bet of ₹50!');
+      this.showToast('Check balance or minimum entry fee of ₹50!');
       return;
     }
 
-    if (this.state.user.depositBal >= bet) this.state.user.depositBal -= bet;
-    else {
-      const rem = bet - this.state.user.depositBal;
-      this.state.user.depositBal = 0;
-      this.state.user.winningsBal = Math.max(0, this.state.user.winningsBal - rem);
+    const pubBtn = document.getElementById('btnPublishPaidRoom');
+    if (pubBtn) pubBtn.disabled = true;
+
+    try {
+      if (this.state.user.depositBal >= bet) this.state.user.depositBal -= bet;
+      else {
+        const rem = bet - this.state.user.depositBal;
+        this.state.user.depositBal = 0;
+        this.state.user.winningsBal = Math.max(0, this.state.user.winningsBal - rem);
+      }
+      localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
+      await SupabaseService.upsertPlayerProfile(this.state.user);
+
+      const totalPool = bet * 2;
+      const newRoomObj = {
+        id: 'WGR-' + Date.now().toString().slice(-5),
+        title,
+        map: 'Bermuda',
+        team_size: teamSize,
+        ammo_mode: ammoMode,
+        headshot_mode: hsMode,
+        bet_amount: bet,
+        total_pool: totalPool,
+        winner_payout: Math.round(totalPool * 0.80),
+        host_cut: Math.round(totalPool * 0.10),
+        admin_cut: Math.round(totalPool * 0.10),
+        team_a_app_id: this.state.user.appId,
+        team_a_ign: this.state.user.ign,
+        team_b_app_id: '',
+        team_b_ign: 'Open Slot',
+        assigned_operator: operator,
+        operator_accepted: false,
+        room_id: '',
+        room_password: '',
+        room_status: 'OPEN',
+        created_at: new Date().toISOString()
+      };
+
+      await SupabaseService.createCustomPaidRoom(newRoomObj);
+      this.state.customPaidRooms = SupabaseService.getLocal(SupabaseService.STORAGE_CUSTOM_KEY, []);
+      this._lastCustomRoomRenderHash = '';
+      document.getElementById('customRoomTitle').value = '';
+      this.renderCustomPaidRooms(true);
+      this.addXpPoints(30, 'Paid Room Created');
+      this.updateUI();
+      this.showToast(`Paid Room Published (OPEN)!`);
+    } finally {
+      if (pubBtn) pubBtn.disabled = false;
     }
-    localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
-    await SupabaseService.upsertPlayerProfile(this.state.user);
-
-    const totalPool = bet * 2;
-    await SupabaseService.createCustomPaidRoom({
-      id: 'WGR-' + Date.now().toString().slice(-4),
-      title, map: 'Bermuda', team_size: teamSize, ammo_mode: ammoMode, headshot_mode: hsMode,
-      bet_amount: bet, total_pool: totalPool, winner_payout: Math.round(totalPool * 0.80),
-      host_cut: Math.round(totalPool * 0.10), admin_cut: Math.round(totalPool * 0.10),
-      team_a_app_id: this.state.user.appId, team_a_ign: this.state.user.ign, team_b_app_id: '',
-      team_b_ign: 'Open Slot', assigned_operator: operator, operator_accepted: false,
-      room_id: '', room_password: '', room_status: 'WAITING_HOST', created_at: new Date().toISOString()
-    });
-
-    document.getElementById('customRoomTitle').value = '';
-    await this.fetchCustomPaidRooms();
-    this.addXpPoints(30, 'Paid Room Created');
-    this.updateUI();
-    this.showToast(`Paid Room Created! Host: ${operator}`);
   },
 
   openEditPaidRoomModal(roomId) {
@@ -829,7 +1009,8 @@ const PlayerApp = {
       title, team_size, ammo_mode, headshot_mode, bet_amount, assigned_operator
     });
     this.closeModal('editPaidRoomModal');
-    await this.fetchCustomPaidRooms();
+    this._lastCustomRoomRenderHash = '';
+    await this.fetchCustomPaidRooms(true);
     this.showToast('Room Updated!');
   },
 
@@ -838,14 +1019,20 @@ const PlayerApp = {
     await SupabaseService.deleteCustomPaidRoom(roomId);
     const saved = localStorage.getItem('ignis_player_session');
     if (saved) this.state.user = JSON.parse(saved);
-    await this.fetchCustomPaidRooms();
+    this._lastCustomRoomRenderHash = '';
+    await this.fetchCustomPaidRooms(true);
     this.updateUI();
     this.showToast('Room Removed & Balance Refunded!');
   },
 
-  renderCustomPaidRooms() {
+  renderCustomPaidRooms(forceRender = false) {
     const container = document.getElementById('customPaidRoomsContainer');
     if (!container) return;
+
+    const currentHash = JSON.stringify(this.state.customPaidRooms);
+    if (!forceRender && this._lastCustomRoomRenderHash === currentHash) return;
+    this._lastCustomRoomRenderHash = currentHash;
+
     if (this.state.customPaidRooms.length === 0) {
       container.innerHTML = `<div class="col-span-full laser-card p-6 text-center text-slate-400 text-xs">No custom paid rooms yet. Create one above!</div>`;
       return;
@@ -854,12 +1041,13 @@ const PlayerApp = {
     container.innerHTML = this.state.customPaidRooms.map(r => {
       const isMyRoom = this.state.user && r.team_a_app_id === this.state.user.appId;
       const isCompleted = r.room_status === 'COMPLETED';
+      const isLocked = r.room_status === 'LOCKED';
       return `
         <div class="laser-card p-4 space-y-3">
           <div class="flex items-center justify-between border-b border-white/10 pb-2">
-            <div><span class="text-[10px] text-[#FFC857] block">Host: ${r.assigned_operator}</span><h4 class="font-bold text-white text-sm">${r.title}</h4></div>
+            <div><span class="text-[10px] text-[#FFC857] block">Host: ${r.assigned_operator} • ${r.team_size}</span><h4 class="font-bold text-white text-sm">${r.title}</h4></div>
             <div class="flex items-center gap-1.5">
-              <span class="text-[10px] text-emerald-400 font-bold">${r.room_status}</span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${isLocked ? 'bg-red-500/20 text-red-300' : 'bg-emerald-500/20 text-emerald-400'}">${r.room_status || 'OPEN'}</span>
               ${isMyRoom && !isCompleted ? `
                 <button onclick="PlayerApp.openEditPaidRoomModal('${r.id}')" class="bg-white/10 text-[#FFC857] p-1.5 rounded-lg text-xs cursor-pointer"><i class="fa-solid fa-pen"></i></button>
                 <button onclick="PlayerApp.removeMyPaidRoom('${r.id}')" class="bg-red-500/20 text-red-300 p-1.5 rounded-lg text-xs cursor-pointer"><i class="fa-solid fa-trash"></i></button>
@@ -875,8 +1063,10 @@ const PlayerApp = {
             <div class="text-emerald-400">Win: ₹${r.winner_payout}</div>
             <div class="text-[#FFC857]">Host: ₹${r.host_cut}</div>
           </div>
-          ${!r.team_b_app_id && !isMyRoom && !isCompleted ? `
-            <button onclick="PlayerApp.acceptPaidChallengeAsTeamB('${r.id}')" class="w-full btn-hyper py-2 text-xs cursor-pointer">Join (₹${r.bet_amount})</button>
+          ${!r.team_b_app_id && !isMyRoom && !isCompleted && !isLocked ? `
+            <button onclick="PlayerApp.acceptPaidChallengeAsTeamB('${r.id}')" class="w-full btn-hyper py-2 text-xs cursor-pointer">Join Challenge (₹${r.bet_amount})</button>
+          ` : isLocked ? `
+            <button disabled class="w-full bg-white/5 text-slate-500 py-2 rounded-xl text-xs font-bold cursor-not-allowed">Locked by Host</button>
           ` : ''}
           <button onclick="PlayerApp.openPaidRoomChat('${r.id}')" class="w-full bg-white/5 border border-white/10 py-2 rounded-xl text-xs text-slate-300 font-bold cursor-pointer">Host Chat</button>
         </div>
@@ -886,6 +1076,10 @@ const PlayerApp = {
 
   async acceptPaidChallengeAsTeamB(roomId) {
     if (!this.state.user) return;
+    if (!this.isProfileComplete(this.state.user)) {
+      this.openCompleteProfileModal();
+      return;
+    }
     const room = this.state.customPaidRooms.find(r => r.id === roomId);
     if (!room) return;
     if (room.bet_amount > this.getTotalBalance()) {
@@ -902,7 +1096,8 @@ const PlayerApp = {
     localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
     await SupabaseService.upsertPlayerProfile(this.state.user);
     await SupabaseService.joinCustomPaidRoomAsOpponent(roomId, this.state.user.appId, this.state.user.ign);
-    await this.fetchCustomPaidRooms();
+    this._lastCustomRoomRenderHash = '';
+    await this.fetchCustomPaidRooms(true);
     this.updateUI();
     this.showToast('Joined Paid Match!');
   },
@@ -935,10 +1130,11 @@ const PlayerApp = {
     if (!text || !this.state.activeChatRoomId || !this.state.user) return;
     await SupabaseService.sendCustomRoomChatMessage(this.state.activeChatRoomId, 'PLAYER', this.state.user.ign, text);
     input.value = '';
-    await this.fetchCustomPaidRooms();
+    await this.fetchCustomPaidRooms(true);
+    this.renderChatMessages(this.state.activeChatRoomId);
   },
 
-  /* ==================== TAB 4: WALLET & ALL-TIME LEDGER ==================== */
+  /* ==================== POINT 8: WALLET & LIVE DEPOSIT APPROVAL SYNC ==================== */
   async openDepositQrModal() {
     await this.loadPlatformConfig();
     this.selectDepositScanner(1);
@@ -1040,7 +1236,7 @@ const PlayerApp = {
     if (!container || !this.state.user) return;
 
     const allTxns = SupabaseService.getLocal('ignis_all_time_transactions', []);
-    const myTxns = allTxns.filter(t => t.app_id === this.state.user.appId);
+    const myTxns = allTxns.filter(t => (t.app_id || '').toUpperCase() === this.state.user.appId.toUpperCase());
 
     const filtered = myTxns.filter(t => {
       if (this.state.activeHistoryView === 'all') return true;
@@ -1075,8 +1271,14 @@ const PlayerApp = {
 
   /* ==================== SQUAD CO-PAY / DUO REGISTRATION ==================== */
   openJoinModal(matchId) {
+    if (!this.state.user) return;
+    if (!this.isProfileComplete(this.state.user)) {
+      this.openCompleteProfileModal();
+      return;
+    }
+
     const match = this.state.tournaments.find(m => m.id === matchId);
-    if (!match || !this.state.user) return;
+    if (!match) return;
     this.state.pendingJoinMatchId = matchId;
     const fee = Number(match.entry_fee ?? 0);
 
@@ -1127,6 +1329,8 @@ const PlayerApp = {
 
   selectSlot(s) {
     this.state.selectedSlotNumber = s;
+    const disp = document.getElementById('selectedSlotDisplay');
+    if (disp) disp.innerText = `Slot #${s}`;
     document.querySelectorAll('#slotMatrixGrid button').forEach(b => {
       if (!b.disabled) b.className = 'py-1.5 bg-emerald-500/20 text-emerald-300 rounded-lg';
     });
@@ -1164,13 +1368,14 @@ const PlayerApp = {
     await SupabaseService.bookSquadSlot(match.id, this.state.selectedSlotNumber, this.state.user.appId, this.state.user.uid, this.state.user.ign, selectedMates, fee);
     this.state.joinedMatches.push({ id: match.id, mySlot: this.state.selectedSlotNumber, paidAmount: fee });
     this.closeModal('joinModal');
-    await this.fetchMatches();
+    this._lastTourneyRenderHash = '';
+    await this.fetchMatches(true);
     this.updateUI();
     this.switchTab('roomidp');
     this.showToast(`Slot #${this.state.selectedSlotNumber} Locked! Check Room IDP.`);
   },
 
-  /* ==================== PROFILE SETTINGS (WITH UNIQUE CHECK) & PROOF UPLOAD ==================== */
+  /* ==================== PROFILE SETTINGS & PROOF UPLOAD ==================== */
   openEditProfileModal() {
     if (!this.state.user) return;
     document.getElementById('editProfName').value = this.state.user.fullName || '';
@@ -1210,6 +1415,8 @@ const PlayerApp = {
     this.state.user.uid = newUid;
     this.state.user.phone = newPhone;
     this.state.user.email = newEmail;
+    this.state.user.profileCompleted = this.isProfileComplete(this.state.user);
+
     const pass = document.getElementById('editProfPassword')?.value.trim();
     if (pass) this.state.user.password = pass;
 
@@ -1299,22 +1506,81 @@ const PlayerApp = {
     this.openNotificationModal();
   },
 
+  /* ==================== POINT 4: SUPPORT, FEEDBACK & REQUEST A CALLBACK ==================== */
+  openSupportCenterModal(tab = 'feedback') {
+    if (this.state.user && document.getElementById('callbackPhoneInput')) {
+      document.getElementById('callbackPhoneInput').value = this.state.user.phone || '';
+    }
+    this.switchSupportTab(tab);
+    this.openModal('feedbackModal');
+  },
+
+  switchSupportTab(tab) {
+    const isFb = tab === 'feedback';
+    document.getElementById('supportFeedbackForm')?.classList.toggle('hidden', !isFb);
+    document.getElementById('supportCallbackForm')?.classList.toggle('hidden', isFb);
+
+    const b1 = document.getElementById('btnSupportTabFeedback');
+    const b2 = document.getElementById('btnSupportTabCallback');
+    if (b1 && b2) {
+      b1.style.background = isFb ? '#FF6B00' : 'transparent';
+      b1.style.color = isFb ? '#06070A' : '#94a3b8';
+      b2.style.background = !isFb ? '#FF6B00' : 'transparent';
+      b2.style.color = !isFb ? '#06070A' : '#94a3b8';
+    }
+  },
+
   async submitFeedback() {
+    const category = document.getElementById('feedbackCategorySelect')?.value || 'Support / Feedback';
     const message = (document.getElementById('feedbackText')?.value || '').trim();
-    if (!message) return;
+    if (!message) {
+      this.showToast('Please write your message first!');
+      return;
+    }
+
     const list = SupabaseService.getLocal('ignis_feedbacks_db', []);
     list.unshift({
-      id: 'fb-' + Date.now(),
+      id: 'TKT-' + Math.floor(10000 + Math.random() * 90000),
       player_app_id: this.state.user?.appId || 'GUEST',
       player_ign: this.state.user?.ign || 'Guest',
-      category: 'Support / Report',
+      phone: this.state.user?.phone || '',
+      category,
       message,
+      status: 'OPEN',
       created_at: new Date().toISOString()
     });
     SupabaseService.setLocal('ignis_feedbacks_db', list);
     document.getElementById('feedbackText').value = '';
     this.closeModal('feedbackModal');
-    this.showToast('Submitted to Super Admin!');
+    this.showToast('Support Ticket Submitted Successfully!');
+  },
+
+  async submitCallbackRequest() {
+    const phone = (document.getElementById('callbackPhoneInput')?.value || '').trim();
+    const slot = document.getElementById('callbackTimeSlot')?.value || 'Urgent (30 Mins)';
+    const topic = document.getElementById('callbackTopicSelect')?.value || 'General Help';
+    const note = (document.getElementById('callbackNoteInput')?.value || '').trim() || 'Callback requested by athlete.';
+
+    if (phone.length < 10) {
+      this.showToast('Please enter a valid 10-digit Phone/WhatsApp number!');
+      return;
+    }
+
+    const list = SupabaseService.getLocal('ignis_feedbacks_db', []);
+    list.unshift({
+      id: 'CALL-' + Math.floor(10000 + Math.random() * 90000),
+      player_app_id: this.state.user?.appId || 'GUEST',
+      player_ign: this.state.user?.ign || 'Guest',
+      phone,
+      category: `📞 CALLBACK (${slot} • ${topic})`,
+      message: `Phone: ${phone} | Note: ${note}`,
+      status: 'CALLBACK_PENDING',
+      created_at: new Date().toISOString()
+    });
+    SupabaseService.setLocal('ignis_feedbacks_db', list);
+    document.getElementById('callbackNoteInput').value = '';
+    this.closeModal('feedbackModal');
+    this.showToast(`Callback Requested on ${phone}! Support team will call you.`);
   },
 
   /* ==================== 5-TAB NAVIGATION ROUTER ==================== */
@@ -1347,27 +1613,31 @@ const PlayerApp = {
   quickJoinNextMatch() {
     const openMatch = this.state.tournaments.find(m => !this.calculateMatchEconomics(m).isLocked);
     if (openMatch) this.openJoinModal(openMatch.id);
+    else this.showToast('No open tournament rooms right now.');
   },
 
-  async fetchMatches() {
+  async fetchMatches(force = false) {
     const res = await SupabaseService.getTournaments();
     this.state.tournaments = (res && res.data) ? res.data : [];
-    this.renderTournaments();
+    this.renderTournaments(force);
   },
 
-  async fetchCustomPaidRooms() {
+  async fetchCustomPaidRooms(force = false) {
     const res = await SupabaseService.getCustomPaidRooms();
     this.state.customPaidRooms = (res && res.data) ? res.data : [];
-    this.renderCustomPaidRooms();
+    this.renderCustomPaidRooms(force);
   },
 
   setupRealtimeSync() {
     SupabaseService.subscribeToTournaments(async () => {
+      // Point 8: Always pull latest wallet balance & profile from ignis_players_db
       if (this.state.user) {
         const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
         const fresh = allPlayers.find(p => (p.app_id || '').toUpperCase() === this.state.user.appId.toUpperCase());
         if (fresh) {
-          this.state.user = SupabaseService.mapDbRecordToUser(fresh);
+          const mapped = SupabaseService.mapDbRecordToUser(fresh);
+          mapped.profileCompleted = this.state.user.profileCompleted || this.isProfileComplete(mapped);
+          this.state.user = mapped;
           localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
         }
       }
@@ -1393,8 +1663,13 @@ const PlayerApp = {
     document.getElementById('profileFullName').innerText = this.state.user.fullName || 'Athlete';
     document.getElementById('profileBioDisplay').innerText = this.state.user.bio || 'Official Ignis Arena Athlete';
     document.getElementById('profileAppIdBadge').innerText = `ID: ${this.state.user.appId}`;
-    document.getElementById('profileIGN').innerText = this.state.user.ign;
-    document.getElementById('profileUID').innerText = this.state.user.uid;
+    document.getElementById('profileIGN').innerText = this.state.user.ign || 'Not Set';
+    document.getElementById('profileUID').innerText = this.state.user.uid || 'Not Set';
+
+    const banner = document.getElementById('incompleteProfileBanner');
+    if (banner) {
+      banner.classList.toggle('hidden', this.isProfileComplete(this.state.user));
+    }
 
     if (this.state.user.profilePhoto) {
       document.getElementById('profilePhotoImg').src = this.state.user.profilePhoto;
@@ -1426,8 +1701,8 @@ const PlayerApp = {
       pBadge.classList.toggle('hidden', pendingReqs === 0);
     }
 
-    this.renderTournaments();
-    this.renderCustomPaidRooms();
+    this.renderTournaments(false);
+    this.renderCustomPaidRooms(false);
     this.renderMyBattles();
   },
 
