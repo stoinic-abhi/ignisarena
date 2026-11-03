@@ -45,12 +45,12 @@
       <!-- FORM 1: SIGN IN (EXISTING ACCOUNT) -->
       <div id="playerSignInForm" class="space-y-3 text-xs">
         <div>
-          <label class="font-semibold text-slate-300 block mb-1 text-[11px]">App ID / WhatsApp Number / FF IGN</label>
-          <input type="text" id="loginIdentifierInput" placeholder="e.g. IGNIS-4491 or 9876543210" class="w-full bg-white/5 border border-white/10 focus:border-[#FF6B00] clip-esports-sm px-3.5 py-3 text-white font-semibold focus:outline-none">
+          <label class="font-semibold text-slate-300 block mb-1 text-[11px]">@Username / App ID / WhatsApp / FF IGN</label>
+          <input type="text" id="loginIdentifierInput" placeholder="e.g. @abhishek_ff or IGNIS-4491" class="w-full bg-white/5 border border-white/10 focus:border-[#FF6B00] clip-esports-sm px-3.5 py-3 text-white font-semibold focus:outline-none">
         </div>
         <div>
           <label class="font-semibold text-slate-300 block mb-1 text-[11px]">Account Password</label>
-          <input type="password" id="loginPasswordInput" placeholder="••••••••" class="w-full bg-white/5 border border-white/10 focus:border-[#FF6B00] clip-esports-sm px-3.5 py-3 text-white focus:outline-none">
+          <input type="password" id="loginPasswordInput" onkeydown="if(event.key==='Enter') PlayerApp.loginExistingPlayer()" placeholder="••••••••" class="w-full bg-white/5 border border-white/10 focus:border-[#FF6B00] clip-esports-sm px-3.5 py-3 text-white focus:outline-none">
         </div>
         <button type="button" onclick="PlayerApp.loginExistingPlayer()" class="w-full py-3.5 btn-hyper clip-esports-sm text-xs flex items-center justify-center gap-2 cursor-pointer">
           <span>Sign In to Arena</span>
@@ -61,7 +61,7 @@
         </p>
       </div>
 
-      <!-- FORM 2: REGISTER (CREATE NEW ACCOUNT) -->
+      <!-- FORM 2: REGISTER (CREATE NEW ACCOUNT WITH LIVE UNIQUENESS CHECK) -->
       <div id="playerRegisterForm" class="hidden space-y-2.5 text-xs">
         <div class="grid grid-cols-2 gap-2.5">
           <div>
@@ -69,14 +69,17 @@
             <input type="text" id="authFullNameInput" placeholder="Abhishek Jangra" class="w-full bg-white/5 border border-white/10 focus:border-[#FF6B00] clip-esports-sm px-3.5 py-2.5 text-white font-medium focus:outline-none">
           </div>
           <div>
-            <label class="font-semibold text-slate-300 block mb-1 text-[11px]">Username</label>
-            <input type="text" id="authUsernameInput" placeholder="@abhishek_ff" class="w-full bg-white/5 border border-white/10 focus:border-[#FF6B00] clip-esports-sm px-3.5 py-2.5 text-[#FFC857] font-semibold focus:outline-none">
+            <div class="flex items-center justify-between mb-1">
+              <label class="font-semibold text-slate-300 text-[11px]">Unique @Username</label>
+              <span id="regUsernameLiveBadge" class="text-[9px] font-bold"></span>
+            </div>
+            <input type="text" id="authUsernameInput" oninput="PlayerApp.checkLiveRegisterAvailability()" placeholder="@abhishek_ff" class="w-full bg-white/5 border border-white/10 focus:border-[#FF6B00] clip-esports-sm px-3.5 py-2.5 text-[#FFC857] font-semibold focus:outline-none">
           </div>
         </div>
         <div class="grid grid-cols-2 gap-2.5">
           <div>
             <label class="font-semibold text-slate-300 block mb-1 text-[11px]">WhatsApp Number</label>
-            <input type="tel" id="authPhoneInput" placeholder="9876543210" class="w-full bg-white/5 border border-white/10 focus:border-[#FF6B00] clip-esports-sm px-3.5 py-2.5 text-white font-semibold focus:outline-none">
+            <input type="tel" id="authPhoneInput" oninput="PlayerApp.checkLiveRegisterAvailability()" placeholder="9876543210" class="w-full bg-white/5 border border-white/10 focus:border-[#FF6B00] clip-esports-sm px-3.5 py-2.5 text-white font-semibold focus:outline-none">
           </div>
           <div>
             <label class="font-semibold text-slate-300 block mb-1 text-[11px]">Gmail Address</label>
@@ -85,8 +88,11 @@
         </div>
         <div class="grid grid-cols-2 gap-2.5">
           <div>
-            <label class="font-semibold text-slate-300 block mb-1 text-[11px]">Free Fire UID</label>
-            <input type="text" id="authUidInput" placeholder="2498104421" class="w-full bg-white/5 border border-white/10 focus:border-[#FF6B00] clip-esports-sm px-3.5 py-2.5 text-white font-semibold focus:outline-none">
+            <div class="flex items-center justify-between mb-1">
+              <label class="font-semibold text-slate-300 text-[11px]">Free Fire UID</label>
+              <span id="regUidLiveBadge" class="text-[9px] font-bold"></span>
+            </div>
+            <input type="text" id="authUidInput" oninput="PlayerApp.checkLiveRegisterAvailability()" placeholder="2498104421" class="w-full bg-white/5 border border-white/10 focus:border-[#FF6B00] clip-esports-sm px-3.5 py-2.5 text-white font-semibold focus:outline-none">
           </div>
           <div>
             <label class="font-semibold text-slate-300 block mb-1 text-[11px]">In-Game Level</label>
@@ -95,8 +101,11 @@
         </div>
         <div class="grid grid-cols-2 gap-2.5">
           <div>
-            <label class="font-semibold text-slate-300 block mb-1 text-[11px]">Exact FF IGN</label>
-            <input type="text" id="authIgnInput" placeholder="IND_ViperX" class="w-full bg-white/5 border border-white/10 focus:border-[#FF6B00] clip-esports-sm px-3.5 py-2.5 text-white font-bold focus:outline-none">
+            <div class="flex items-center justify-between mb-1">
+              <label class="font-semibold text-slate-300 text-[11px]">Exact FF IGN</label>
+              <span id="regIgnLiveBadge" class="text-[9px] font-bold"></span>
+            </div>
+            <input type="text" id="authIgnInput" oninput="PlayerApp.checkLiveRegisterAvailability()" placeholder="IND_ViperX" class="w-full bg-white/5 border border-white/10 focus:border-[#FF6B00] clip-esports-sm px-3.5 py-2.5 text-white font-bold focus:outline-none">
           </div>
           <div>
             <label class="font-semibold text-slate-300 block mb-1 text-[11px]">Create Password</label>
@@ -104,8 +113,10 @@
           </div>
         </div>
 
+        <div id="registerConflictErrorBox" class="hidden p-2.5 rounded-xl bg-red-950/60 border border-red-500/40 text-red-300 text-[11px] font-semibold text-center"></div>
+
         <button type="button" onclick="PlayerApp.completePlayerAuth()" class="w-full py-3.5 btn-hyper clip-esports-sm text-xs flex items-center justify-center gap-2 cursor-pointer mt-2">
-          <span>Create Account & Generate App ID</span>
+          <span>Create Unique Account &amp; Enter</span>
           <i class="ph-bold ph-arrow-right"></i>
         </button>
       </div>
@@ -155,6 +166,10 @@
 
       <!-- Right Header Actions -->
       <div class="flex items-center gap-1.5 flex-shrink-0">
+        <button onclick="PlayerApp.openAddFriendsModal()" class="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-cyan-400 cursor-pointer" title="Instagram Search Players">
+          <i class="ph-bold ph-magnifying-glass text-base"></i>
+        </button>
+
         <button onclick="PlayerApp.openNotificationModal()" class="relative w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-200 cursor-pointer">
           <i class="ph-bold ph-bell text-base"></i>
           <span id="notifBadgeCount" class="absolute -top-1 -right-1 bg-[#FF6B00] text-black font-mono text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center">0</span>
@@ -243,7 +258,7 @@
             <span class="text-[10px] font-bold text-[#FFC857] uppercase block">Live Match Credentials</span>
             <h2 class="text-base sm:text-xl font-extrabold text-white flex items-center gap-2">
               <i class="ph-fill ph-key text-[#FF6B00]"></i>
-              <span>My Joined Rooms (ID & Password)</span>
+              <span>My Joined Rooms (ID &amp; Password)</span>
             </h2>
           </div>
           <button onclick="PlayerApp.switchTab('tournaments')" class="btn-hyper px-3.5 py-1.5 text-xs cursor-pointer">
@@ -260,7 +275,7 @@
         <div class="flex items-center justify-between gap-2 border-b border-white/10 pb-3">
           <div>
             <span class="text-[10px] font-bold text-[#FF6B00] uppercase block">Custom Wager Lobby • 80% Winner Payout</span>
-            <h2 class="text-base sm:text-lg font-extrabold text-white">Create Paid Room & Bookmark Host</h2>
+            <h2 class="text-base sm:text-lg font-extrabold text-white">Create Paid Room &amp; Bookmark Host</h2>
           </div>
         </div>
 
@@ -401,7 +416,7 @@
             <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
               <div>
                 <span class="text-[10px] font-bold text-[#FFC857] uppercase block">Lifetime Audit</span>
-                <h3 class="text-sm sm:text-base font-extrabold text-white">All-Time Passbook & Transaction Ledger</h3>
+                <h3 class="text-sm sm:text-base font-extrabold text-white">All-Time Passbook &amp; Transaction Ledger</h3>
               </div>
               <div class="flex gap-1 text-[10px] font-bold">
                 <button onclick="PlayerApp.switchHistoryView('all')" id="btnHistTabAll" class="px-2.5 py-1 bg-[#FF6B00] text-black rounded-lg cursor-pointer">ALL</button>
@@ -499,8 +514,8 @@
         <!-- ROW 1: 4 PROFILE FEATURE BUTTONS -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
           <button onclick="PlayerApp.openAddFriendsModal()" class="laser-card p-3.5 flex flex-col items-center justify-center gap-1.5 text-cyan-400 hover:border-cyan-500 cursor-pointer">
-            <i class="ph-bold ph-user-plus text-xl"></i>
-            <span class="font-bold text-xs text-white">Add Friends</span>
+            <i class="ph-bold ph-magnifying-glass text-xl"></i>
+            <span class="font-bold text-xs text-white">Search / Add Friends</span>
           </button>
           
           <button onclick="PlayerApp.openFriendsListModal()" class="laser-card p-3.5 flex flex-col items-center justify-center gap-1.5 text-[#FFC857] hover:border-[#FFC857] cursor-pointer relative">
@@ -543,7 +558,7 @@
 
       <div class="grid grid-cols-2 gap-2.5 text-xs font-bold">
         <button onclick="PlayerApp.openModal('feedbackModal')" class="laser-card p-3.5 flex items-center justify-center gap-2 text-[#FFC857] cursor-pointer">
-          <i class="ph-bold ph-chat-centered-text text-base"></i><span>Support & Feedback</span>
+          <i class="ph-bold ph-chat-centered-text text-base"></i><span>Support &amp; Feedback</span>
         </button>
         <button onclick="PlayerApp.logoutPlayer()" class="laser-card p-3.5 flex items-center justify-center gap-2 text-red-400 cursor-pointer">
           <i class="ph-bold ph-sign-out text-base"></i><span>Switch / Log Out</span>
@@ -582,26 +597,31 @@
 
   <!-- ==================== ALL MODALS ==================== -->
 
-  <!-- MODAL 1: SEARCH & ADD FRIENDS (WITH FULL PROFILE INSPECT & REGISTERED DIRECTORY) -->
+  <!-- MODAL 1: INSTAGRAM-STYLE LIVE SEARCH & FULL PROFILE EXPLORER -->
   <div id="addFriendsModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-md w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto relative">
       <button onclick="PlayerApp.closeModal('addFriendsModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
       <div>
-        <span class="text-[10px] font-bold text-cyan-400 uppercase block">Athlete Directory Search</span>
-        <h3 class="font-extrabold text-base text-white">Find & Inspect Athlete Profile</h3>
+        <span class="text-[10px] font-bold text-cyan-400 uppercase block">Instagram-Style Athlete Explorer</span>
+        <h3 class="font-extrabold text-base text-white">Search by @Username, IGN, UID or App ID</h3>
       </div>
 
-      <div class="flex gap-2">
-        <input type="text" id="searchFriendAppIdInput" onkeydown="if(event.key==='Enter') PlayerApp.searchPlayerProfile()" placeholder="Enter App ID or IGN (e.g. IGNIS-4491)" class="flex-1 bg-white/5 border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none">
-        <button type="button" onclick="PlayerApp.searchPlayerProfile()" class="btn-hyper px-4 py-2.5 text-xs cursor-pointer">Search</button>
+      <!-- Live Search Input -->
+      <div class="relative">
+        <i class="ph-bold ph-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+        <input type="text" id="searchFriendAppIdInput" oninput="PlayerApp.handleLiveInstagramSearch(this.value)" placeholder="Search @username, IGN, UID or IGNIS-XXXX..." class="w-full bg-white/5 border border-white/15 focus:border-cyan-400 rounded-2xl pl-9 pr-4 py-2.5 text-xs text-white font-semibold focus:outline-none">
       </div>
 
+      <!-- Selected Athlete Full Instagram Profile Card -->
       <div id="searchedUserProfileDisplay" class="hidden"></div>
 
-      <!-- Quick Directory of All Registered Athletes on Device/Server -->
-      <div class="border-t border-white/10 pt-3 space-y-2">
-        <span class="text-[10px] font-bold text-slate-400 uppercase block">Registered Athletes Directory (Tap to Inspect):</span>
-        <div id="allRegisteredAthletesQuickList" class="space-y-1.5 max-h-48 overflow-y-auto"></div>
+      <!-- Live Filtered Search Results List -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <span id="instaSearchHeaderLabel" class="text-[10px] font-bold text-slate-400 uppercase">All Registered Athletes</span>
+          <span id="instaSearchCountBadge" class="text-[10px] font-mono text-cyan-400">0 Found</span>
+        </div>
+        <div id="allRegisteredAthletesQuickList" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div>
       </div>
     </div>
   </div>
@@ -613,7 +633,7 @@
       
       <div id="pendingRequestsContainer" class="space-y-2 border-b border-white/10 pb-3"></div>
 
-      <h3 class="font-extrabold text-base text-white">Accepted Teammates & Friends</h3>
+      <h3 class="font-extrabold text-base text-white">Accepted Teammates &amp; Friends</h3>
       <div id="friendsRosterContainer" class="space-y-2"></div>
     </div>
   </div>
@@ -624,7 +644,7 @@
       <button onclick="PlayerApp.closeModal('xpPerksModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
       <div>
         <span class="text-[10px] font-bold text-[#FF6B00] uppercase block">Progression Roadmap</span>
-        <h3 class="font-extrabold text-base text-white">Ignis Level XP Perks & Rewards</h3>
+        <h3 class="font-extrabold text-base text-white">Ignis Level XP Perks &amp; Rewards</h3>
       </div>
       <div class="space-y-2.5 text-xs text-slate-300">
         <div class="p-3 bg-white/5 rounded-xl border border-white/10 flex items-center justify-between">
@@ -636,7 +656,7 @@
           <span class="text-slate-500 font-bold">500 XP</span>
         </div>
         <div class="p-3 bg-white/5 rounded-xl border border-white/10 flex items-center justify-between">
-          <div><strong class="text-white block">Level 16+ (Grandmaster Pro)</strong><span class="text-[10px] text-slate-400">Gold Verified badge & priority custom room host assignment</span></div>
+          <div><strong class="text-white block">Level 16+ (Grandmaster Pro)</strong><span class="text-[10px] text-slate-400">Gold Verified badge &amp; priority custom room host assignment</span></div>
           <span class="text-slate-500 font-bold">1500 XP</span>
         </div>
       </div>
@@ -650,11 +670,11 @@
   <div id="editProfileModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-md w-full p-5 relative space-y-3 max-h-[90vh] overflow-y-auto">
       <button onclick="PlayerApp.closeModal('editProfileModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
-      <h3 class="font-extrabold text-base text-white">Account Settings & Personal Info</h3>
+      <h3 class="font-extrabold text-base text-white">Account Settings &amp; Unique Identity</h3>
       <div class="space-y-2.5 text-xs">
         <div class="grid grid-cols-2 gap-2.5">
           <input type="text" id="editProfName" placeholder="Full Name" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white">
-          <input type="text" id="editProfUsername" placeholder="Username" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-[#FFC857]">
+          <input type="text" id="editProfUsername" placeholder="@username" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-[#FFC857]">
         </div>
         <input type="text" id="editProfBio" placeholder="Bio" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white">
         <div class="grid grid-cols-2 gap-2.5">
@@ -667,7 +687,7 @@
         </div>
         <input type="password" id="editProfPassword" placeholder="New Password" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white">
       </div>
-      <button type="button" onclick="PlayerApp.saveEditedProfile()" class="w-full btn-hyper py-3 text-xs cursor-pointer">Save Settings</button>
+      <button type="button" onclick="PlayerApp.saveEditedProfile()" class="w-full btn-hyper py-3 text-xs cursor-pointer">Save Unique Settings</button>
     </div>
   </div>
 
@@ -694,7 +714,7 @@
         <label class="text-[11px] font-semibold text-slate-300 block">Enter 12-Digit UTR Number:</label>
         <input type="text" id="depositUtrNumberInput" maxlength="12" placeholder="e.g. 431209845123" class="w-full bg-white/5 border border-white/15 rounded-xl px-3.5 py-2.5 text-sm text-[#FFC857] font-bold focus:outline-none">
       </div>
-      <button onclick="PlayerApp.submitDepositWithUtr()" class="w-full btn-hyper py-3.5 text-xs cursor-pointer">Verify UTR & Add Cash</button>
+      <button onclick="PlayerApp.submitDepositWithUtr()" class="w-full btn-hyper py-3.5 text-xs cursor-pointer">Verify UTR &amp; Add Cash</button>
     </div>
   </div>
 
@@ -703,7 +723,7 @@
     <div class="laser-card max-w-md w-full p-5 relative max-h-[90vh] overflow-y-auto space-y-3.5">
       <button onclick="PlayerApp.closeModal('joinModal')" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-slate-300 cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
       <div>
-        <h3 class="font-extrabold text-base text-white">Select Lobby Slot & Squad</h3>
+        <h3 class="font-extrabold text-base text-white">Select Lobby Slot &amp; Squad</h3>
         <p class="text-xs text-slate-400" id="joinModalSubtitle">Bermuda Match</p>
       </div>
 
@@ -723,7 +743,7 @@
         <div class="flex justify-between"><span class="text-slate-400">Entry Fee:</span><span class="text-white font-bold" id="modalBaseFee">₹50</span></div>
         <div class="flex justify-between text-emerald-400"><span>80% Pool:</span><span class="font-bold" id="modalPoolContribution">+₹40</span></div>
       </div>
-      <button onclick="PlayerApp.confirmSlotBooking()" class="w-full btn-hyper py-3.5 text-xs cursor-pointer">Pay & Confirm Slot</button>
+      <button onclick="PlayerApp.confirmSlotBooking()" class="w-full btn-hyper py-3.5 text-xs cursor-pointer">Pay &amp; Confirm Slot</button>
     </div>
   </div>
 
@@ -768,7 +788,7 @@
   <!-- MODAL 10: FEEDBACK -->
   <div id="feedbackModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-sm w-full p-5 space-y-3">
-      <div class="flex justify-between"><h3 class="font-extrabold text-white">Support & Cheater Report</h3><button onclick="PlayerApp.closeModal('feedbackModal')"><i class="fa-solid fa-xmark"></i></button></div>
+      <div class="flex justify-between"><h3 class="font-extrabold text-white">Support &amp; Cheater Report</h3><button onclick="PlayerApp.closeModal('feedbackModal')"><i class="fa-solid fa-xmark"></i></button></div>
       <textarea id="feedbackText" rows="3" placeholder="Describe issue..." class="w-full bg-white/5 border border-white/15 rounded-xl p-3 text-xs text-white"></textarea>
       <button type="button" onclick="PlayerApp.submitFeedback()" class="w-full btn-hyper py-2.5 text-xs">Submit</button>
     </div>
