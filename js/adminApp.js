@@ -1,4 +1,4 @@
-// js/adminApp.js — 2026 Enterprise Command Deck, Host Payout Queue & Real Roster Settle Engine (100% Uncut)
+// js/adminApp.js — 2026 Master Command Deck (1-Click Create/Delete, Non-Blinking Status, Anti-Flicker, Manual Lock/Unlock & Instant Wallet Approval)
 
 const AdminApp = {
   _verifySecretPin(input) {
@@ -20,29 +20,93 @@ const AdminApp = {
   feedbacksList: [],
   activeAdminChatRoomId: null,
   activeSettleMatchId: null,
+  _lastHostTableHash: '',
+  _lastSuperTourneyHash: '',
+  _isPerformingWrite: false,
 
   async init() {
-    if (typeof SupabaseService !== 'undefined' && SupabaseService.init) {
-      SupabaseService.init();
+    this.stabilizeAdminCloudBridge();
+
+    // Restore saved Admin / Host session so refreshing doesn't kick out the operator
+    const savedAdminRole = sessionStorage.getItem('ignis_admin_role');
+    const savedHostObj = sessionStorage.getItem('ignis_admin_host');
+    if (savedAdminRole === 'owner') {
+      this.currentRole = 'owner';
+      this.mountDashboard();
+    } else if (savedAdminRole === 'host' && savedHostObj) {
+      try {
+        this.currentHost = JSON.parse(savedHostObj);
+        this.currentRole = 'host';
+        this.mountDashboard();
+      } catch (e) {}
     }
+
     window.addEventListener('storage', () => {
-      if (this.currentRole === 'owner') this.fetchSuperAdminData();
-      else if (this.currentHost) this.fetchHostWorkspaceData();
+      if (this._isPerformingWrite) return;
+      // Do not overwrite table if user is currently typing inside an input box in the table
+      const activeTag = document.activeElement ? document.activeElement.tagName : '';
+      if (activeTag === 'INPUT' || activeTag === 'SELECT' || activeTag === 'TEXTAREA') {
+        return;
+      }
+      if (this.currentRole === 'owner') this.fetchSuperAdminData(false);
+      else if (this.currentHost) this.fetchHostWorkspaceData(false);
     });
+  },
+
+  /* ==================== POINT 2, 3, 6 & 8: STOP RED/GREEN BLINKING & RACE CONDITIONS ==================== */
+  stabilizeAdminCloudBridge() {
+    if (typeof SupabaseService === 'undefined') return;
+
+    // Point 3 Fix: Completely hide the blinking bottom-right pill and use steady top header chip instead
+    SupabaseService.mountCloudStatusBadge = function (statusText, isError = false) {
+      const floatingPill = document.getElementById('ignisCloudLiveBadge');
+      if (floatingPill) floatingPill.style.display = 'none';
+
+      const chip = document.getElementById('steadyCloudStatusChip');
+      if (!chip) return;
+      if (SupabaseService.isCloudConnected) {
+        chip.className = 'text-[10px] bg-emerald-500/15 text-emerald-300 font-mono px-2.5 py-0.5 rounded-full border border-emerald-500/30';
+        chip.innerText = '● CLOUD CONNECTED';
+      } else {
+        chip.className = 'text-[10px] bg-amber-500/15 text-amber-300 font-mono px-2.5 py-0.5 rounded-full border border-amber-500/30';
+        chip.innerText = '● LOCAL MODE';
+      }
+    };
+
+    const floatingPill = document.getElementById('ignisCloudLiveBadge');
+    if (floatingPill) floatingPill.style.display = 'none';
+  },
+
+  async commitKeyGuaranteed(key, val) {
+    this._isPerformingWrite = true;
+    SupabaseService._lastLocalWriteTime = Date.now() + 6000;
+    localStorage.setItem(key, JSON.stringify(val));
+    try {
+      if (SupabaseService.isCloudConnected) {
+        await SupabaseService.pushKeyToCloud(key, val);
+      }
+    } catch (e) {
+      console.warn('Direct commit warning:', e);
+    } finally {
+      SupabaseService._lastLocalWriteTime = Date.now() + 4000;
+      this._isPerformingWrite = false;
+      window.dispatchEvent(new Event('storage'));
+    }
+  },
+
+  async manualForceSync() {
+    if (SupabaseService.isCloudConnected) {
+      await SupabaseService.pullAllFromCloud(true);
+    }
+    this._lastHostTableHash = '';
+    this._lastSuperTourneyHash = '';
+    if (this.currentRole === 'owner') await this.fetchSuperAdminData(true);
+    else await this.fetchHostWorkspaceData(true);
   },
 
   /* ==================== CLOUD + LOCAL SYNC FOR HOST WITHDRAWALS ==================== */
   async saveHostWithdrawalsToCloud(list) {
-    SupabaseService.setLocal('ignis_host_withdrawals_db', list);
-    if (SupabaseService.client) {
-      try {
-        await SupabaseService.client
-          .from('app_kv_store')
-          .upsert([{ key: 'ignis_host_withdrawals_db', value: list, updated_at: new Date().toISOString() }], { onConflict: 'key' });
-      } catch (e) {
-        console.warn('Host withdrawal cloud sync warning:', e);
-      }
-    }
+    await this.commitKeyGuaranteed('ignis_host_withdrawals_db', list);
   },
 
   switchAuthMode(mode) {
@@ -76,6 +140,8 @@ const AdminApp = {
     if (res && res.success && res.host) {
       this.currentHost = res.host;
       this.currentRole = 'host';
+      sessionStorage.setItem('ignis_admin_role', 'host');
+      sessionStorage.setItem('ignis_admin_host', JSON.stringify(res.host));
       this.mountDashboard();
       return;
     }
@@ -86,6 +152,7 @@ const AdminApp = {
     const pin = (document.getElementById('inputOwnerPin')?.value || '').trim();
     if (this._verifySecretPin(pin)) {
       this.currentRole = 'owner';
+      sessionStorage.setItem('ignis_admin_role', 'owner');
       this.mountDashboard();
     } else {
       alert('Access Denied: Invalid Master Passcode.');
@@ -95,6 +162,8 @@ const AdminApp = {
 
   logout() {
     this.currentHost = null;
+    sessionStorage.removeItem('ignis_admin_role');
+    sessionStorage.removeItem('ignis_admin_host');
     document.getElementById('mainDashboard')?.classList.add('hidden');
     document.getElementById('authGateScreen')?.classList.remove('hidden');
     document.getElementById('inputOwnerPin').value = '';
@@ -118,7 +187,7 @@ const AdminApp = {
       document.getElementById('dashboardTitle').innerText = 'SUPER ADMIN MASTER DECK';
       document.getElementById('dashboardSubtitle').innerHTML = 'Full Control • <span class="text-[#FFC857]">Tournaments, Host Payouts &amp; 10% Vault</span>';
       document.getElementById('roleBadge').innerText = 'MASTER OWNER';
-      this.fetchSuperAdminData();
+      this.fetchSuperAdminData(true);
       this.switchOwnerSection('overview');
     } else {
       document.getElementById('dashboardTitle').innerText = 'HOST COMMAND CONSOLE';
@@ -131,7 +200,7 @@ const AdminApp = {
       if (document.getElementById('hostWalletUpiInput')) {
         document.getElementById('hostWalletUpiInput').value = this.currentHost.upi_id || 'operator@upi';
       }
-      this.fetchHostWorkspaceData();
+      this.fetchHostWorkspaceData(true);
       this.switchHostSection('tournaments');
     }
   },
@@ -167,20 +236,19 @@ const AdminApp = {
       if (mBtn) mBtn.style.color = isCur ? '#FF6B00' : '#64748b';
     });
 
-    if (tabKey === 'tournaments-manage') this.renderSuperManageTournamentsTable();
+    if (tabKey === 'tournaments-manage') this.renderSuperManageTournamentsTable(true);
     if (tabKey === 'deposits') this.refreshDepositQueue();
     if (tabKey === 'operators') this.renderSuperHostWithdrawalsTable();
     if (tabKey === 'qr') this.loadDualQrSettings();
     if (tabKey === 'store') this.fetchAdminStoreProducts();
   },
 
-  /* ==================== HOST COMMISSION WITHDRAWAL SYSTEM (HOST -> SUPER ADMIN) ==================== */
+  /* ==================== HOST COMMISSION WITHDRAWAL SYSTEM ==================== */
   async submitHostWithdrawalRequest() {
     if (!this.currentHost) return;
     const upi = (document.getElementById('hostWalletUpiInput')?.value || '').trim();
     const amt = parseFloat(document.getElementById('hostWithdrawAmountInput')?.value) || 0;
 
-    // Refresh host's latest balance from local/cloud DB
     const allHosts = SupabaseService.getLocal('ignis_hosts_db', []);
     const dbHost = allHosts.find(h => h.host_id === this.currentHost.host_id);
     const currentBal = dbHost ? Number(dbHost.commission_balance || 0) : Number(this.currentHost.commission_balance || 0);
@@ -198,7 +266,6 @@ const AdminApp = {
       return;
     }
 
-    // Deduct balance from Host & update UPI ID
     const newBal = Math.max(0, currentBal - amt);
     this.currentHost.commission_balance = newBal;
     this.currentHost.upi_id = upi;
@@ -206,7 +273,7 @@ const AdminApp = {
     if (dbHost) {
       dbHost.commission_balance = newBal;
       dbHost.upi_id = upi;
-      SupabaseService.setLocal('ignis_hosts_db', allHosts);
+      await this.commitKeyGuaranteed('ignis_hosts_db', allHosts);
     }
 
     document.getElementById('liveCommissionText').innerText = `₹${newBal.toFixed(0)}`;
@@ -214,7 +281,6 @@ const AdminApp = {
       document.getElementById('hostWalletUnclaimedText').innerText = `₹${newBal.toFixed(0)}`;
     }
 
-    // Create withdrawal request for Super Admin
     const reqList = SupabaseService.getLocal('ignis_host_withdrawals_db', []);
     const newReq = {
       id: 'HWD-' + Math.floor(100000 + Math.random() * 900000),
@@ -230,7 +296,7 @@ const AdminApp = {
 
     document.getElementById('hostWithdrawAmountInput').value = '';
     this.renderHostWithdrawalHistory();
-    alert(`₹${amt} ki Commission Withdrawal Request Super Admin ke paas bhej di gayi hai! Status: PENDING.`);
+    alert(`₹${amt} ki Commission Withdrawal Request Super Admin ke paas bhej di gayi hai!`);
   },
 
   renderHostWithdrawalHistory() {
@@ -240,7 +306,6 @@ const AdminApp = {
     const allReqs = SupabaseService.getLocal('ignis_host_withdrawals_db', []);
     const myReqs = allReqs.filter(r => r.host_id === this.currentHost.host_id);
 
-    // Sync host balance display
     const allHosts = SupabaseService.getLocal('ignis_hosts_db', []);
     const dbHost = allHosts.find(h => h.host_id === this.currentHost.host_id);
     if (dbHost) {
@@ -316,7 +381,7 @@ const AdminApp = {
 
     req.status = 'APPROVED';
     await this.saveHostWithdrawalsToCloud(list);
-    await this.fetchSuperAdminData();
+    await this.fetchSuperAdminData(true);
     alert(`Host Payout ${req.id} (₹${req.amount} to ${req.upi_id}) marked as PAID & APPROVED!`);
   },
 
@@ -329,19 +394,18 @@ const AdminApp = {
     req.status = 'REJECTED';
     await this.saveHostWithdrawalsToCloud(list);
 
-    // Refund amount back to Host's commission_balance
     const hosts = SupabaseService.getLocal('ignis_hosts_db', []);
     const targetHost = hosts.find(h => h.host_id === req.host_id);
     if (targetHost) {
       targetHost.commission_balance = Number(targetHost.commission_balance || 0) + Number(req.amount || 0);
-      SupabaseService.setLocal('ignis_hosts_db', hosts);
+      await this.commitKeyGuaranteed('ignis_hosts_db', hosts);
     }
 
-    await this.fetchSuperAdminData();
+    await this.fetchSuperAdminData(true);
     alert(`Request Rejected! ₹${req.amount} wapas ${req.host_name} ke commission wallet me refund kar diye gaye hain.`);
   },
 
-  /* ==================== TOURNAMENTS MANAGER: PRESETS, ADD & FAST DELETE ==================== */
+  /* ==================== POINT 2 & 5: 1-CLICK ROOM CREATION, MANUAL LOCK/UNLOCK & FAST DELETE ==================== */
   applyPreset(presetKey) {
     const titleInp = document.getElementById('newTourneyTitle');
     const catSel = document.getElementById('newTourneyCategory');
@@ -395,14 +459,16 @@ const AdminApp = {
   async wipeAllTournaments() {
     if (!confirm('DANGER: Kya aap SARE tournaments bilkul saaf (WIPE) karna chahte hain?')) return;
     this.matches = [];
-    SupabaseService.setLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
-    SupabaseService.setLocal('ignis_room_slots_db', []);
-    this.renderSuperManageTournamentsTable();
-    this.renderHostMatches();
+    await this.commitKeyGuaranteed(SupabaseService.STORAGE_TOURNEY_KEY, []);
+    await this.commitKeyGuaranteed('ignis_room_slots_db', []);
+    this._lastHostTableHash = '';
+    this._lastSuperTourneyHash = '';
+    this.renderSuperManageTournamentsTable(true);
+    this.renderHostMatches(true);
     if (document.getElementById('superTotalActiveRooms')) {
       document.getElementById('superTotalActiveRooms').innerText = '0';
     }
-    alert('SUCCESS: Sare tournaments delete ho chuke hain!');
+    alert('SUCCESS: Sare tournaments 1-click mein delete ho chuke hain!');
   },
 
   openAddTournamentModal() {
@@ -445,51 +511,61 @@ const AdminApp = {
     const total_slots = parseInt(document.getElementById('newTourneySlots')?.value, 10) || 8;
     const entry_fee = parseFloat(document.getElementById('newTourneyFee')?.value) || 50;
     const per_kill = parseFloat(document.getElementById('newTourneyPerKill')?.value) || 0;
-    const match_hour = parseInt(document.getElementById('newTourneyHour')?.value, 10) || 17;
-    const match_time = (document.getElementById('newTourneyTime')?.value || 'Today, 05:00 PM').trim();
+    const match_time = (document.getElementById('newTourneyTime')?.value || 'Today, 06:00 PM').trim();
 
     if (!title) {
       alert('Tournament ka Title likhna zaroori hai!');
       return;
     }
 
-    const max_prize_pool = Math.round(total_slots * entry_fee * 0.80);
-    const newRoom = {
-      id: `custom-${Date.now().toString().slice(-6)}`,
-      title,
-      category,
-      sub_mode,
-      format: `${category} ${sub_mode}`,
-      map,
-      ammo_mode,
-      headshot_mode,
-      total_slots,
-      filled_slots: 0,
-      entry_fee,
-      per_kill,
-      prize_pool: 0,
-      max_prize_pool,
-      match_hour,
-      match_time,
-      room_id: '',
-      room_password: '',
-      match_status: 'UPCOMING',
-      assigned_host: this.currentHost?.host_id || 'UNCLAIMED',
-      created_at: new Date().toISOString()
-    };
+    const btn = document.getElementById('btnCreateTournamentSubmit');
+    if (btn) btn.disabled = true;
 
-    const currentList = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
-    currentList.unshift(newRoom);
-    SupabaseService.setLocal(SupabaseService.STORAGE_TOURNEY_KEY, currentList);
-    this.matches = currentList;
+    try {
+      const max_prize_pool = Math.round(total_slots * entry_fee * 0.80);
+      // Point 5 Fix: Always create room as 'UPCOMING' (OPEN) and set match_hour = 23 so no legacy code auto-locks it
+      const newRoom = {
+        id: `custom-${Date.now().toString().slice(-6)}`,
+        title,
+        category,
+        sub_mode,
+        format: `${category} ${sub_mode}`,
+        map,
+        ammo_mode,
+        headshot_mode,
+        total_slots,
+        filled_slots: 0,
+        entry_fee,
+        per_kill,
+        prize_pool: 0,
+        max_prize_pool,
+        match_hour: 23,
+        match_time,
+        room_id: '',
+        room_password: '',
+        match_status: 'UPCOMING',
+        assigned_host: this.currentHost?.host_id || 'UNCLAIMED',
+        created_at: new Date().toISOString()
+      };
 
-    document.getElementById('addTournamentModal')?.classList.add('hidden');
-    this.renderSuperManageTournamentsTable();
-    this.renderHostMatches();
-    alert(`Tournament "${title}" successfully add ho chuka hai!`);
+      const currentList = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
+      currentList.unshift(newRoom);
+      this.matches = currentList;
+
+      await this.commitKeyGuaranteed(SupabaseService.STORAGE_TOURNEY_KEY, currentList);
+
+      document.getElementById('newTourneyTitle').value = '';
+      document.getElementById('addTournamentModal')?.classList.add('hidden');
+      this._lastHostTableHash = '';
+      this._lastSuperTourneyHash = '';
+      this.renderSuperManageTournamentsTable(true);
+      this.renderHostMatches(true);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
   },
 
-  renderSuperManageTournamentsTable() {
+  renderSuperManageTournamentsTable(forceRender = false) {
     const tbody = document.getElementById('superManageTournamentsTableBody');
     if (!tbody) return;
     this.matches = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
@@ -498,43 +574,69 @@ const AdminApp = {
       document.getElementById('superTotalActiveRooms').innerText = this.matches.length;
     }
 
+    const hash = JSON.stringify(this.matches);
+    if (!forceRender && this._lastSuperTourneyHash === hash) return;
+    this._lastSuperTourneyHash = hash;
+
     tbody.innerHTML = this.matches.length === 0
       ? `<tr><td colspan="6" class="py-12 text-center text-slate-400 font-russo text-sm">Koi tournament nahi hai. Upar "+ CREATE CUSTOM TOURNAMENT" button dabayein!</td></tr>`
-      : this.matches.map(m => `
-        <tr class="hover:bg-white/5">
-          <td class="py-3 px-3">
-            <strong class="text-white block font-russo">${m.title}</strong>
-            <span class="text-[10px] text-[#FFC857] font-mono">${m.match_time} • ${m.map}</span>
-          </td>
-          <td class="py-3 px-3 font-semibold text-cyan-300">
-            ${m.category} • ${m.sub_mode}
-          </td>
-          <td class="py-3 px-3 font-mono">
-            <span class="text-slate-300">${m.ammo_mode}</span> | <span class="${m.headshot_mode === 'YES' ? 'text-red-400 font-bold' : 'text-slate-400'}">HS: ${m.headshot_mode}</span>
-          </td>
-          <td class="py-3 px-3 font-mono text-emerald-400 font-bold">
-            ₹${m.entry_fee} (Pool: ₹${m.max_prize_pool})
-          </td>
-          <td class="py-3 px-3 font-mono text-xs">
-            <span class="px-2 py-0.5 rounded-full ${m.match_status === 'LIVE' ? 'bg-red-500/20 text-red-300' : 'bg-emerald-500/20 text-emerald-300'}">${m.match_status}</span>
-          </td>
-          <td class="py-3 px-3 text-right space-x-1">
-            <button onclick="AdminApp.openEditTournamentModal('${m.id}')" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 px-2.5 py-1 rounded-lg font-russo text-[10px] cursor-pointer">EDIT</button>
-            <button onclick="AdminApp.fastDeleteTournament('${m.id}')" class="bg-red-500/20 hover:bg-red-600 text-red-300 hover:text-white px-2.5 py-1 rounded-lg font-russo text-[10px] cursor-pointer">DELETE</button>
-          </td>
-        </tr>
-      `).join('');
+      : this.matches.map(m => {
+        const isLocked = m.match_status === 'LIVE' || m.match_status === 'LOCKED';
+        const isCompleted = m.match_status === 'COMPLETED';
+        return `
+          <tr class="hover:bg-white/5">
+            <td class="py-3 px-3">
+              <strong class="text-white block font-russo">${m.title}</strong>
+              <span class="text-[10px] text-[#FFC857] font-mono">${m.match_time} • ${m.map}</span>
+            </td>
+            <td class="py-3 px-3 font-semibold text-cyan-300">
+              ${m.category} • ${m.sub_mode}
+            </td>
+            <td class="py-3 px-3 font-mono">
+              <span class="text-slate-300">${m.ammo_mode}</span> | <span class="${m.headshot_mode === 'YES' ? 'text-red-400 font-bold' : 'text-slate-400'}">HS: ${m.headshot_mode}</span>
+            </td>
+            <td class="py-3 px-3 font-mono text-emerald-400 font-bold">
+              ₹${m.entry_fee} (Pool: ₹${m.max_prize_pool})
+            </td>
+            <td class="py-3 px-3 font-mono text-xs">
+              <span class="px-2.5 py-0.5 rounded-full font-russo text-[10px] ${
+                isCompleted ? 'bg-[#FFC857]/20 text-[#FFC857]' :
+                isLocked ? 'bg-red-500/20 text-red-300' :
+                'bg-emerald-500/20 text-emerald-300'
+              }">${isCompleted ? 'COMPLETED' : isLocked ? 'LOCKED' : 'OPEN'}</span>
+            </td>
+            <td class="py-3 px-3 text-right space-x-1">
+              <button type="button" onclick="AdminApp.toggleLiveLock('${m.id}', '${isLocked ? 'UPCOMING' : 'LIVE'}')" class="${isLocked ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'} px-2.5 py-1 rounded-lg font-russo text-[10px] cursor-pointer">
+                ${isLocked ? '🔓 UNLOCK' : '🔒 LOCK'}
+              </button>
+              <button type="button" onclick="AdminApp.openEditTournamentModal('${m.id}')" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 px-2.5 py-1 rounded-lg font-russo text-[10px] cursor-pointer">EDIT</button>
+              <button type="button" onclick="AdminApp.fastDeleteTournament('${m.id}')" class="bg-red-500/20 hover:bg-red-600 text-red-300 hover:text-white px-2.5 py-1 rounded-lg font-russo text-[10px] cursor-pointer">DELETE</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
   },
 
   async fastDeleteTournament(id) {
     if (!confirm('Is tournament ko turant delete karein?')) return;
-    this.matches = this.matches.filter(x => x.id !== id);
-    SupabaseService.setLocal(SupabaseService.STORAGE_TOURNEY_KEY, this.matches);
-    this.renderSuperManageTournamentsTable();
-    this.renderHostMatches();
+    const currentList = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
+    const updated = currentList.filter(x => x.id !== id);
+    this.matches = updated;
+
+    if (SupabaseService.client) {
+      try {
+        await SupabaseService.client.from('tournaments').delete().eq('id', id);
+      } catch (e) {}
+    }
+    await this.commitKeyGuaranteed(SupabaseService.STORAGE_TOURNEY_KEY, updated);
+
+    this._lastHostTableHash = '';
+    this._lastSuperTourneyHash = '';
+    this.renderSuperManageTournamentsTable(true);
+    this.renderHostMatches(true);
   },
 
-  /* ==================== AUTOMATED TOURNAMENT SETTLEMENT (ZERO FAKE PROFILES) ==================== */
+  /* ==================== AUTOMATED TOURNAMENT SETTLEMENT ==================== */
   async openSettleTournamentModal(tournamentId) {
     this.activeSettleMatchId = tournamentId;
     const match = this.matches.find(m => m.id === tournamentId);
@@ -633,13 +735,13 @@ const AdminApp = {
       const h = hosts.find(x => x.host_id === this.currentHost.host_id);
       if (h) {
         h.commission_balance = this.currentHost.commission_balance;
-        SupabaseService.setLocal('ignis_hosts_db', hosts);
+        await this.commitKeyGuaranteed('ignis_hosts_db', hosts);
       }
     }
 
-    await SupabaseService.toggleMatchStatus(match.id, 'COMPLETED');
+    await this.toggleLiveLock(match.id, 'COMPLETED');
     document.getElementById('tournamentSettleModal')?.classList.add('hidden');
-    await this.fetchHostWorkspaceData();
+    await this.fetchHostWorkspaceData(true);
 
     alert(`MATCH SETTLED SUCCESSFULLY!\n• Winner Payout (80% net): ₹${winnerNetPayout}\n• Kill Payouts: ₹${totalKillPayout}\n• Host Commission (10%): ₹${hostCut}\n• Admin Cut (10%): ₹${adminCut}`);
   },
@@ -648,13 +750,13 @@ const AdminApp = {
   async renderHostAccountsTable() {
     const tbody = document.getElementById('hostAccountsTableBody');
     if (!tbody) return;
-    const { data: users } = await SupabaseService.getAllPlayers();
-    this.usersList = users || [];
+    this.usersList = SupabaseService.getLocal('ignis_players_db', []);
 
     const filtered = this.usersList.filter(u =>
       !this.userSearchQuery ||
       (u.app_id || '').toLowerCase().includes(this.userSearchQuery) ||
       (u.ign || '').toLowerCase().includes(this.userSearchQuery) ||
+      (u.username || '').toLowerCase().includes(this.userSearchQuery) ||
       (u.phone || '').includes(this.userSearchQuery)
     );
 
@@ -663,8 +765,8 @@ const AdminApp = {
       : filtered.map(u => `
         <tr class="hover:bg-white/5">
           <td class="py-2.5 px-3 text-[#FFC857] font-bold">${u.app_id}</td>
-          <td class="py-2.5 px-3"><strong class="text-white block">${u.ign}</strong><span class="text-[10px] text-slate-400">${u.username || ''} • ${u.full_name || ''}</span></td>
-          <td class="py-2.5 px-3"><div>UID: ${u.uid}</div><div class="text-[10px] text-emerald-400">WA: ${u.phone}</div></td>
+          <td class="py-2.5 px-3"><strong class="text-white block">${u.ign || 'Not Set'}</strong><span class="text-[10px] text-slate-400">${u.username || ''} • ${u.full_name || ''}</span></td>
+          <td class="py-2.5 px-3"><div>UID: ${u.uid || 'Not Set'}</div><div class="text-[10px] text-emerald-400">WA: ${u.phone}</div></td>
           <td class="py-2.5 px-3 text-white font-bold">₹${Number(u.deposit_bal || 0).toFixed(0)}</td>
           <td class="py-2.5 px-3 text-emerald-400 font-bold">₹${Number(u.winnings_bal || 0).toFixed(0)}</td>
           <td class="py-2.5 px-3 text-cyan-300">LVL ${u.ignis_level || 1} (${u.xp || 0} XP)</td>
@@ -725,16 +827,20 @@ const AdminApp = {
   },
 
   async saveDualQrSettings() {
-    const payload = {
+    const { data: current } = await SupabaseService.getPlatformSettings();
+    const record = {
+      ...current,
+      id: 'global_config',
       scanner_1_label: document.getElementById('settingScanner1Label')?.value.trim() || 'PhonePe Official Scanner #1',
       upi_id_1: document.getElementById('settingUpi1Input')?.value.trim() || 'ignisarena@ybl',
       qr_image_1: document.getElementById('settingQr1UrlInput')?.value.trim() || 'https://i.ibb.co/vzB79fV/phonepe-qr.png',
       scanner_2_label: document.getElementById('settingScanner2Label')?.value.trim() || 'GPay / Paytm Backup Scanner #2',
       upi_id_2: document.getElementById('settingUpi2Input')?.value.trim() || 'ignisvault@okaxis',
-      qr_image_2: document.getElementById('settingQr2UrlInput')?.value.trim() || 'https://i.ibb.co/vzB79fV/phonepe-qr.png'
+      qr_image_2: document.getElementById('settingQr2UrlInput')?.value.trim() || 'https://i.ibb.co/vzB79fV/phonepe-qr.png',
+      updated_at: new Date().toISOString()
     };
 
-    await SupabaseService.updatePlatformSettings(payload);
+    await this.commitKeyGuaranteed('ignis_platform_settings', record);
     await this.loadDualQrSettings();
     alert('SUCCESS: Dono Scanners live broadcast ho chuke hain!');
   },
@@ -785,24 +891,27 @@ const AdminApp = {
     await this.fetchAdminStoreProducts();
   },
 
-  /* ==================== HOST WORKSPACE & PAID WAGERS ==================== */
-  async fetchHostWorkspaceData() {
-    const tRes = await SupabaseService.getTournaments();
-    this.matches = (tRes && tRes.data) ? tRes.data : [];
-    const cRes = await SupabaseService.getCustomPaidRooms();
-    this.customRooms = (cRes && cRes.data) ? cRes.data : [];
-    this.renderHostMatches();
+  /* ==================== HOST WORKSPACE & PAID WAGERS (ANTI-FLICKER) ==================== */
+  async fetchHostWorkspaceData(force = false) {
+    this.matches = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
+    this.customRooms = SupabaseService.getLocal(SupabaseService.STORAGE_CUSTOM_KEY, []);
+    this.renderHostMatches(force);
     this.renderOperatorCustomRooms();
     this.renderHostAccountsTable();
     this.renderHostWithdrawalHistory();
   },
 
-  renderHostMatches() {
+  renderHostMatches(forceRender = false) {
     const tbody = document.getElementById('hostTableBody');
     if (!tbody) return;
-    tbody.innerHTML = '';
+
     this.matches = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
     document.getElementById('hostMatchCount').innerText = `${this.matches.length} Rooms`;
+
+    const hash = JSON.stringify(this.matches);
+    if (!forceRender && this._lastHostTableHash === hash) return;
+    this._lastHostTableHash = hash;
+
     const myHostId = this.currentHost ? this.currentHost.host_id : 'host_01';
 
     tbody.innerHTML = this.matches.length === 0
@@ -811,7 +920,8 @@ const AdminApp = {
         const isUnclaimed = !m.assigned_host || m.assigned_host === 'UNCLAIMED';
         const isClaimedByMe = m.assigned_host === myHostId;
         const isLockedByOther = !isUnclaimed && !isClaimedByMe;
-        const isLive = m.match_status === 'LIVE';
+        const isRoomLocked = m.match_status === 'LIVE' || m.match_status === 'LOCKED';
+        const isCompleted = m.match_status === 'COMPLETED';
 
         return `
           <tr class="hover:bg-white/5">
@@ -823,12 +933,21 @@ const AdminApp = {
               <div class="text-white font-bold">${m.filled_slots}/${m.total_slots} Slots</div>
               <div class="text-[10px] text-emerald-400">Fee: ₹${m.entry_fee} • Pool: ₹${m.prize_pool || 0}</div>
             </td>
-            <td class="py-2.5 px-3 font-mono text-xs">
-              ${isUnclaimed ? `
-                <button type="button" onclick="AdminApp.claimTournamentLock('${m.id}')" class="bg-[#FF6B00] text-black font-russo text-[10px] px-2.5 py-1 clip-esports-sm cursor-pointer">CLAIM LOCK</button>
-              ` : isClaimedByMe ? `
-                <span class="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-lg text-[10px]">LOCKED BY YOU (${myHostId})</span>
-              ` : `<span class="bg-red-500/20 text-red-300 px-2 py-0.5 rounded-lg text-[10px]">LOCKED BY ${m.assigned_host}</span>`}
+            <td class="py-2.5 px-3 font-mono text-xs space-y-1">
+              <div>
+                <span class="px-2 py-0.5 rounded-full font-russo text-[9px] ${
+                  isCompleted ? 'bg-[#FFC857]/20 text-[#FFC857]' :
+                  isRoomLocked ? 'bg-red-500/20 text-red-300' :
+                  'bg-emerald-500/20 text-emerald-300'
+                }">${isCompleted ? 'COMPLETED' : isRoomLocked ? 'ROOM LOCKED' : 'ROOM OPEN'}</span>
+              </div>
+              <div>
+                ${isUnclaimed ? `
+                  <button type="button" onclick="AdminApp.claimTournamentLock('${m.id}')" class="bg-[#FF6B00] text-black font-russo text-[9px] px-2 py-0.5 clip-esports-sm cursor-pointer">CLAIM HOST</button>
+                ` : isClaimedByMe ? `
+                  <span class="text-emerald-400 text-[10px]">Host: ${myHostId}</span>
+                ` : `<span class="text-red-300 text-[10px]">Host: ${m.assigned_host}</span>`}
+              </div>
             </td>
             <td class="py-2.5 px-3">
               <div class="flex gap-1">
@@ -839,10 +958,12 @@ const AdminApp = {
             <td class="py-2.5 px-3 text-right space-x-1">
               ${!isLockedByOther ? `
                 <button type="button" onclick="AdminApp.dispatchCredentials(${idx})" class="bg-[#FFC857]/20 text-[#FFC857] border border-[#FFC857]/40 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">PUSH IDP</button>
+                <button type="button" onclick="AdminApp.toggleLiveLock('${m.id}', '${isRoomLocked ? 'UPCOMING' : 'LIVE'}')" class="${isRoomLocked ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'} px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">
+                  ${isRoomLocked ? '🔓 UNLOCK' : '🔒 LOCK'}
+                </button>
                 <button type="button" onclick="AdminApp.openSettleTournamentModal('${m.id}')" class="bg-emerald-500 text-black font-russo px-2.5 py-1 rounded-lg text-[10px] cursor-pointer">SETTLE ⚡</button>
-                <button type="button" onclick="AdminApp.toggleLiveLock('${m.id}', '${isLive ? 'UPCOMING' : 'LIVE'}')" class="bg-red-500/20 text-red-300 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">${isLive ? 'UNBLOCK' : 'BLOCK'}</button>
-                <button type="button" onclick="AdminApp.openEditTournamentModal('${m.id}')" class="bg-cyan-500/20 text-cyan-300 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">EDIT</button>
-                <button type="button" onclick="AdminApp.fastDeleteTournament('${m.id}')" class="bg-red-500/20 text-red-300 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">DEL</button>
+                <button type="button" onclick="AdminApp.openEditTournamentModal('${m.id}')" class="bg-cyan-500/20 text-cyan-300 px-2 py-1 rounded-lg text-[10px] font-russo cursor-pointer">EDIT</button>
+                <button type="button" onclick="AdminApp.fastDeleteTournament('${m.id}')" class="bg-red-500/20 text-red-300 px-2 py-1 rounded-lg text-[10px] font-russo cursor-pointer">DEL</button>
               ` : `<span class="text-slate-500 text-[10px] font-mono">Managed by ${m.assigned_host}</span>`}
             </td>
           </tr>
@@ -863,6 +984,7 @@ const AdminApp = {
 
     this.customRooms.forEach((r, idx) => {
       const isCompleted = r.room_status === 'COMPLETED';
+      const isLocked = r.room_status === 'LOCKED';
       const isBookmarked = r.assigned_operator === myHostId || r.assigned_operator === 'ANY_HOST';
 
       const card = document.createElement('div');
@@ -873,8 +995,8 @@ const AdminApp = {
             <span class="text-[10px] font-mono text-[#FFC857] block">Bookmark: ${r.assigned_operator} • ${r.team_size} • HS: ${r.headshot_mode}</span>
             <strong class="font-russo text-white text-sm">${r.title}</strong>
           </div>
-          <span class="font-mono text-[10px] px-2.5 py-0.5 rounded-full font-russo ${isCompleted ? 'bg-slate-700 text-slate-300' : r.operator_accepted ? 'bg-emerald-500 text-black' : 'bg-[#FFC857]/20 text-[#FFC857]'}">
-            ${r.room_status}
+          <span class="font-mono text-[10px] px-2.5 py-0.5 rounded-full font-russo ${isCompleted ? 'bg-slate-700 text-slate-300' : isLocked ? 'bg-red-500/20 text-red-300' : 'bg-emerald-500 text-black'}">
+            ${r.room_status || 'OPEN'}
           </span>
         </div>
 
@@ -896,10 +1018,10 @@ const AdminApp = {
 
         <div class="flex flex-wrap gap-1.5 pt-1">
           ${!isCompleted ? `
-            <button type="button" onclick="AdminApp.acceptAndPushCustomRoom('${r.id}', ${idx})" class="bg-emerald-500 text-black font-russo text-[10px] px-3 py-1.5 rounded-xl cursor-pointer">ACCEPT &amp; UNLOCK CHAT</button>
+            <button type="button" onclick="AdminApp.acceptAndPushCustomRoom('${r.id}', ${idx})" class="bg-emerald-500 text-black font-russo text-[10px] px-3 py-1.5 rounded-xl cursor-pointer">PUSH IDP &amp; ACCEPT</button>
+            <button type="button" onclick="AdminApp.toggleCustomRoomLock('${r.id}')" class="bg-amber-500/20 text-amber-300 font-russo text-[10px] px-2.5 py-1.5 rounded-xl cursor-pointer">${isLocked ? '🔓 UNLOCK' : '🔒 LOCK'}</button>
             <button type="button" onclick="AdminApp.settleCustomRoomWinner('${r.id}', '${r.team_a_app_id}')" class="bg-[#FFC857]/20 text-[#FFC857] font-russo text-[10px] px-2.5 py-1.5 rounded-xl cursor-pointer">WIN SIDE A (80%)</button>
             ${r.team_b_app_id ? `<button type="button" onclick="AdminApp.settleCustomRoomWinner('${r.id}', '${r.team_b_app_id}')" class="bg-cyan-500/20 text-cyan-300 font-russo text-[10px] px-2.5 py-1.5 rounded-xl cursor-pointer">WIN SIDE B (80%)</button>` : ''}
-            <button type="button" onclick="AdminApp.rejectCustomRoom('${r.id}')" class="bg-red-500/20 text-red-300 font-russo text-[10px] px-2 py-1.5 rounded-xl cursor-pointer">REJECT</button>
           ` : `<span class="text-xs font-russo text-emerald-400">MATCH SETTLED ✓</span>`}
           <button type="button" onclick="AdminApp.openOperatorChatModal('${r.id}')" class="bg-white/10 hover:bg-white/20 text-white font-russo text-[10px] px-3 py-1.5 rounded-xl cursor-pointer ml-auto">
             <i class="fa-solid fa-comments text-cyan-400 mr-1"></i>CHAT (${(r.chat_messages || []).length})
@@ -911,13 +1033,22 @@ const AdminApp = {
     });
   },
 
+  async toggleCustomRoomLock(roomId) {
+    const list = SupabaseService.getLocal(SupabaseService.STORAGE_CUSTOM_KEY, []);
+    const room = list.find(r => r.id === roomId);
+    if (!room) return;
+    room.room_status = room.room_status === 'LOCKED' ? 'OPEN' : 'LOCKED';
+    await this.commitKeyGuaranteed(SupabaseService.STORAGE_CUSTOM_KEY, list);
+    await this.fetchHostWorkspaceData(true);
+  },
+
   async acceptAndPushCustomRoom(roomId, idx) {
     const rid = document.getElementById(`cust-rid-${idx}`)?.value.trim() || '';
     const pass = document.getElementById(`cust-pass-${idx}`)?.value.trim() || '';
     const hostId = this.currentHost ? this.currentHost.host_id : 'host_01';
     await SupabaseService.operatorAcceptCustomRoom(roomId, hostId, rid, pass);
-    await this.fetchHostWorkspaceData();
-    alert(`Room Accepted by ${hostId}! Chat live player ke paas unlock ho gaya.`);
+    await this.fetchHostWorkspaceData(true);
+    alert(`Room Updated by ${hostId}!`);
   },
 
   async settleCustomRoomWinner(roomId, winnerAppId) {
@@ -929,21 +1060,14 @@ const AdminApp = {
       this.currentHost.commission_balance = Number(this.currentHost.commission_balance || 0) + Number(res.hostCut || 0);
       document.getElementById('liveCommissionText').innerText = `₹${this.currentHost.commission_balance.toFixed(0)}`;
     }
-    await this.fetchHostWorkspaceData();
+    await this.fetchHostWorkspaceData(true);
     alert(`80/10/10 SETTLED!\nWinner (${winnerAppId}): +₹${res.winnerPayout}\nHost (10%): +₹${res.hostCut}\nAdmin Vault (10%): +₹${res.adminCut}`);
-  },
-
-  async rejectCustomRoom(roomId) {
-    if (!confirm('Room reject karein aur players ki entry fee refund karein?')) return;
-    const hostId = this.currentHost ? this.currentHost.host_id : 'host_01';
-    await SupabaseService.rejectCustomPaidRoom(roomId, hostId);
-    await this.fetchHostWorkspaceData();
   },
 
   async deleteCustomRoom(roomId) {
     if (!confirm('Room delete karein?')) return;
     await SupabaseService.deleteCustomPaidRoom(roomId);
-    await this.fetchHostWorkspaceData();
+    await this.fetchHostWorkspaceData(true);
   },
 
   openOperatorChatModal(roomId) {
@@ -978,30 +1102,50 @@ const AdminApp = {
     const hostId = this.currentHost ? this.currentHost.host_id : 'host_01';
     await SupabaseService.sendCustomRoomChatMessage(this.activeAdminChatRoomId, 'OPERATOR', `Host (${hostId})`, text);
     input.value = '';
-    const cRes = await SupabaseService.getCustomPaidRooms();
-    this.customRooms = (cRes && cRes.data) ? cRes.data : [];
+    this.customRooms = SupabaseService.getLocal(SupabaseService.STORAGE_CUSTOM_KEY, []);
     this.renderOperatorChatMessages();
   },
 
   async claimTournamentLock(matchId) {
     const myHostId = this.currentHost ? this.currentHost.host_id : 'host_01';
-    await SupabaseService.claimTournament(matchId, myHostId);
-    await this.fetchHostWorkspaceData();
+    const list = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
+    const item = list.find(x => x.id === matchId);
+    if (item) {
+      item.assigned_host = myHostId;
+      await this.commitKeyGuaranteed(SupabaseService.STORAGE_TOURNEY_KEY, list);
+    }
+    this._lastHostTableHash = '';
+    this.renderHostMatches(true);
   },
 
   async dispatchCredentials(idx) {
     const rid = (document.getElementById(`inputRoom-${idx}`)?.value || '').trim();
     const pass = (document.getElementById(`inputPass-${idx}`)?.value || '').trim();
     if (!rid || !pass) { alert('Room ID aur Password daalein.'); return; }
-    const m = this.matches[idx];
-    await SupabaseService.dispatchCredentials(m.id, rid, pass);
-    await this.fetchHostWorkspaceData();
+    const list = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
+    const m = list[idx];
+    if (m) {
+      m.room_id = rid;
+      m.room_password = pass;
+      await this.commitKeyGuaranteed(SupabaseService.STORAGE_TOURNEY_KEY, list);
+    }
+    this._lastHostTableHash = '';
+    this.renderHostMatches(true);
     alert(`Dispatched Room ID: ${rid} & Pass: ${pass}`);
   },
 
+  /* ==================== POINT 5: MANUAL ROOM LOCK & UNLOCK ==================== */
   async toggleLiveLock(matchId, newStatus) {
-    await SupabaseService.toggleMatchStatus(matchId, newStatus);
-    await this.fetchHostWorkspaceData();
+    const list = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
+    const item = list.find(x => x.id === matchId);
+    if (item) {
+      item.match_status = newStatus;
+      await this.commitKeyGuaranteed(SupabaseService.STORAGE_TOURNEY_KEY, list);
+    }
+    this._lastHostTableHash = '';
+    this._lastSuperTourneyHash = '';
+    this.renderHostMatches(true);
+    this.renderSuperManageTournamentsTable(true);
   },
 
   openEditTournamentModal(matchId) {
@@ -1009,8 +1153,7 @@ const AdminApp = {
     if (!m) return;
     document.getElementById('editMatchId').value = m.id;
     document.getElementById('editTitle').value = m.title;
-    document.getElementById('editTime').value = m.match_time || 'Today, 05:00 PM';
-    document.getElementById('editHour').value = m.match_hour ?? 17;
+    document.getElementById('editTime').value = m.match_time || 'Today, 06:00 PM';
     document.getElementById('editFee').value = m.entry_fee ?? 50;
     document.getElementById('editHeadshotMode').value = m.headshot_mode || 'NO';
     document.getElementById('editStatus').value = m.match_status || 'UPCOMING';
@@ -1021,7 +1164,6 @@ const AdminApp = {
     const id = document.getElementById('editMatchId').value;
     const title = document.getElementById('editTitle').value.trim();
     const match_time = document.getElementById('editTime').value.trim();
-    const match_hour = parseInt(document.getElementById('editHour').value, 10) || 17;
     const entry_fee = parseFloat(document.getElementById('editFee').value) || 0;
     const headshot_mode = document.getElementById('editHeadshotMode').value;
     const match_status = document.getElementById('editStatus').value;
@@ -1029,13 +1171,16 @@ const AdminApp = {
     const list = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
     const item = list.find(x => x.id === id);
     if (item) {
-      Object.assign(item, { title, match_time, match_hour, entry_fee, headshot_mode, match_status });
-      SupabaseService.setLocal(SupabaseService.STORAGE_TOURNEY_KEY, list);
+      const max_prize_pool = Math.round((Number(item.total_slots) || 8) * entry_fee * 0.80);
+      Object.assign(item, { title, match_time, entry_fee, max_prize_pool, headshot_mode, match_status });
+      await this.commitKeyGuaranteed(SupabaseService.STORAGE_TOURNEY_KEY, list);
     }
 
     document.getElementById('editTournamentModal')?.classList.add('hidden');
-    if (this.currentRole === 'owner') await this.fetchSuperAdminData();
-    else await this.fetchHostWorkspaceData();
+    this._lastHostTableHash = '';
+    this._lastSuperTourneyHash = '';
+    if (this.currentRole === 'owner') await this.fetchSuperAdminData(true);
+    else await this.fetchHostWorkspaceData(true);
   },
 
   async executeDirectAppIdTransfer() {
@@ -1044,49 +1189,48 @@ const AdminApp = {
     const walletType = document.getElementById('transferWalletType')?.value || 'winnings';
     if (!appId || amt <= 0) return;
 
-    const res = await SupabaseService.creditPlayerWalletByAppId(appId, amt, walletType, true);
+    const res = await SupabaseService.creditPlayerWalletByAppId(appId, amt, walletType, false);
     if (!res.success) { alert(`App ID "${appId}" nahi mila.`); return; }
+
+    const updatedPlayers = SupabaseService.getLocal('ignis_players_db', []);
+    await this.commitKeyGuaranteed('ignis_players_db', updatedPlayers);
+
     document.getElementById('transferAmountInput').value = '';
-    if (this.currentRole === 'owner') await this.fetchSuperAdminData();
+    if (this.currentRole === 'owner') await this.fetchSuperAdminData(true);
+    else await this.fetchHostWorkspaceData(true);
     alert(`₹${amt} successfully transferred to ${res.player.ign} (${appId})!`);
   },
 
-  /* ==================== SUPER ADMIN FETCH & USERS ==================== */
-  async fetchSuperAdminData() {
+  /* ==================== SUPER ADMIN FETCH, WALLET APPROVAL & 1-CLICK USER DELETE ==================== */
+  async fetchSuperAdminData(force = false) {
     const { data: cfg } = await SupabaseService.getPlatformSettings();
     if (cfg && document.getElementById('superAdminVaultCoins')) {
       document.getElementById('superAdminVaultCoins').innerText = `₹${Number(cfg.super_admin_vault_coins || 1450).toLocaleString()}`;
     }
 
-    const { data: users } = await SupabaseService.getAllPlayers();
-    this.usersList = users || [];
+    this.usersList = SupabaseService.getLocal('ignis_players_db', []);
     document.getElementById('superTotalUsers').innerText = this.usersList.length;
     this.renderSuperUsersTable();
 
-    const { data: hosts } = await SupabaseService.getAllHosts();
-    this.hostsList = hosts || [];
+    this.hostsList = SupabaseService.getLocal('ignis_hosts_db', []);
     document.getElementById('superTotalHosts').innerText = this.hostsList.length;
     this.renderSuperHostsTable();
     this.renderSuperHostWithdrawalsTable();
 
-    const tRes = await SupabaseService.getTournaments();
-    this.matches = (tRes && tRes.data) ? tRes.data : [];
+    this.matches = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
     if (document.getElementById('superTotalActiveRooms')) {
       document.getElementById('superTotalActiveRooms').innerText = this.matches.length;
     }
-    this.renderSuperManageTournamentsTable();
+    this.renderSuperManageTournamentsTable(force);
 
     this.feedbacksList = SupabaseService.getLocal('ignis_feedbacks_db', []);
     this.renderSuperFeedbacksTable();
 
     await this.refreshDepositQueue();
-    await this.loadDualQrSettings();
-    await this.fetchAdminStoreProducts();
   },
 
   async refreshDepositQueue() {
-    const { data: reqs } = await SupabaseService.getAllDepositRequests();
-    this.depositRequestsList = reqs || [];
+    this.depositRequestsList = SupabaseService.getLocal('ignis_deposit_requests_db', []);
     const tbody = document.getElementById('superDepositRequestsTableBody');
     const badge = document.getElementById('superPendingDepositsCount');
     if (!tbody) return;
@@ -1104,7 +1248,7 @@ const AdminApp = {
             <td class="py-2.5 px-3"><strong class="text-white">${r.player_ign}</strong><br><span class="text-[#FFC857] text-[10px]">${r.app_id}</span></td>
             <td class="py-2.5 px-3 text-emerald-400 font-bold text-sm">₹${r.amount}</td>
             <td class="py-2.5 px-3 text-cyan-300 font-bold">${r.utr_number}</td>
-            <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded-full text-[10px] font-russo ${r.status === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-[#FFC857]/20 text-[#FFC857]'}">${r.status}</span></td>
+            <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded-full text-[10px] font-russo ${r.status === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-300' : r.status === 'REJECTED' ? 'bg-red-500/20 text-red-300' : 'bg-[#FFC857]/20 text-[#FFC857]'}">${r.status}</span></td>
             <td class="py-2.5 px-3 text-right space-x-1">
               ${isPending ? `
                 <button type="button" onclick="AdminApp.approveDeposit('${r.id}')" class="bg-emerald-500 text-black font-russo px-3 py-1 rounded-lg text-[10px] cursor-pointer">APPROVE (+20% 1ST)</button>
@@ -1116,17 +1260,86 @@ const AdminApp = {
       }).join('');
   },
 
+  /* ==================== POINT 8 FIX: GUARANTEED WALLET BALANCE UPDATE ON DEPOSIT APPROVAL ==================== */
   async approveDeposit(reqId) {
-    const res = await SupabaseService.approveDepositRequest(reqId);
-    if (res.success) {
-      await this.fetchSuperAdminData();
-      alert(`Approved! Player ko ₹${res.totalCredited} credit hue (Bonus: +₹${res.bonusCoins}).`);
+    this._isPerformingWrite = true;
+    SupabaseService._lastLocalWriteTime = Date.now() + 8000;
+
+    try {
+      const reqList = SupabaseService.getLocal('ignis_deposit_requests_db', []);
+      const req = reqList.find(r => r.id === reqId);
+      if (!req || req.status === 'APPROVED') return;
+
+      req.status = 'APPROVED';
+
+      const players = SupabaseService.getLocal('ignis_players_db', []);
+      const targetPlayer = players.find(
+        x => String(x.app_id || '').trim().toUpperCase() === String(req.app_id || '').trim().toUpperCase()
+      );
+
+      let bonusCoins = 0;
+      const baseAmount = Number(req.amount || 0);
+      if (targetPlayer && !targetPlayer.first_deposit_done) {
+        bonusCoins = Math.round(baseAmount * 0.20);
+        targetPlayer.first_deposit_done = true;
+      }
+
+      const totalCredited = baseAmount + bonusCoins;
+
+      if (targetPlayer) {
+        targetPlayer.deposit_bal = Number(targetPlayer.deposit_bal || 0) + totalCredited;
+      }
+
+      // Update active player session if on same browser
+      try {
+        const activeRaw = localStorage.getItem('ignis_player_session');
+        if (activeRaw) {
+          const activeUser = JSON.parse(activeRaw);
+          if (String(activeUser.appId || '').toUpperCase() === String(req.app_id || '').toUpperCase()) {
+            activeUser.depositBal = Number(activeUser.depositBal || 0) + totalCredited;
+            activeUser.firstDepositDone = true;
+            localStorage.setItem('ignis_player_session', JSON.stringify(activeUser));
+          }
+        }
+      } catch (e) {}
+
+      // Update All-Time Transaction Ledger
+      const allTxns = SupabaseService.getLocal('ignis_all_time_transactions', []);
+      const matchingTxn = allTxns.find(t => t.app_id === req.app_id && (t.note || '').includes(req.utr_number));
+      if (matchingTxn) {
+        matchingTxn.status = 'APPROVED';
+        matchingTxn.amount = totalCredited;
+      } else {
+        allTxns.unshift({
+          id: 'TXN-' + Math.floor(1000 + Math.random() * 9000),
+          app_id: req.app_id,
+          type: 'DEPOSIT',
+          amount: totalCredited,
+          note: `UPI Deposit Approved (UTR: ${req.utr_number})`,
+          status: 'APPROVED',
+          timestamp: new Date().toLocaleString()
+        });
+      }
+
+      // Commit all 3 keys directly to local & cloud
+      await this.commitKeyGuaranteed('ignis_deposit_requests_db', reqList);
+      await this.commitKeyGuaranteed('ignis_players_db', players);
+      await this.commitKeyGuaranteed('ignis_all_time_transactions', allTxns);
+
+      await this.fetchSuperAdminData(true);
+      alert(`✅ DEPOSIT APPROVED!\n• Player: ${req.player_ign} (${req.app_id})\n• Total Credited: ₹${totalCredited} (Base: ₹${baseAmount} + 1st Bonus: ₹${bonusCoins})`);
+    } finally {
+      this._isPerformingWrite = false;
     }
   },
 
   async rejectDeposit(reqId) {
-    await SupabaseService.rejectDepositRequest(reqId);
-    await this.fetchSuperAdminData();
+    const list = SupabaseService.getLocal('ignis_deposit_requests_db', []);
+    const req = list.find(r => r.id === reqId);
+    if (!req) return;
+    req.status = 'REJECTED';
+    await this.commitKeyGuaranteed('ignis_deposit_requests_db', list);
+    await this.fetchSuperAdminData(true);
   },
 
   renderSuperHostsTable() {
@@ -1150,17 +1363,23 @@ const AdminApp = {
     const name = document.getElementById('newHostName')?.value.trim();
     const pass = document.getElementById('newHostPass')?.value.trim();
     if (!id || !name || !pass) return;
-    await SupabaseService.addNewHost(id, name, pass);
+    const list = SupabaseService.getLocal('ignis_hosts_db', []);
+    list.unshift({ host_id: id, host_name: name, password: pass, upi_id: 'operator@upi', total_rooms_managed: 0, commission_balance: 0, status: 'ACTIVE', created_at: new Date().toISOString() });
+    await this.commitKeyGuaranteed('ignis_hosts_db', list);
     document.getElementById('newHostId').value = '';
     document.getElementById('newHostName').value = '';
     document.getElementById('newHostPass').value = '';
-    await this.fetchSuperAdminData();
+    await this.fetchSuperAdminData(true);
   },
 
   async deleteHostAccount(hostId) {
     if (!confirm(`Host ${hostId} ko remove karein?`)) return;
-    await SupabaseService.deleteHost(hostId);
-    await this.fetchSuperAdminData();
+    const list = SupabaseService.getLocal('ignis_hosts_db', []).filter(h => h.host_id !== hostId);
+    if (SupabaseService.client) {
+      try { await SupabaseService.client.from('hosts').delete().eq('host_id', hostId); } catch (e) {}
+    }
+    await this.commitKeyGuaranteed('ignis_hosts_db', list);
+    await this.fetchSuperAdminData(true);
   },
 
   filterUsersTable(q) {
@@ -1175,30 +1394,45 @@ const AdminApp = {
     const filtered = this.usersList.filter(u =>
       !this.userSearchQuery ||
       (u.app_id || '').toLowerCase().includes(this.userSearchQuery) ||
-      (u.ign || '').toLowerCase().includes(this.userSearchQuery)
+      (u.ign || '').toLowerCase().includes(this.userSearchQuery) ||
+      (u.username || '').toLowerCase().includes(this.userSearchQuery) ||
+      (u.phone || '').includes(this.userSearchQuery)
     );
-    tbody.innerHTML = filtered.map(u => `
-      <tr class="hover:bg-white/5">
-        <td class="py-2.5 px-3 font-bold text-[#FFC857]">${u.app_id}</td>
-        <td class="py-2.5 px-3"><strong class="text-white block">${u.ign}</strong><span class="text-[10px] text-slate-400">${u.username || ''} • ${u.full_name}</span></td>
-        <td class="py-2.5 px-3"><div>UID: ${u.uid}</div><div class="text-[10px] text-emerald-400">${u.phone}</div></td>
-        <td class="py-2.5 px-3 text-white font-bold">₹${Number(u.deposit_bal || 0).toFixed(0)}</td>
-        <td class="py-2.5 px-3 text-emerald-400 font-bold">₹${Number(u.winnings_bal || 0).toFixed(0)}</td>
-        <td class="py-2.5 px-3 text-slate-300">LVL ${u.ignis_level || 1} • ${u.tournaments_won || 0} Wins</td>
-        <td class="py-2.5 px-3 text-right">
-          <button type="button" onclick="AdminApp.deleteUserAccount('${u.app_id}')" class="bg-red-500/20 text-red-300 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">DELETE</button>
-        </td>
-      </tr>
-    `).join('');
+    tbody.innerHTML = filtered.length === 0
+      ? `<tr><td colspan="7" class="py-8 text-center text-slate-500">Koi registered user nahi mila.</td></tr>`
+      : filtered.map(u => `
+        <tr class="hover:bg-white/5">
+          <td class="py-2.5 px-3 font-bold text-[#FFC857]">${u.app_id}</td>
+          <td class="py-2.5 px-3"><strong class="text-white block">${u.ign || 'Not Set'}</strong><span class="text-[10px] text-slate-400">${u.username || ''} • ${u.full_name}</span></td>
+          <td class="py-2.5 px-3"><div>UID: ${u.uid || 'Not Set'}</div><div class="text-[10px] text-emerald-400">${u.phone}</div></td>
+          <td class="py-2.5 px-3 text-white font-bold">₹${Number(u.deposit_bal || 0).toFixed(0)}</td>
+          <td class="py-2.5 px-3 text-emerald-400 font-bold">₹${Number(u.winnings_bal || 0).toFixed(0)}</td>
+          <td class="py-2.5 px-3 text-slate-300">LVL ${u.ignis_level || 1} • ${u.tournaments_won || 0} Wins</td>
+          <td class="py-2.5 px-3 text-right">
+            <button type="button" onclick="AdminApp.deleteUserAccount('${u.app_id}')" class="bg-red-500/20 hover:bg-red-600 text-red-300 hover:text-white px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">DELETE</button>
+          </td>
+        </tr>
+      `).join('');
   },
 
+  /* ==================== POINT 2 FIX: 1-CLICK USER ID DELETION ==================== */
   async deleteUserAccount(appId) {
-    if (!confirm(`Delete user ${appId}?`)) return;
-    await SupabaseService.deletePlayerByAppId(appId);
-    await this.fetchSuperAdminData();
+    if (!confirm(`Delete user ${appId} permanently?`)) return;
+    const currentList = SupabaseService.getLocal('ignis_players_db', []);
+    const updated = currentList.filter(p => String(p.app_id || '').toUpperCase() !== String(appId || '').toUpperCase());
+    this.usersList = updated;
+
+    if (SupabaseService.client) {
+      try {
+        await SupabaseService.client.from('players').delete().eq('app_id', appId);
+      } catch (e) {}
+    }
+    await this.commitKeyGuaranteed('ignis_players_db', updated);
+    await this.fetchSuperAdminData(true);
+    this.renderHostAccountsTable();
   },
 
-  broadcastPushNotification() {
+  async broadcastPushNotification() {
     const title = (document.getElementById('pushNotifTitle')?.value || '').trim();
     const msg = (document.getElementById('pushNotifMsg')?.value || '').trim();
     if (!title || !msg) return;
@@ -1209,31 +1443,44 @@ const AdminApp = {
       msg,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     });
-    SupabaseService.setLocal('ignis_player_notifications', currentNotifs);
+    await this.commitKeyGuaranteed('ignis_player_notifications', currentNotifs);
     document.getElementById('pushNotifTitle').value = '';
     document.getElementById('pushNotifMsg').value = '';
     alert('Broadcast Notification Sent!');
   },
 
+  /* ==================== POINT 4: SUPPORT TICKETS & CALLBACK REQUESTS INBOX ==================== */
   renderSuperFeedbacksTable() {
     const tbody = document.getElementById('superFeedbacksTableBody');
     if (!tbody) return;
-    tbody.innerHTML = this.feedbacksList.map(f => `
-      <tr class="hover:bg-white/5">
-        <td class="py-2.5 px-3 font-mono text-[10px] text-slate-400">${new Date(f.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-        <td class="py-2.5 px-3 font-bold text-white">${f.player_ign} (${f.player_app_id})</td>
-        <td class="py-2.5 px-3 text-cyan-400">${f.category}</td>
-        <td class="py-2.5 px-3 text-slate-200">${f.message}</td>
-        <td class="py-2.5 px-3 text-right">
-          <button onclick="AdminApp.deleteFeedbackItem('${f.id}')" class="bg-red-500/20 text-red-300 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">DELETE</button>
-        </td>
-      </tr>
-    `).join('');
+    this.feedbacksList = SupabaseService.getLocal('ignis_feedbacks_db', []);
+
+    tbody.innerHTML = this.feedbacksList.length === 0
+      ? `<tr><td colspan="5" class="py-8 text-center text-slate-500">Koi support ticket ya callback request nahi hai.</td></tr>`
+      : this.feedbacksList.map(f => {
+        const isCallback = String(f.category || '').includes('CALLBACK');
+        return `
+          <tr class="hover:bg-white/5">
+            <td class="py-2.5 px-3 font-mono text-[10px] text-slate-400">${f.id || 'TKT'}<br>${new Date(f.created_at).toLocaleString()}</td>
+            <td class="py-2.5 px-3">
+              <strong class="text-white block">${f.player_ign} (${f.player_app_id})</strong>
+              ${f.phone ? `<a href="tel:${f.phone}" class="text-emerald-400 font-mono text-[11px] font-bold underline">📞 ${f.phone}</a>` : ''}
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="px-2 py-0.5 rounded-lg text-[10px] font-bold ${isCallback ? 'bg-[#FFC857]/20 text-[#FFC857] border border-[#FFC857]/40' : 'bg-cyan-500/15 text-cyan-300'}">${f.category}</span>
+            </td>
+            <td class="py-2.5 px-3 text-slate-200">${f.message}</td>
+            <td class="py-2.5 px-3 text-right">
+              <button onclick="AdminApp.deleteFeedbackItem('${f.id}')" class="bg-red-500/20 hover:bg-red-600 text-red-300 hover:text-white px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">RESOLVE / DEL</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
   },
 
-  deleteFeedbackItem(fbId) {
+  async deleteFeedbackItem(fbId) {
     this.feedbacksList = this.feedbacksList.filter(x => x.id !== fbId);
-    SupabaseService.setLocal('ignis_feedbacks_db', this.feedbacksList);
+    await this.commitKeyGuaranteed('ignis_feedbacks_db', this.feedbacksList);
     this.renderSuperFeedbacksTable();
   }
 };
