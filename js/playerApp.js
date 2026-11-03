@@ -1,4 +1,4 @@
-// js/playerApp.js — Complete Uncut Player Engine (Sign In/Register, Unique Check, Instagram Search, Co-Pay Squads & XP)
+// js/playerApp.js — Complete Uncut Player Engine (Cloud Await on Init + Fixed Tournament Visibility + Live Search)
 
 const PlayerApp = {
   BASE_FF_WALLPAPER: 'https://images2.alphacoders.com/112/1126388.jpg',
@@ -78,6 +78,10 @@ const PlayerApp = {
 
   async init() {
     this.initAtmosphericCanvas();
+    // Wait for Supabase Cloud pull first so other phones immediately see live data
+    if (SupabaseService.isCloudConnected) {
+      await SupabaseService.pullAllFromCloud(true);
+    }
     await this.loadPlatformConfig();
     this.checkSavedSession();
     await this.fetchMatches();
@@ -235,7 +239,7 @@ const PlayerApp = {
     const username = usernameRaw.startsWith('@') ? usernameRaw : '@' + usernameRaw;
 
     if (SupabaseService.isCloudConnected) {
-      await SupabaseService.pullAllFromCloud();
+      await SupabaseService.pullAllFromCloud(true);
     }
 
     const conflictCheck = SupabaseService.checkIdentityConflict({ username, uid, ign, phone });
@@ -482,7 +486,7 @@ const PlayerApp = {
 
   async openFriendsListModal() {
     if (SupabaseService.isCloudConnected) {
-      await SupabaseService.pullAllFromCloud();
+      await SupabaseService.pullAllFromCloud(true);
     }
     if (this.state.user) {
       const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
@@ -597,7 +601,7 @@ const PlayerApp = {
     this.updateUI();
   },
 
-  /* ==================== TAB 1: TOURNAMENTS ==================== */
+  /* ==================== TAB 1: TOURNAMENTS (FIXED VISIBILITY & STATUS) ==================== */
   setCategoryFilter(cat) {
     this.state.categoryFilter = cat;
     ['ALL', 'BR', 'CS', 'LW'].forEach(c => {
@@ -623,16 +627,9 @@ const PlayerApp = {
     const fee = Number(m.entry_fee ?? 0);
     const filled = Number(m.filled_slots ?? 0);
     const totalSlots = Number(m.total_slots ?? 48);
-    const currentHour = new Date().getHours();
-    const matchHour = Number(m.match_hour ?? 23);
 
-    let computedStatus = m.match_status || 'UPCOMING';
-    if (computedStatus !== 'COMPLETED') {
-      if (matchHour === currentHour || computedStatus === 'LIVE') computedStatus = 'LIVE';
-      else if (matchHour < currentHour) computedStatus = 'COMPLETED';
-      else computedStatus = 'UPCOMING';
-    }
-
+    // Status is strictly controlled by Admin/Host ('UPCOMING', 'LIVE', 'COMPLETED')
+    const computedStatus = m.match_status || 'UPCOMING';
     const isLive = computedStatus === 'LIVE';
     const isCompleted = computedStatus === 'COMPLETED';
     const isLocked = isLive || isCompleted || filled >= totalSlots;
@@ -662,12 +659,12 @@ const PlayerApp = {
     filtered.sort((a, b) => {
       const ecoA = this.calculateMatchEconomics(a);
       const ecoB = this.calculateMatchEconomics(b);
-      const weight = (eco, item) => {
-        if (eco.computedStatus === 'LIVE') return 100 + Number(item.match_hour || 0);
-        if (eco.computedStatus === 'UPCOMING') return 500 + Number(item.match_hour || 0);
-        return 1000 + Number(item.match_hour || 0);
+      const weight = (eco) => {
+        if (eco.computedStatus === 'LIVE') return 1;
+        if (eco.computedStatus === 'UPCOMING') return 2;
+        return 3;
       };
-      return weight(ecoA, a) - weight(ecoB, b);
+      return weight(ecoA) - weight(ecoB);
     });
 
     if (filtered.length === 0) {
@@ -1375,8 +1372,8 @@ const PlayerApp = {
         }
       }
       await this.loadPlatformConfig();
-      await this.fetchMatches();
-      await this.fetchCustomPaidRooms();
+      this.state.tournaments = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
+      this.state.customPaidRooms = SupabaseService.getLocal(SupabaseService.STORAGE_CUSTOM_KEY, []);
       await this.loadAllTimeTransactions();
       this.loadNotifications();
       this.updateUI();
