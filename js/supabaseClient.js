@@ -1,28 +1,35 @@
-// js/supabaseClient.js — Complete Uncut Live Supabase Cloud + Local Mirror Engine
+// js/supabaseClient.js — Bulletproof Cross-Device Cloud Sync Engine (100% Uncut)
 
 const SupabaseService = {
   client: null,
   isCloudConnected: false,
   _isSyncingFromCloud: false,
+  _pendingPushes: 0,
+  _lastLocalWriteTime: 0,
   STORAGE_TOURNEY_KEY: 'ignis_tournaments_2026_v4',
   STORAGE_CUSTOM_KEY: 'ignis_custom_wagers_2026_v4',
   STORAGE_PRODUCTS_KEY: 'ignis_store_products_db',
 
   init() {
     try {
-      if (
-        typeof window.supabase !== 'undefined' &&
-        typeof APP_CONFIG !== 'undefined' &&
-        APP_CONFIG.SUPABASE_URL &&
-        APP_CONFIG.SUPABASE_ANON_KEY &&
-        !APP_CONFIG.SUPABASE_URL.includes('YOUR_')
-      ) {
-        this.client = window.supabase.createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_ANON_KEY);
+      const url =
+        (typeof APP_CONFIG !== 'undefined' && (APP_CONFIG.SUPABASE_URL || APP_CONFIG.url)) ||
+        (typeof CONFIG !== 'undefined' && (CONFIG.SUPABASE_URL || CONFIG.url)) ||
+        window.SUPABASE_URL ||
+        '';
+      const key =
+        (typeof APP_CONFIG !== 'undefined' && (APP_CONFIG.SUPABASE_ANON_KEY || APP_CONFIG.SUPABASE_KEY || APP_CONFIG.key)) ||
+        (typeof CONFIG !== 'undefined' && (CONFIG.SUPABASE_ANON_KEY || CONFIG.SUPABASE_KEY || CONFIG.key)) ||
+        window.SUPABASE_ANON_KEY ||
+        '';
+
+      if (typeof window.supabase !== 'undefined' && url && key && !url.includes('YOUR_')) {
+        this.client = window.supabase.createClient(url, key);
         this.isCloudConnected = true;
-        console.log('IGNIS ARENA: Live Supabase Cloud Connected!');
+        console.log('IGNIS ARENA: Connected to Live Supabase Cloud:', url);
       }
     } catch (err) {
-      console.warn('Supabase offline, using local mirror:', err);
+      console.warn('Supabase init warning:', err);
     }
 
     this.ensureDefaultData();
@@ -48,13 +55,19 @@ const SupabaseService = {
     window.dispatchEvent(new Event('storage'));
 
     if (this.isCloudConnected && !this._isSyncingFromCloud) {
+      this._lastLocalWriteTime = Date.now();
       this.pushKeyToCloud(key, val);
     }
   },
 
-  /* ==================== LIVE CLOUD PULL & PUSH ENGINE ==================== */
-  async pullAllFromCloud() {
+  /* ==================== BULLETPROOF CLOUD PULL & PUSH ENGINE ==================== */
+  async pullAllFromCloud(forcePull = false) {
     if (!this.client) return;
+    // Do not overwrite local changes if a local write just happened within the last 4 seconds
+    if (!forcePull && (this._pendingPushes > 0 || Date.now() - this._lastLocalWriteTime < 4000)) {
+      return;
+    }
+
     this._isSyncingFromCloud = true;
     try {
       const [pRes, tRes, sRes, cRes, dRes, hRes, cfgRes, txRes, kvRes] = await Promise.all([
@@ -69,27 +82,59 @@ const SupabaseService = {
         this.client.from('app_kv_store').select('*')
       ]);
 
-      if (pRes.data) localStorage.setItem('ignis_players_db', JSON.stringify(pRes.data));
-      if (tRes.data) localStorage.setItem(this.STORAGE_TOURNEY_KEY, JSON.stringify(tRes.data));
-      if (sRes.data) localStorage.setItem('ignis_room_slots_db', JSON.stringify(sRes.data));
-      if (cRes.data) localStorage.setItem(this.STORAGE_CUSTOM_KEY, JSON.stringify(cRes.data));
-      if (dRes.data) localStorage.setItem('ignis_deposit_requests_db', JSON.stringify(dRes.data));
-      if (hRes.data && hRes.data.length > 0) localStorage.setItem('ignis_hosts_db', JSON.stringify(hRes.data));
-      if (cfgRes.data) localStorage.setItem('ignis_platform_settings', JSON.stringify(cfgRes.data));
-      if (txRes.data) localStorage.setItem('ignis_all_time_transactions', JSON.stringify(txRes.data));
-
+      const kvMap = {};
       if (kvRes.data && Array.isArray(kvRes.data)) {
         kvRes.data.forEach(item => {
-          if (item.key && item.value) {
+          if (item.key) {
+            kvMap[item.key] = item.value;
             localStorage.setItem(item.key, JSON.stringify(item.value));
           }
         });
       }
 
+      // Use primary table data if valid, otherwise fallback to KV mirror
+      if (!pRes.error && Array.isArray(pRes.data) && pRes.data.length > 0) {
+        localStorage.setItem('ignis_players_db', JSON.stringify(pRes.data));
+      } else if (Array.isArray(kvMap['ignis_players_db'])) {
+        localStorage.setItem('ignis_players_db', JSON.stringify(kvMap['ignis_players_db']));
+      }
+
+      if (!tRes.error && Array.isArray(tRes.data)) {
+        // If kvMap has tournaments and tRes was empty due to schema mismatch, prefer kvMap
+        if (tRes.data.length === 0 && Array.isArray(kvMap[this.STORAGE_TOURNEY_KEY]) && kvMap[this.STORAGE_TOURNEY_KEY].length > 0) {
+          localStorage.setItem(this.STORAGE_TOURNEY_KEY, JSON.stringify(kvMap[this.STORAGE_TOURNEY_KEY]));
+        } else {
+          localStorage.setItem(this.STORAGE_TOURNEY_KEY, JSON.stringify(tRes.data));
+        }
+      } else if (Array.isArray(kvMap[this.STORAGE_TOURNEY_KEY])) {
+        localStorage.setItem(this.STORAGE_TOURNEY_KEY, JSON.stringify(kvMap[this.STORAGE_TOURNEY_KEY]));
+      }
+
+      if (!sRes.error && Array.isArray(sRes.data)) {
+        localStorage.setItem('ignis_room_slots_db', JSON.stringify(sRes.data));
+      }
+      if (!cRes.error && Array.isArray(cRes.data)) {
+        localStorage.setItem(this.STORAGE_CUSTOM_KEY, JSON.stringify(cRes.data));
+      }
+      if (!dRes.error && Array.isArray(dRes.data)) {
+        localStorage.setItem('ignis_deposit_requests_db', JSON.stringify(dRes.data));
+      }
+      if (!hRes.error && Array.isArray(hRes.data) && hRes.data.length > 0) {
+        localStorage.setItem('ignis_hosts_db', JSON.stringify(hRes.data));
+      }
+      if (!cfgRes.error && cfgRes.data) {
+        localStorage.setItem('ignis_platform_settings', JSON.stringify(cfgRes.data));
+      }
+      if (!txRes.error && Array.isArray(txRes.data)) {
+        localStorage.setItem('ignis_all_time_transactions', JSON.stringify(txRes.data));
+      }
+
+      // Sync active logged-in player's session with fresh cloud data
       const activeRaw = localStorage.getItem('ignis_player_session');
-      if (activeRaw && pRes.data) {
+      const latestPlayers = this.getLocal('ignis_players_db', []);
+      if (activeRaw && latestPlayers.length > 0) {
         const activeUser = JSON.parse(activeRaw);
-        const freshCloudUser = pRes.data.find(
+        const freshCloudUser = latestPlayers.find(
           u => String(u.app_id || '').toUpperCase() === String(activeUser.appId || '').toUpperCase()
         );
         if (freshCloudUser) {
@@ -100,7 +145,7 @@ const SupabaseService = {
 
       window.dispatchEvent(new Event('storage'));
     } catch (e) {
-      console.warn('Cloud sync pull warning:', e);
+      console.warn('Cloud pull warning:', e);
     } finally {
       this._isSyncingFromCloud = false;
     }
@@ -108,51 +153,78 @@ const SupabaseService = {
 
   async pushKeyToCloud(key, val) {
     if (!this.client) return;
+    this._pendingPushes++;
+    this._lastLocalWriteTime = Date.now();
+
     try {
+      // 1. Always mirror key in app_kv_store so cross-device sync works even if a table column is missing
+      try {
+        await this.client
+          .from('app_kv_store')
+          .upsert([{ key, value: val, updated_at: new Date().toISOString() }], { onConflict: 'key' });
+      } catch (kvErr) {}
+
+      // 2. Also sync to structured SQL tables
       if (key === 'ignis_players_db' && Array.isArray(val)) {
-        if (val.length > 0) await this.client.from('players').upsert(val, { onConflict: 'app_id' });
+        if (val.length > 0) {
+          await this.client.from('players').upsert(val, { onConflict: 'app_id' });
+        }
       } else if (key === this.STORAGE_TOURNEY_KEY && Array.isArray(val)) {
         const { data: existing } = await this.client.from('tournaments').select('id');
         const newIds = new Set(val.map(x => x.id));
         const toDelete = (existing || []).filter(x => !newIds.has(x.id)).map(x => x.id);
-        if (toDelete.length > 0) await this.client.from('tournaments').delete().in('id', toDelete);
-        if (val.length > 0) await this.client.from('tournaments').upsert(val, { onConflict: 'id' });
+        if (toDelete.length > 0) {
+          await this.client.from('tournaments').delete().in('id', toDelete);
+        }
+        if (val.length > 0) {
+          await this.client.from('tournaments').upsert(val, { onConflict: 'id' });
+        }
       } else if (key === 'ignis_room_slots_db' && Array.isArray(val)) {
-        if (val.length > 0) await this.client.from('room_slots').upsert(val, { onConflict: 'id' });
+        if (val.length === 0) {
+          await this.client.from('room_slots').delete().neq('id', 'NONE');
+        } else {
+          await this.client.from('room_slots').upsert(val, { onConflict: 'id' });
+        }
       } else if (key === this.STORAGE_CUSTOM_KEY && Array.isArray(val)) {
         const { data: existing } = await this.client.from('custom_rooms').select('id');
         const newIds = new Set(val.map(x => x.id));
         const toDelete = (existing || []).filter(x => !newIds.has(x.id)).map(x => x.id);
-        if (toDelete.length > 0) await this.client.from('custom_rooms').delete().in('id', toDelete);
-        if (val.length > 0) await this.client.from('custom_rooms').upsert(val, { onConflict: 'id' });
+        if (toDelete.length > 0) {
+          await this.client.from('custom_rooms').delete().in('id', toDelete);
+        }
+        if (val.length > 0) {
+          await this.client.from('custom_rooms').upsert(val, { onConflict: 'id' });
+        }
       } else if (key === 'ignis_deposit_requests_db' && Array.isArray(val)) {
-        if (val.length > 0) await this.client.from('deposit_requests').upsert(val, { onConflict: 'id' });
+        if (val.length > 0) {
+          await this.client.from('deposit_requests').upsert(val, { onConflict: 'id' });
+        }
       } else if (key === 'ignis_hosts_db' && Array.isArray(val)) {
-        if (val.length > 0) await this.client.from('hosts').upsert(val, { onConflict: 'host_id' });
+        if (val.length > 0) {
+          await this.client.from('hosts').upsert(val, { onConflict: 'host_id' });
+        }
       } else if (key === 'ignis_platform_settings' && val && typeof val === 'object') {
         await this.client.from('platform_settings').upsert([val], { onConflict: 'id' });
       } else if (key === 'ignis_all_time_transactions' && Array.isArray(val)) {
         const cleanTx = val.map(({ id, app_id, type, amount, note, status, timestamp }) => ({
           id, app_id, type, amount, note, status, timestamp
         }));
-        if (cleanTx.length > 0) await this.client.from('transactions').upsert(cleanTx, { onConflict: 'id' });
-      } else if (
-        key === 'ignis_player_notifications' ||
-        key === 'ignis_feedbacks_db' ||
-        key === 'ignis_match_proofs_db' ||
-        key === this.STORAGE_PRODUCTS_KEY
-      ) {
-        await this.client.from('app_kv_store').upsert([{ key, value: val, updated_at: new Date().toISOString() }], { onConflict: 'key' });
+        if (cleanTx.length > 0) {
+          await this.client.from('transactions').upsert(cleanTx, { onConflict: 'id' });
+        }
       }
     } catch (e) {
-      console.warn('Cloud push error for key', key, e);
+      console.warn('Cloud push warning for key', key, e);
+    } finally {
+      this._pendingPushes = Math.max(0, this._pendingPushes - 1);
+      this._lastLocalWriteTime = Date.now();
     }
   },
 
   startLiveCloudSyncLoop() {
     if (!this.client) return;
     setInterval(() => {
-      this.pullAllFromCloud();
+      this.pullAllFromCloud(false);
     }, 3500);
   },
 
@@ -166,7 +238,7 @@ const SupabaseService = {
         { host_id: 'host_04', host_name: 'Karan (CS Specialist #4)', password: 'host123', upi_id: 'karan@ibl', total_rooms_managed: 11, commission_balance: 400, status: 'ACTIVE' },
         { host_id: 'host_05', host_name: 'Deepak (Night Ops #5)', password: 'host123', upi_id: 'deepak@okicici', total_rooms_managed: 8, commission_balance: 290, status: 'ACTIVE' }
       ];
-      this.setLocal('ignis_hosts_db', defaultHosts);
+      localStorage.setItem('ignis_hosts_db', JSON.stringify(defaultHosts));
     }
   },
 
@@ -209,14 +281,7 @@ const SupabaseService = {
   /* ==================== INSTAGRAM-STYLE MULTI-RESULT SEARCH ENGINE ==================== */
   async searchPlayersInstagramStyle(query, excludeAppId = null) {
     if (this.client) {
-      try {
-        const { data: cloudPlayers } = await this.client.from('players').select('*').order('created_at', { ascending: false });
-        if (cloudPlayers) {
-          this._isSyncingFromCloud = true;
-          localStorage.setItem('ignis_players_db', JSON.stringify(cloudPlayers));
-          this._isSyncingFromCloud = false;
-        }
-      } catch (e) {}
+      await this.pullAllFromCloud(true);
     }
 
     const clean = String(query || '').trim().toLowerCase();
@@ -265,7 +330,7 @@ const SupabaseService = {
   /* ==================== PLAYER AUTH (REGISTER & SIGN IN) ==================== */
   async authenticatePlayer(identifier, password) {
     if (this.client) {
-      await this.pullAllFromCloud();
+      await this.pullAllFromCloud(true);
     }
 
     const cleanId = String(identifier || '').trim().toUpperCase();
@@ -360,41 +425,26 @@ const SupabaseService = {
 
     if (existingIdx >= 0) list[existingIdx] = record;
     else list.unshift(record);
-    this.setLocal('ignis_players_db', list);
+
+    this._lastLocalWriteTime = Date.now();
+    localStorage.setItem('ignis_players_db', JSON.stringify(list));
 
     if (this.client) {
-      try {
-        await this.client.from('players').upsert([record], { onConflict: 'app_id' });
-      } catch (e) {}
+      await this.pushKeyToCloud('ignis_players_db', list);
     }
     return { success: true, record };
   },
 
   async getAllPlayers() {
     if (this.client) {
-      try {
-        const { data } = await this.client.from('players').select('*').order('created_at', { ascending: false });
-        if (data) {
-          this._isSyncingFromCloud = true;
-          localStorage.setItem('ignis_players_db', JSON.stringify(data));
-          this._isSyncingFromCloud = false;
-          return { data };
-        }
-      } catch (e) {}
+      await this.pullAllFromCloud(false);
     }
     return { data: this.getLocal('ignis_players_db', []) };
   },
 
   async getPlayerByAppId(queryId, excludeAppId = null) {
     if (this.client) {
-      try {
-        const { data } = await this.client.from('players').select('*');
-        if (data) {
-          this._isSyncingFromCloud = true;
-          localStorage.setItem('ignis_players_db', JSON.stringify(data));
-          this._isSyncingFromCloud = false;
-        }
-      } catch (e) {}
+      await this.pullAllFromCloud(true);
     }
 
     const clean = String(queryId || '').trim().toUpperCase();
@@ -434,10 +484,10 @@ const SupabaseService = {
 
   async deletePlayerByAppId(appId) {
     const list = this.getLocal('ignis_players_db', []).filter(p => p.app_id !== appId);
-    this.setLocal('ignis_players_db', list);
     if (this.client) {
       try { await this.client.from('players').delete().eq('app_id', appId); } catch (e) {}
     }
+    this.setLocal('ignis_players_db', list);
     return { success: true };
   },
 
@@ -494,6 +544,9 @@ const SupabaseService = {
 
   /* ==================== TOURNAMENTS ==================== */
   async getTournaments() {
+    if (this.client) {
+      await this.pullAllFromCloud(false);
+    }
     const localData = this.getLocal(this.STORAGE_TOURNEY_KEY, []);
     return { data: localData, error: null };
   },
@@ -536,7 +589,7 @@ const SupabaseService = {
     if (this.client) {
       try {
         const { data } = await this.client.from('room_slots').select('*').eq('tournament_id', tournamentId);
-        if (data) return { data };
+        if (data && data.length > 0) return { data };
       } catch (e) {}
     }
     const localSlots = this.getLocal('ignis_room_slots_db', []).filter(s => s.tournament_id === tournamentId);
@@ -573,6 +626,9 @@ const SupabaseService = {
 
   /* ==================== PAID CUSTOM MATCHES ==================== */
   async getCustomPaidRooms() {
+    if (this.client) {
+      await this.pullAllFromCloud(false);
+    }
     return { data: this.getLocal(this.STORAGE_CUSTOM_KEY, []) };
   },
 
@@ -728,15 +784,7 @@ const SupabaseService = {
 
   async getAllDepositRequests() {
     if (this.client) {
-      try {
-        const { data } = await this.client.from('deposit_requests').select('*').order('created_at', { ascending: false });
-        if (data) {
-          this._isSyncingFromCloud = true;
-          localStorage.setItem('ignis_deposit_requests_db', JSON.stringify(data));
-          this._isSyncingFromCloud = false;
-          return { data };
-        }
-      } catch (e) {}
+      await this.pullAllFromCloud(false);
     }
     return { data: this.getLocal('ignis_deposit_requests_db', []) };
   },
@@ -797,9 +845,6 @@ const SupabaseService = {
       }
       if (markFirstDep) target.first_deposit_done = true;
       this.setLocal('ignis_players_db', list);
-      if (this.client) {
-        try { await this.client.from('players').upsert([target], { onConflict: 'app_id' }); } catch (e) {}
-      }
     }
 
     try {
@@ -825,7 +870,7 @@ const SupabaseService = {
   },
 
   async hostLogin(hostId, password) {
-    if (this.client) await this.pullAllFromCloud();
+    if (this.client) await this.pullAllFromCloud(true);
     const cleanId = String(hostId || '').trim().toLowerCase();
     const cleanPass = String(password || '').trim();
     const localHosts = this.getLocal('ignis_hosts_db', []);
@@ -850,10 +895,10 @@ const SupabaseService = {
 
   async deleteHost(hostId) {
     const list = this.getLocal('ignis_hosts_db', []).filter(h => h.host_id !== hostId);
-    this.setLocal('ignis_hosts_db', list);
     if (this.client) {
       try { await this.client.from('hosts').delete().eq('host_id', hostId); } catch (e) {}
     }
+    this.setLocal('ignis_hosts_db', list);
     return { success: true };
   },
 
