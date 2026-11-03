@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>IGNIS ARENA — Official Esports APK</title>
 
-  <!-- 4K APP ICON LINKS (Replace assets/app-icon.png or we will embed your Part 2 icon) -->
+  <!-- APP ICON LINKS (Place your logo at assets/app-icon.png or logo.png) -->
   <link id="dynamicFavicon" rel="icon" type="image/png" href="assets/app-icon.png">
   <link id="dynamicAppleIcon" rel="apple-touch-icon" href="assets/app-icon.png">
   
@@ -37,41 +37,23 @@
   <canvas id="emberCanvas" class="fixed inset-0 pointer-events-none z-0 opacity-25"></canvas>
   <div id="toastContainer" class="fixed top-4 right-3 left-3 sm:left-auto sm:right-5 z-[100] flex flex-col gap-2 sm:max-w-sm pointer-events-none"></div>
 
-  <!-- ==================== FULL-SCREEN 9:16 ANDROID APK OPENING SPLASH SCREEN ==================== -->
-  <!-- Note: Save your custom opening image as 'assets/splash.png' or send in Message 2 to auto-embed -->
-  <div id="ignisSplashScreen" class="full-apk-splash flex flex-col justify-between transition-opacity duration-500">
+  <!-- ==================== CLEAN FULL-SCREEN 9:16 OPENING IMAGE (NO TEXT, NO LOADING BAR) ==================== -->
+  <!-- Save your opening poster as 'assets/splash.png' or 'splash.png' -->
+  <div id="ignisSplashScreen" class="full-apk-splash transition-opacity duration-500">
     <img
       id="customSplashPosterImg"
       src="assets/splash.png"
-      onerror="this.onerror=null; this.src='https://images2.alphacoders.com/112/1126388.jpg';"
-      alt="Ignis Arena Opening Screen"
-      class="absolute inset-0 w-full h-full object-cover object-center"
+      alt="Ignis Arena"
+      class="w-full h-full object-cover object-center"
     >
-    <div class="absolute inset-0 bg-gradient-to-t from-[#06070A] via-transparent to-black/40"></div>
-
-    <div class="relative z-10 p-5 flex items-center justify-between text-[10px] font-mono">
-      <span class="bg-black/75 border border-white/15 px-3 py-1 rounded-full text-[#FFC857] font-bold">IGNIS ARENA OFFICIAL</span>
-      <span class="bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-3 py-1 rounded-full font-bold">INDIA 4K APK</span>
-    </div>
-
-    <div class="relative z-10 p-6 pb-10 space-y-2.5 max-w-md mx-auto w-full">
-      <div class="flex justify-between text-[11px] font-mono text-[#FFC857] font-bold drop-shadow">
-        <span>ENTERING ARENA...</span>
-        <span id="splashPercentText">100%</span>
-      </div>
-      <div class="w-full h-2 bg-black/70 border border-white/15 rounded-full overflow-hidden p-0.5">
-        <div id="splashProgressBar" class="h-full rounded-full transition-all duration-1000" style="width: 100%; background: linear-gradient(90deg, #FF6B00, #FFC857);"></div>
-      </div>
-    </div>
   </div>
 
-  <!-- ==================== CLEAN AUTH GATEWAY (BASIC SIGN IN / REGISTER) ==================== -->
+  <!-- ==================== CLEAN AUTH GATEWAY (1-CLICK SIGN IN / CREATE ACCOUNT) ==================== -->
   <div id="playerAuthGate" class="fixed inset-0 z-50 bg-[#06070A]/95 backdrop-blur-2xl flex items-center justify-center p-4 overflow-y-auto hidden">
     <div class="laser-card max-w-md w-full p-6 sm:p-7 space-y-5 relative overflow-hidden my-auto">
       <div class="text-center space-y-1">
         <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl mx-auto shadow-2xl text-black overflow-hidden border border-[#FF6B00]/50" style="background: linear-gradient(135deg, #FF6B00, #FFC857);">
-          <img src="assets/app-icon.png" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" class="w-full h-full object-cover">
-          <i class="ph-fill ph-fire hidden"></i>
+          <img id="authGateBrandLogo" src="assets/app-icon.png" alt="Logo" class="w-full h-full object-cover">
         </div>
         <h2 class="text-2xl font-extrabold tracking-tight text-white mt-1.5">Ignis Arena</h2>
         <p class="text-xs text-slate-400 font-medium">Sign In or Create Your Athlete Account</p>
@@ -97,8 +79,8 @@
           <label class="font-semibold text-slate-300 block mb-1 text-[11px]">Account Password</label>
           <input type="password" id="loginPasswordInput" onkeydown="if(event.key==='Enter') PlayerApp.loginExistingPlayer()" placeholder="••••••••" class="w-full bg-white/5 border border-white/10 focus:border-[#FF6B00] clip-esports-sm px-3.5 py-3 text-white focus:outline-none">
         </div>
-        <button type="button" onclick="PlayerApp.loginExistingPlayer()" class="w-full py-3.5 btn-hyper clip-esports-sm text-xs flex items-center justify-center gap-2 cursor-pointer">
-          <span>Sign In &amp; Open Tournaments</span>
+        <button id="btnSignInSubmit" type="button" onclick="PlayerApp.loginExistingPlayer()" class="w-full py-3.5 btn-hyper clip-esports-sm text-xs flex items-center justify-center gap-2 cursor-pointer">
+          <span>Sign In &amp; Open Arena</span>
           <i class="ph-bold ph-sign-in"></i>
         </button>
         <p class="text-[11px] text-center text-slate-400 pt-1">
@@ -106,7 +88,7 @@
         </p>
       </div>
 
-      <!-- FORM 2: CLEAN REGISTER -->
+      <!-- FORM 2: 1-CLICK CLEAN REGISTER -->
       <div id="playerRegisterForm" class="hidden space-y-3 text-xs">
         <div>
           <label class="font-semibold text-slate-300 block mb-1 text-[11px]">Your Full Name</label>
@@ -127,22 +109,25 @@
         </div>
         <div>
           <label class="font-semibold text-slate-300 block mb-1 text-[11px]">Create Password</label>
-          <input type="password" id="authPasswordInput" placeholder="••••••••" class="w-full bg-white/5 border border-white/10 focus:border-[#FF6B00] clip-esports-sm px-3.5 py-2.5 text-white focus:outline-none">
+          <input type="password" id="authPasswordInput" onkeydown="if(event.key==='Enter') PlayerApp.completePlayerAuth()" placeholder="••••••••" class="w-full bg-white/5 border border-white/10 focus:border-[#FF6B00] clip-esports-sm px-3.5 py-2.5 text-white focus:outline-none">
         </div>
 
         <div id="registerConflictErrorBox" class="hidden p-2.5 rounded-xl bg-red-950/60 border border-red-500/40 text-red-300 text-[11px] font-semibold text-center"></div>
 
-        <button type="button" onclick="PlayerApp.completePlayerAuth()" class="w-full py-3.5 btn-hyper clip-esports-sm text-xs flex items-center justify-center gap-2 cursor-pointer mt-1">
-          <span>Create Account &amp; Continue</span>
+        <button id="btnRegisterSubmit" type="button" onclick="PlayerApp.completePlayerAuth()" class="w-full py-3.5 btn-hyper clip-esports-sm text-xs flex items-center justify-center gap-2 cursor-pointer mt-1">
+          <span>Create Account &amp; Enter Arena</span>
           <i class="ph-bold ph-arrow-right"></i>
         </button>
       </div>
     </div>
   </div>
 
-  <!-- ==================== ONE-TIME "COMPLETE YOUR PROFILE" MODAL ==================== -->
+  <!-- ==================== "COMPLETE YOUR PROFILE" MODAL (SHOWN ONLY IN PROFILE SECTION) ==================== -->
   <div id="completeProfileModal" class="fixed inset-0 z-[60] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-4 hidden">
     <div class="laser-card max-w-md w-full p-6 space-y-4 relative border border-[#FF6B00]/50">
+      <button type="button" onclick="PlayerApp.closeModal('completeProfileModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
       <div class="flex items-center gap-3 border-b border-white/10 pb-3">
         <div class="w-11 h-11 rounded-2xl flex items-center justify-center text-black text-xl font-bold flex-shrink-0" style="background: linear-gradient(135deg, #FF6B00, #FFC857);">
           <i class="ph-bold ph-user-check"></i>
@@ -154,7 +139,7 @@
       </div>
 
       <p class="text-xs text-slate-300 leading-relaxed">
-        Tournaments join karne aur prizes receive karne ke liye apni <strong>Free Fire UID, Exact IGN aur Gmail</strong> ek baar verify karein. Yeh screen dobara kabhi nahi aayegi.
+        Apni <strong>Free Fire UID, Exact IGN aur Gmail</strong> ek baar save karein. Ek baar save karne ke baad yeh dobara kabhi nahi mangega.
       </p>
 
       <div class="space-y-3 text-xs">
@@ -190,7 +175,7 @@
 
       <button type="button" onclick="PlayerApp.submitCompleteProfile()" class="w-full btn-hyper py-3.5 text-xs flex items-center justify-center gap-2 cursor-pointer">
         <i class="ph-bold ph-check-circle text-base"></i>
-        <span>Save &amp; Unlock Full Arena</span>
+        <span>Save Profile Details</span>
       </button>
     </div>
   </div>
@@ -198,12 +183,11 @@
   <!-- ==================== MAIN AUTHENTICATED APK PORTAL ==================== -->
   <div id="mainPlayerPortal" class="relative z-10 max-w-5xl mx-auto px-3 sm:px-5 pt-2.5 sm:pt-4 hidden">
 
-    <!-- STICKY TOP BAR -->
+    <!-- STICKY TOP BAR (CUSTOM LOGO AVATAR NEXT TO IGNIS ARENA) -->
     <header class="sticky top-2 z-30 laser-card px-3 py-2.5 mb-3.5 flex items-center justify-between gap-2">
       <div class="flex items-center gap-2.5 cursor-pointer min-w-0" onclick="PlayerApp.switchTab('tournaments')">
-        <div class="w-9 h-9 rounded-xl flex items-center justify-center text-black text-lg shadow-md flex-shrink-0 overflow-hidden" style="background: linear-gradient(135deg, #FF6B00, #FFC857);">
-          <img src="assets/app-icon.png" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" class="w-full h-full object-cover">
-          <i class="ph-fill ph-fire hidden"></i>
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center text-black text-lg shadow-md flex-shrink-0 overflow-hidden border border-[#FF6B00]/40" style="background: linear-gradient(135deg, #FF6B00, #FFC857);">
+          <img id="headerBrandLogo" src="assets/app-icon.png" alt="Ignis Logo" class="w-full h-full object-cover">
         </div>
         <div class="min-w-0">
           <div class="flex items-center gap-1 leading-none">
@@ -254,15 +238,6 @@
         </div>
       </div>
     </header>
-
-    <!-- Banner if Profile is Incomplete -->
-    <div id="incompleteProfileBanner" onclick="PlayerApp.openCompleteProfileModal()" class="hidden mb-3.5 p-3 rounded-2xl bg-[#FF6B00]/15 border border-[#FF6B00]/50 flex items-center justify-between gap-2 cursor-pointer">
-      <div class="flex items-center gap-2.5 text-xs">
-        <i class="ph-fill ph-warning-circle text-[#FFC857] text-lg"></i>
-        <span class="text-white font-semibold">Complete your Free Fire UID, IGN &amp; Gmail setup to unlock all features.</span>
-      </div>
-      <span class="bg-[#FF6B00] text-black font-extrabold text-[10px] px-2.5 py-1 rounded-lg whitespace-nowrap">COMPLETE NOW</span>
-    </div>
 
     <!-- ==================== TAB 1: TOURNAMENT (BR, CLASH SQUAD, LONE WOLF) ==================== -->
     <main id="view-tournaments" class="space-y-3.5">
@@ -422,7 +397,7 @@
             </select>
           </div>
 
-          <!-- NEW: ADD OPPONENT FROM FRIENDS DROPDOWN -->
+          <!-- ADD OPPONENT FROM FRIENDS DROPDOWN -->
           <div class="col-span-2 sm:col-span-3">
             <label class="font-semibold text-cyan-400 block mb-1 text-[11px]">Add / Challenge Opponent from Friends Roster (Optional — or Share Link after creating)</label>
             <select id="customRoomOpponentSelect" class="w-full bg-white/5 border border-cyan-500/30 rounded-xl px-3 py-2.5 text-white font-semibold focus:outline-none">
@@ -517,7 +492,7 @@
           </div>
         </div>
 
-        <!-- ALL-TIME DETAILED FINANCIAL PASSBOOK (INCLUDES WINNINGS, DEPOSITS & WITHDRAWALS) -->
+        <!-- ALL-TIME DETAILED FINANCIAL PASSBOOK -->
         <div class="lg:col-span-7 space-y-4">
           <div class="laser-card p-5 space-y-3.5">
             <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2.5">
@@ -539,8 +514,17 @@
       </div>
     </section>
 
-    <!-- ==================== TAB 5: INSTAGRAM-STYLE PROFILE ==================== -->
+    <!-- ==================== TAB 5: INSTAGRAM-STYLE PROFILE (COMPLETE PROFILE OPENS HERE) ==================== -->
     <section id="view-profile" class="space-y-4 hidden">
+      <!-- Banner Inside Profile Section Only (If Profile is Incomplete) -->
+      <div id="incompleteProfileBanner" onclick="PlayerApp.openCompleteProfileModal()" class="hidden p-3.5 rounded-2xl bg-[#FF6B00]/15 border border-[#FF6B00]/50 flex items-center justify-between gap-2 cursor-pointer">
+        <div class="flex items-center gap-2.5 text-xs">
+          <i class="ph-fill ph-warning-circle text-[#FFC857] text-lg"></i>
+          <span class="text-white font-semibold">Complete your Free Fire UID, IGN &amp; Gmail setup here.</span>
+        </div>
+        <span class="bg-[#FF6B00] text-black font-extrabold text-[10px] px-3 py-1.5 rounded-lg whitespace-nowrap">COMPLETE PROFILE</span>
+      </div>
+
       <div class="laser-card p-5 sm:p-6 space-y-5">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-5">
           <div class="flex items-center gap-4">
@@ -793,7 +777,7 @@
     </div>
   </div>
 
-  <!-- MODAL 5: DUAL QR DEPOSIT (WITH SCANNER 1 & 2 ACTIVE ORANGE SWITCH) -->
+  <!-- MODAL 5: DUAL QR DEPOSIT -->
   <div id="depositModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-sm w-full p-5 text-center relative space-y-3.5">
       <button onclick="PlayerApp.closeModal('depositModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
@@ -898,7 +882,7 @@
         <h3 class="font-extrabold text-base sm:text-lg text-white" id="detailModalTitle">Tournament Standings</h3>
       </div>
 
-      <!-- 1st Place Booyah Winner Highlight Banner (Shown when Completed) -->
+      <!-- 1st Place Booyah Winner Highlight Banner -->
       <div id="detailModalWinnerBanner" class="hidden p-4 rounded-2xl bg-gradient-to-r from-[#FF6B00]/25 via-[#FFC857]/20 to-emerald-500/20 border border-[#FFC857]/50 text-center space-y-1"></div>
 
       <div class="overflow-x-auto bg-black/50 rounded-2xl border border-white/10">
@@ -917,7 +901,7 @@
     </div>
   </div>
 
-  <!-- MODAL 9: PAID ROOM HOST CHAT (REAL-TIME AUTO SYNC) -->
+  <!-- MODAL 9: PAID ROOM HOST CHAT -->
   <div id="paidRoomChatModal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-lg w-full p-5 relative max-h-[90vh] flex flex-col justify-between space-y-3.5">
       <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
