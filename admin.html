@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#06070A">
   <title>IGNIS ARENA — Master Command Deck</title>
+  <link id="adminDynamicFavicon" rel="icon" type="image/png" href="assets/app-icon.png">
   
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -23,7 +24,7 @@
   <!-- ==================== GATEWAY LOGIN SCREEN ==================== -->
   <div id="authGateScreen" class="fixed inset-0 z-50 bg-[#06070A]/95 backdrop-blur-2xl flex items-center justify-center p-4">
     <div class="laser-card max-w-sm w-full p-7 text-center space-y-5 relative overflow-hidden">
-      <div class="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center text-2xl text-black shadow-lg" style="background: linear-gradient(135deg, #FF6B00, #FFC857);">
+      <div class="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center text-2xl text-black shadow-lg overflow-hidden">
         <i class="ph-bold ph-shield-check"></i>
       </div>
       <div>
@@ -68,17 +69,17 @@
   <!-- ==================== MAIN AUTHENTICATED COMMAND CONSOLE ==================== -->
   <div id="mainDashboard" class="hidden max-w-7xl mx-auto px-3 sm:px-6 pt-3 space-y-4 sm:space-y-6">
     
-    <!-- Top Global App Bar (With Steady Non-Blinking Cloud Status) -->
+    <!-- Top Global App Bar -->
     <header class="sticky top-2 z-30 laser-card p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center text-black text-lg font-black shadow-lg" style="background: linear-gradient(135deg, #FF6B00, #FFC857);">
+        <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center text-black text-lg font-black shadow-lg overflow-hidden">
           <i id="dashboardRoleIcon" class="ph-bold ph-headset"></i>
         </div>
         <div>
           <div class="flex flex-wrap items-center gap-2">
             <h1 class="font-russo text-base sm:text-lg text-white tracking-tight" id="dashboardTitle">Command Console</h1>
             <span id="roleBadge" class="text-[10px] bg-emerald-500/20 text-emerald-300 font-mono px-2.5 py-0.5 rounded-full border border-emerald-500/40">VERIFIED</span>
-            <span id="steadyCloudStatusChip" class="text-[10px] bg-cyan-500/15 text-cyan-300 font-mono px-2.5 py-0.5 rounded-full border border-cyan-500/30">● CLOUD CONNECTED</span>
+            <span id="steadyCloudStatusChip" class="text-[10px] bg-emerald-500/15 text-emerald-300 font-mono px-2.5 py-0.5 rounded-full border border-emerald-500/30">● CLOUD CONNECTED</span>
           </div>
           <p class="text-xs text-slate-400 font-mono" id="dashboardSubtitle">Logged in</p>
         </div>
@@ -100,9 +101,9 @@
 
     <!-- OPERATOR DESKTOP NAVIGATION TABS -->
     <div id="desktopHostNav" class="hidden lg:flex items-center gap-2 laser-card p-2 font-russo text-xs">
-      <button onclick="AdminApp.switchHostSection('tournaments')" id="d-host-tab-tournaments" class="px-4 py-2 clip-esports-sm text-black cursor-pointer transition" style="background: #FF6B00;"><i class="ph-bold ph-trophy mr-1"></i> 1. TOURNAMENTS &amp; ADD ROOMS</button>
-      <button onclick="AdminApp.switchHostSection('wager')" id="d-host-tab-wager" class="px-4 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer transition"><i class="ph-bold ph-sword mr-1"></i> 2. PAID MATCHES &amp; 80/10/10 SETTLE</button>
-      <button onclick="AdminApp.switchHostSection('accounts')" id="d-host-tab-accounts" class="px-4 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer transition"><i class="ph-bold ph-users mr-1 text-cyan-400"></i> 3. ATHLETE DIRECTORY (ALL ACCOUNTS)</button>
+      <button onclick="AdminApp.switchHostSection('tournaments')" id="d-host-tab-tournaments" class="px-4 py-2 clip-esports-sm text-black cursor-pointer transition" style="background: #FF6B00;"><i class="ph-bold ph-trophy mr-1"></i> 1. TOURNAMENTS &amp; IDP MSG</button>
+      <button onclick="AdminApp.switchHostSection('wager')" id="d-host-tab-wager" class="px-4 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer transition"><i class="ph-bold ph-sword mr-1"></i> 2. PAID ROOMS (ACCEPT &amp; IDP)</button>
+      <button onclick="AdminApp.switchHostSection('accounts')" id="d-host-tab-accounts" class="px-4 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer transition"><i class="ph-bold ph-users mr-1 text-cyan-400"></i> 3. ATHLETE DIRECTORY</button>
       <button onclick="AdminApp.switchHostSection('transfer')" id="d-host-tab-transfer" class="px-4 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer transition"><i class="ph-bold ph-currency-inr mr-1"></i> 4. SEND CASH (₹)</button>
       <button onclick="AdminApp.switchHostSection('wallet')" id="d-host-tab-wallet" class="px-4 py-2 clip-esports-sm text-slate-400 hover:text-white cursor-pointer transition"><i class="ph-bold ph-wallet mr-1 text-[#FFC857]"></i> 5. HOST WALLET &amp; CASHOUT</button>
     </div>
@@ -127,9 +128,9 @@
           <div>
             <h2 class="text-sm font-russo text-white uppercase flex items-center gap-2">
               <i class="ph-bold ph-broadcast neon-text"></i>
-              <span>HOURLY TOURNAMENTS (MANUAL LOCK/UNLOCK &amp; 1-CLICK CREATE)</span>
+              <span>TOURNAMENTS (PUSH ROOM ID/PASS + HOST MESSAGE &amp; SETTLE)</span>
             </h2>
-            <p class="text-xs text-slate-400">Rooms create hone par hamesha OPEN rahenge. Aap manually LOCK ya UNLOCK kar sakte hain.</p>
+            <p class="text-xs text-slate-400">Push Room ID, Password aur Host Message (jo players ko IDP section mein dikhega).</p>
           </div>
           <div class="flex items-center gap-2">
             <button type="button" onclick="AdminApp.openAddTournamentModal()" class="btn-hyper font-russo text-[11px] px-3.5 py-1.5 rounded-xl cursor-pointer flex items-center gap-1.5">
@@ -139,14 +140,14 @@
           </div>
         </div>
 
-        <div class="overflow-x-auto max-h-[560px]">
-          <table class="w-full text-left text-xs min-w-[920px]">
+        <div class="overflow-x-auto max-h-[580px]">
+          <table class="w-full text-left text-xs min-w-[980px]">
             <thead class="sticky top-0 bg-[#06070A] z-10">
               <tr class="text-slate-400 border-b border-white/10 font-russo text-[10px]">
                 <th class="py-2.5 px-3">TOURNAMENT TITLE</th>
                 <th class="py-2.5 px-3">SLOTS &amp; POOL</th>
-                <th class="py-2.5 px-3">ROOM STATUS / HOST</th>
-                <th class="py-2.5 px-3">ROOM ID &amp; PASS</th>
+                <th class="py-2.5 px-3">STATUS / HOST</th>
+                <th class="py-2.5 px-3">ROOM ID, PASS &amp; HOST MESSAGE</th>
                 <th class="py-2.5 px-3 text-right">ACTION CONTROLS</th>
               </tr>
             </thead>
@@ -155,13 +156,13 @@
         </div>
       </section>
 
-      <!-- Host Paid Wager Rooms Section -->
+      <!-- Host Paid Wager Rooms Section (2-STEP: ACCEPT FIRST -> THEN PUSH IDP) -->
       <section id="host-sec-wager" class="laser-card p-4 sm:p-6 space-y-4 hidden">
         <div class="flex items-center justify-between border-b border-white/10 pb-3">
           <div>
             <h2 class="text-sm font-russo uppercase text-[#FFC857] flex items-center gap-2">
               <i class="ph-bold ph-sword"></i>
-              <span>PAID CUSTOM MATCHES (MANUAL LOCK/UNLOCK, CHAT &amp; 80/10/10 SETTLEMENT)</span>
+              <span>PAID CUSTOM ROOMS (STEP 1: ACCEPT ROOM • STEP 2: PUSH ID/PASS • STEP 3: SETTLE 80/10/10)</span>
             </h2>
           </div>
         </div>
@@ -288,7 +289,7 @@
         </div>
       </section>
 
-      <!-- Super Admin Section 2: TOURNAMENT MANAGER (1-CLICK ADD, MANUAL LOCK/UNLOCK & DELETE) -->
+      <!-- Super Admin Section 2: TOURNAMENT MANAGER -->
       <section id="owner-sec-tournaments-manage" class="laser-card p-5 sm:p-6 space-y-5 hidden">
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
           <div>
@@ -387,7 +388,7 @@
         </button>
       </section>
 
-      <!-- Super Admin Section 4: Deposit Approvals Queue (POINT 8 FIXED) -->
+      <!-- Super Admin Section 4: Deposit Approvals Queue -->
       <section id="owner-sec-deposits" class="laser-card p-5 sm:p-6 space-y-4 hidden">
         <div class="flex items-center justify-between border-b border-white/10 pb-3">
           <div>
@@ -449,7 +450,7 @@
         <div id="adminStoreProductsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5"></div>
       </section>
 
-      <!-- Super Admin Section 6: ALL USERS (1-CLICK DELETE FIXED) -->
+      <!-- Super Admin Section 6: ALL USERS -->
       <section id="owner-sec-users" class="laser-card p-5 sm:p-6 space-y-4 hidden">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
           <h3 class="font-russo text-sm text-white uppercase flex items-center gap-2">
@@ -479,8 +480,6 @@
 
       <!-- Super Admin Section 7: 5 HOSTS & COMMISSION PAYOUT REQUESTS APPROVAL QUEUE -->
       <section id="owner-sec-operators" class="laser-card p-5 sm:p-6 space-y-6 hidden">
-        
-        <!-- SUB-SECTION A: HOST COMMISSION WITHDRAWAL REQUESTS QUEUE -->
         <div class="space-y-3 border-b border-white/10 pb-5">
           <div class="flex items-center justify-between">
             <div>
@@ -512,7 +511,6 @@
           </div>
         </div>
 
-        <!-- SUB-SECTION B: OFFICIAL HOSTS DIRECTORY -->
         <div class="space-y-4">
           <h3 class="font-russo text-sm text-white uppercase flex items-center gap-2">
             <i class="ph-bold ph-shield-star text-[#FFC857]"></i>
@@ -548,17 +546,22 @@
         </div>
       </section>
 
-      <!-- Super Admin Section 8: BROADCAST -->
+      <!-- Super Admin Section 8: CLOUD BROADCAST NOTIFICATION TERMINAL -->
       <section id="owner-sec-broadcast" class="laser-card p-5 space-y-3 hidden">
-        <h3 class="font-russo text-sm text-pink-400 uppercase">IN-APP BROADCAST NOTIFICATION TERMINAL</h3>
+        <div>
+          <h3 class="font-russo text-sm text-pink-400 uppercase">GLOBAL CLOUD BROADCAST NOTIFICATION TERMINAL</h3>
+          <p class="text-xs text-slate-400">Yahan se bheja gaya notification Supabase Cloud ke zariye sabhi connected phones par live toast aur bell icon mein dikhega.</p>
+        </div>
         <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
-          <input id="pushNotifTitle" type="text" placeholder="Title" class="bg-black/70 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-white">
-          <input id="pushNotifMsg" type="text" placeholder="Message to all athletes..." class="sm:col-span-2 bg-black/70 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-white">
-          <button type="button" onclick="AdminApp.broadcastPushNotification()" class="btn-hyper clip-esports-sm py-2.5 cursor-pointer">BROADCAST</button>
+          <input id="pushNotifTitle" type="text" placeholder="Title (e.g. 6 PM Room ID Out)" class="bg-black/70 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-white font-bold">
+          <input id="pushNotifMsg" type="text" placeholder="Message to all athletes across all devices..." class="sm:col-span-2 bg-black/70 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-white">
+          <button type="button" onclick="AdminApp.broadcastPushNotification()" class="btn-hyper clip-esports-sm py-2.5 cursor-pointer font-russo">
+            📢 BROADCAST TO ALL PHONES
+          </button>
         </div>
       </section>
 
-      <!-- Super Admin Section 9: POINT 4 — SUPPORT TICKETS & CALLBACK REQUESTS INBOX -->
+      <!-- Super Admin Section 9: SUPPORT TICKETS & CALLBACK REQUESTS INBOX -->
       <section id="owner-sec-feedbacks" class="laser-card p-5 space-y-4 hidden">
         <div class="flex items-center justify-between border-b border-white/10 pb-3">
           <div>
@@ -631,7 +634,7 @@
     <div class="laser-card max-w-lg w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between border-b border-white/10 pb-2.5">
         <div>
-          <span class="text-[10px] text-emerald-400 font-bold uppercase block">Automated Prize Disbursement</span>
+          <span class="text-[10px] text-emerald-400 font-bold uppercase block">Automated Prize &amp; Passbook Disbursement</span>
           <h3 class="font-russo text-base text-white" id="settleMatchHeaderTitle">Settle Match &amp; Disburse Prizes</h3>
         </div>
         <button onclick="document.getElementById('tournamentSettleModal').classList.add('hidden')"><i class="fa-solid fa-xmark text-lg"></i></button>
@@ -646,17 +649,17 @@
 
       <div class="space-y-3 text-xs">
         <div>
-          <label class="font-semibold text-slate-300 block mb-1">Select Booyah Winner (1st Rank)</label>
+          <label class="font-semibold text-slate-300 block mb-1">Select 1st Place Booyah Winner</label>
           <select id="settleBooyahWinnerSelect" class="w-full bg-black/80 border border-white/15 px-3 py-2 text-white font-bold rounded-xl"></select>
         </div>
         <div>
-          <label class="font-semibold text-slate-300 block mb-1">Enter Confirmed Kills Per Player (₹/Kill Auto-Added):</label>
+          <label class="font-semibold text-slate-300 block mb-1">Enter Confirmed Kills Per Player (₹/Kill Auto-Credited to Wallet &amp; Passbook):</label>
           <div id="settlePlayerKillsList" class="space-y-1.5 max-h-48 overflow-y-auto bg-black/40 p-2.5 rounded-xl border border-white/10"></div>
         </div>
       </div>
 
       <button type="button" onclick="AdminApp.executeMatchSettlementCalculation()" class="w-full btn-hyper py-3.5 text-xs font-russo cursor-pointer">
-        ⚡ EXECUTE SETTLEMENT &amp; SEND CASH TO WALLETS
+        ⚡ EXECUTE SETTLEMENT, SAVE LEADERBOARD &amp; CREDIT WALLETS
       </button>
     </div>
   </div>
@@ -672,9 +675,8 @@
         <button type="button" onclick="document.getElementById('addTournamentModal').classList.add('hidden')" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
 
-      <!-- Quick Preset Template Bar -->
       <div class="bg-black/60 p-3 rounded-2xl border border-white/10 space-y-1.5">
-        <span class="text-[10px] font-bold text-[#FFC857] block uppercase">FAST 1-CLICK PRESETS (AUTO-FILL ALL DETAILS):</span>
+        <span class="text-[10px] font-bold text-[#FFC857] block uppercase">FAST 1-CLICK PRESETS:</span>
         <div class="flex flex-wrap gap-1.5 text-[10px] font-bold">
           <button type="button" onclick="AdminApp.applyPreset('BR_SQUAD')" class="px-2.5 py-1 bg-white/10 hover:bg-[#FF6B00] hover:text-black rounded-lg transition cursor-pointer">BR Squad (12 Slots • ₹120)</button>
           <button type="button" onclick="AdminApp.applyPreset('BR_SOLO')" class="px-2.5 py-1 bg-white/10 hover:bg-[#FF6B00] hover:text-black rounded-lg transition cursor-pointer">BR Solo (48 Slots • ₹30)</button>
@@ -800,6 +802,10 @@
           </div>
         </div>
         <div>
+          <label class="font-semibold text-cyan-300 block mb-1">Host Announcement Message (Shown in Room IDP)</label>
+          <input id="editHostMessage" type="text" placeholder="e.g. Match starts sharp at 6:05 PM!" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-white">
+        </div>
+        <div>
           <label class="font-semibold text-slate-300 block mb-1">Manual Room Lock / Status</label>
           <select id="editStatus" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-white font-mono">
             <option value="UPCOMING">OPEN (UNLOCKED FOR JOINING)</option>
@@ -814,15 +820,15 @@
     </div>
   </div>
 
-  <!-- OPERATOR CHAT MODAL -->
+  <!-- OPERATOR LIVE CHAT MODAL -->
   <div id="adminPaidRoomChatModal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center p-3.5 sm:p-6 hidden">
     <div class="laser-card max-w-2xl w-full p-5 sm:p-7 relative max-h-[92vh] flex flex-col justify-between space-y-4">
       <div class="flex items-center justify-between border-b border-white/15 pb-3">
         <div>
-          <span class="text-xs font-mono text-[#FFC857] block" id="adminChatRulesSubtitle">CS 4v4 • Unlimited</span>
+          <span class="text-xs font-mono text-emerald-400 block" id="adminChatRulesSubtitle">● Live Auto-Syncing Chat</span>
           <h3 class="font-russo text-base sm:text-xl text-white" id="adminChatModalTitle">Host Wager Command Chat</h3>
         </div>
-        <button type="button" onclick="document.getElementById('adminPaidRoomChatModal').classList.add('hidden')" class="text-slate-400 hover:text-white text-xl cursor-pointer p-1">
+        <button type="button" onclick="AdminApp.closeAdminChatModal()" class="text-slate-400 hover:text-white text-xl cursor-pointer p-1">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
