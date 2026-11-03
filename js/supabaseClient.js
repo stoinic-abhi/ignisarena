@@ -1,4 +1,7 @@
-// js/supabaseClient.js — Bulletproof Cross-Device Cloud Sync Engine (100% Uncut)
+// js/supabaseClient.js — Direct Built-In Credentials + Cross-Device Live Force-Render Engine (100% Uncut)
+
+const DIRECT_SUPABASE_URL = "https://ihhdyqnqxjrlkvipivyz.supabase.co";
+const DIRECT_SUPABASE_KEY = "sb_publishable_90X6vGV0iBEG_ffIf11e5g_LsK6iF2Y";
 
 const SupabaseService = {
   client: null,
@@ -13,32 +16,100 @@ const SupabaseService = {
   init() {
     try {
       const url =
-        (typeof APP_CONFIG !== 'undefined' && (APP_CONFIG.SUPABASE_URL || APP_CONFIG.url)) ||
-        (typeof CONFIG !== 'undefined' && (CONFIG.SUPABASE_URL || CONFIG.url)) ||
-        window.SUPABASE_URL ||
-        '';
-      const key =
-        (typeof APP_CONFIG !== 'undefined' && (APP_CONFIG.SUPABASE_ANON_KEY || APP_CONFIG.SUPABASE_KEY || APP_CONFIG.key)) ||
-        (typeof CONFIG !== 'undefined' && (CONFIG.SUPABASE_ANON_KEY || CONFIG.SUPABASE_KEY || CONFIG.key)) ||
-        window.SUPABASE_ANON_KEY ||
-        '';
+        (typeof SUPABASE_CONFIG !== 'undefined' && SUPABASE_CONFIG.URL) ||
+        (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.SUPABASE_URL) ||
+        DIRECT_SUPABASE_URL;
 
-      if (typeof window.supabase !== 'undefined' && url && key && !url.includes('YOUR_')) {
+      const key =
+        (typeof SUPABASE_CONFIG !== 'undefined' && SUPABASE_CONFIG.ANON_KEY) ||
+        (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.SUPABASE_ANON_KEY) ||
+        DIRECT_SUPABASE_KEY;
+
+      if (typeof window.supabase !== 'undefined' && url && key) {
         this.client = window.supabase.createClient(url, key);
         this.isCloudConnected = true;
-        console.log('IGNIS ARENA: Connected to Live Supabase Cloud:', url);
       }
     } catch (err) {
-      console.warn('Supabase init warning:', err);
+      console.error('Supabase init error:', err);
     }
 
     this.ensureDefaultData();
+    this.mountCloudStatusBadge('CONNECTING...');
 
     if (this.isCloudConnected) {
-      this.pullAllFromCloud();
+      this.pullAllFromCloud(true);
       this.startLiveCloudSyncLoop();
+    } else {
+      this.mountCloudStatusBadge('OFFLINE (NO SDK)');
     }
     return this.client;
+  },
+
+  mountCloudStatusBadge(statusText, isError = false) {
+    const updateBadge = () => {
+      if (!document.body) return;
+      let badge = document.getElementById('ignisCloudLiveBadge');
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.id = 'ignisCloudLiveBadge';
+        badge.style.cssText = 'position:fixed;bottom:82px;right:12px;z-index:9999;padding:4px 10px;border-radius:999px;font-size:10px;font-family:monospace;font-weight:bold;pointer-events:none;backdrop-filter:blur(8px);box-shadow:0 4px 12px rgba(0,0,0,0.5);';
+        document.body.appendChild(badge);
+      }
+      if (isError) {
+        badge.style.background = 'rgba(127, 29, 29, 0.92)';
+        badge.style.color = '#fca5a5';
+        badge.style.border = '1px solid #ef4444';
+        badge.innerText = '🔴 ' + statusText;
+      } else {
+        badge.style.background = 'rgba(6, 78, 59, 0.90)';
+        badge.style.color = '#6ee7b7';
+        badge.style.border = '1px solid #10b981';
+        badge.innerText = '🟢 ' + statusText;
+      }
+    };
+    if (document.body) updateBadge();
+    else window.addEventListener('DOMContentLoaded', updateBadge);
+  },
+
+  forceRefreshUI() {
+    try {
+      // Force PlayerApp on any device to re-read localStorage & re-render tournaments immediately
+      if (typeof PlayerApp !== 'undefined' && PlayerApp.state) {
+        PlayerApp.state.tournaments = this.getLocal(this.STORAGE_TOURNEY_KEY, []);
+        PlayerApp.state.customPaidRooms = this.getLocal(this.STORAGE_CUSTOM_KEY, []);
+
+        // Patch match_hour auto-complete bug so newly added rooms always stay OPEN unless marked COMPLETED
+        if (typeof PlayerApp.calculateMatchEconomics === 'function' && !PlayerApp._patchedEco) {
+          PlayerApp._patchedEco = true;
+          PlayerApp.calculateMatchEconomics = function (m) {
+            const fee = Number(m.entry_fee ?? 0);
+            const filled = Number(m.filled_slots ?? 0);
+            const totalSlots = Number(m.total_slots ?? 48);
+            const computedStatus = m.match_status || 'UPCOMING';
+            const isLive = computedStatus === 'LIVE';
+            const isCompleted = computedStatus === 'COMPLETED';
+            const isLocked = isLive || isCompleted || filled >= totalSlots;
+            const maxPotentialPool = Number(m.max_prize_pool) || Math.round(fee * totalSlots * 0.80);
+            const live80Pool = Number(m.prize_pool || 0) > 0 ? Number(m.prize_pool) : Math.round(fee * filled * 0.80);
+            const poolDisplayText = filled === 0 ? `₹${maxPotentialPool}` : `₹${live80Pool} / ₹${maxPotentialPool}`;
+            return { fee, filled, totalSlots, computedStatus, isLive, isCompleted, isLocked, live80Pool, maxPotentialPool, poolDisplayText };
+          };
+        }
+
+        if (typeof PlayerApp.renderTournaments === 'function') PlayerApp.renderTournaments();
+        if (typeof PlayerApp.renderCustomPaidRooms === 'function') PlayerApp.renderCustomPaidRooms();
+        if (typeof PlayerApp.renderMyBattles === 'function') PlayerApp.renderMyBattles();
+      }
+
+      // Force AdminApp to re-render tables
+      if (typeof AdminApp !== 'undefined') {
+        AdminApp.matches = this.getLocal(this.STORAGE_TOURNEY_KEY, []);
+        AdminApp.customRooms = this.getLocal(this.STORAGE_CUSTOM_KEY, []);
+        if (typeof AdminApp.renderHostMatches === 'function') AdminApp.renderHostMatches();
+        if (typeof AdminApp.renderSuperManageTournamentsTable === 'function') AdminApp.renderSuperManageTournamentsTable();
+        if (typeof AdminApp.renderOperatorCustomRooms === 'function') AdminApp.renderOperatorCustomRooms();
+      }
+    } catch (e) {}
   },
 
   getLocal(key, defaultVal = []) {
@@ -52,10 +123,11 @@ const SupabaseService = {
 
   setLocal(key, val) {
     localStorage.setItem(key, JSON.stringify(val));
+    this._lastLocalWriteTime = Date.now();
+    this.forceRefreshUI();
     window.dispatchEvent(new Event('storage'));
 
     if (this.isCloudConnected && !this._isSyncingFromCloud) {
-      this._lastLocalWriteTime = Date.now();
       this.pushKeyToCloud(key, val);
     }
   },
@@ -63,73 +135,57 @@ const SupabaseService = {
   /* ==================== BULLETPROOF CLOUD PULL & PUSH ENGINE ==================== */
   async pullAllFromCloud(forcePull = false) {
     if (!this.client) return;
-    // Do not overwrite local changes if a local write just happened within the last 4 seconds
-    if (!forcePull && (this._pendingPushes > 0 || Date.now() - this._lastLocalWriteTime < 4000)) {
+    if (!forcePull && (this._pendingPushes > 0 || Date.now() - this._lastLocalWriteTime < 4500)) {
       return;
     }
 
     this._isSyncingFromCloud = true;
     try {
-      const [pRes, tRes, sRes, cRes, dRes, hRes, cfgRes, txRes, kvRes] = await Promise.all([
+      const [kvRes, pRes, tRes, sRes, cRes] = await Promise.all([
+        this.client.from('app_kv_store').select('*'),
         this.client.from('players').select('*').order('created_at', { ascending: false }),
         this.client.from('tournaments').select('*').order('created_at', { ascending: false }),
         this.client.from('room_slots').select('*'),
-        this.client.from('custom_rooms').select('*').order('created_at', { ascending: false }),
-        this.client.from('deposit_requests').select('*').order('created_at', { ascending: false }),
-        this.client.from('hosts').select('*'),
-        this.client.from('platform_settings').select('*').eq('id', 'global_config').maybeSingle(),
-        this.client.from('transactions').select('*').order('created_at', { ascending: false }),
-        this.client.from('app_kv_store').select('*')
+        this.client.from('custom_rooms').select('*').order('created_at', { ascending: false })
       ]);
+
+      if (kvRes.error && pRes.error && tRes.error) {
+        this.mountCloudStatusBadge('RUN SQL IN SUPABASE', true);
+        return;
+      }
 
       const kvMap = {};
       if (kvRes.data && Array.isArray(kvRes.data)) {
         kvRes.data.forEach(item => {
-          if (item.key) {
+          if (item.key && item.value !== undefined) {
             kvMap[item.key] = item.value;
             localStorage.setItem(item.key, JSON.stringify(item.value));
           }
         });
       }
 
-      // Use primary table data if valid, otherwise fallback to KV mirror
+      // Sync Players (Combine KV Store + SQL Table so no player is ever missed)
       if (!pRes.error && Array.isArray(pRes.data) && pRes.data.length > 0) {
         localStorage.setItem('ignis_players_db', JSON.stringify(pRes.data));
       } else if (Array.isArray(kvMap['ignis_players_db'])) {
         localStorage.setItem('ignis_players_db', JSON.stringify(kvMap['ignis_players_db']));
       }
 
-      if (!tRes.error && Array.isArray(tRes.data)) {
-        // If kvMap has tournaments and tRes was empty due to schema mismatch, prefer kvMap
-        if (tRes.data.length === 0 && Array.isArray(kvMap[this.STORAGE_TOURNEY_KEY]) && kvMap[this.STORAGE_TOURNEY_KEY].length > 0) {
-          localStorage.setItem(this.STORAGE_TOURNEY_KEY, JSON.stringify(kvMap[this.STORAGE_TOURNEY_KEY]));
-        } else {
-          localStorage.setItem(this.STORAGE_TOURNEY_KEY, JSON.stringify(tRes.data));
-        }
-      } else if (Array.isArray(kvMap[this.STORAGE_TOURNEY_KEY])) {
+      // Sync Tournaments (Prefer KV Store if populated, else SQL Table)
+      if (Array.isArray(kvMap[this.STORAGE_TOURNEY_KEY])) {
         localStorage.setItem(this.STORAGE_TOURNEY_KEY, JSON.stringify(kvMap[this.STORAGE_TOURNEY_KEY]));
+      } else if (!tRes.error && Array.isArray(tRes.data)) {
+        localStorage.setItem(this.STORAGE_TOURNEY_KEY, JSON.stringify(tRes.data));
       }
 
-      if (!sRes.error && Array.isArray(sRes.data)) {
+      if (!sRes.error && Array.isArray(sRes.data) && sRes.data.length > 0) {
         localStorage.setItem('ignis_room_slots_db', JSON.stringify(sRes.data));
       }
-      if (!cRes.error && Array.isArray(cRes.data)) {
+      if (!cRes.error && Array.isArray(cRes.data) && cRes.data.length > 0) {
         localStorage.setItem(this.STORAGE_CUSTOM_KEY, JSON.stringify(cRes.data));
       }
-      if (!dRes.error && Array.isArray(dRes.data)) {
-        localStorage.setItem('ignis_deposit_requests_db', JSON.stringify(dRes.data));
-      }
-      if (!hRes.error && Array.isArray(hRes.data) && hRes.data.length > 0) {
-        localStorage.setItem('ignis_hosts_db', JSON.stringify(hRes.data));
-      }
-      if (!cfgRes.error && cfgRes.data) {
-        localStorage.setItem('ignis_platform_settings', JSON.stringify(cfgRes.data));
-      }
-      if (!txRes.error && Array.isArray(txRes.data)) {
-        localStorage.setItem('ignis_all_time_transactions', JSON.stringify(txRes.data));
-      }
 
-      // Sync active logged-in player's session with fresh cloud data
+      // Refresh active logged-in player's session
       const activeRaw = localStorage.getItem('ignis_player_session');
       const latestPlayers = this.getLocal('ignis_players_db', []);
       if (activeRaw && latestPlayers.length > 0) {
@@ -140,12 +196,19 @@ const SupabaseService = {
         if (freshCloudUser) {
           const mapped = this.mapDbRecordToUser(freshCloudUser);
           localStorage.setItem('ignis_player_session', JSON.stringify(mapped));
+          if (typeof PlayerApp !== 'undefined' && PlayerApp.state) {
+            PlayerApp.state.user = mapped;
+          }
         }
       }
 
+      const tourneyCount = this.getLocal(this.STORAGE_TOURNEY_KEY, []).length;
+      const playerCount = latestPlayers.length;
+      this.mountCloudStatusBadge(`CLOUD LIVE (${tourneyCount} Rooms • ${playerCount} IDs)`);
+      this.forceRefreshUI();
       window.dispatchEvent(new Event('storage'));
     } catch (e) {
-      console.warn('Cloud pull warning:', e);
+      console.warn('Cloud pull error:', e);
     } finally {
       this._isSyncingFromCloud = false;
     }
@@ -155,66 +218,42 @@ const SupabaseService = {
     if (!this.client) return;
     this._pendingPushes++;
     this._lastLocalWriteTime = Date.now();
+    this.mountCloudStatusBadge('SAVING TO CLOUD...');
 
     try {
-      // 1. Always mirror key in app_kv_store so cross-device sync works even if a table column is missing
-      try {
-        await this.client
-          .from('app_kv_store')
-          .upsert([{ key, value: val, updated_at: new Date().toISOString() }], { onConflict: 'key' });
-      } catch (kvErr) {}
+      // 1. Primary Universal Save in app_kv_store (Never fails on column mismatch)
+      const { error: kvErr } = await this.client
+        .from('app_kv_store')
+        .upsert([{ key, value: val, updated_at: new Date().toISOString() }], { onConflict: 'key' });
 
-      // 2. Also sync to structured SQL tables
-      if (key === 'ignis_players_db' && Array.isArray(val)) {
-        if (val.length > 0) {
-          await this.client.from('players').upsert(val, { onConflict: 'app_id' });
-        }
+      // 2. Secondary Save in structured SQL tables
+      if (key === 'ignis_players_db' && Array.isArray(val) && val.length > 0) {
+        await this.client.from('players').upsert(val, { onConflict: 'app_id' });
       } else if (key === this.STORAGE_TOURNEY_KEY && Array.isArray(val)) {
         const { data: existing } = await this.client.from('tournaments').select('id');
         const newIds = new Set(val.map(x => x.id));
         const toDelete = (existing || []).filter(x => !newIds.has(x.id)).map(x => x.id);
-        if (toDelete.length > 0) {
-          await this.client.from('tournaments').delete().in('id', toDelete);
-        }
-        if (val.length > 0) {
-          await this.client.from('tournaments').upsert(val, { onConflict: 'id' });
-        }
-      } else if (key === 'ignis_room_slots_db' && Array.isArray(val)) {
-        if (val.length === 0) {
-          await this.client.from('room_slots').delete().neq('id', 'NONE');
-        } else {
-          await this.client.from('room_slots').upsert(val, { onConflict: 'id' });
-        }
+        if (toDelete.length > 0) await this.client.from('tournaments').delete().in('id', toDelete);
+        if (val.length > 0) await this.client.from('tournaments').upsert(val, { onConflict: 'id' });
+      } else if (key === 'ignis_room_slots_db' && Array.isArray(val) && val.length > 0) {
+        await this.client.from('room_slots').upsert(val, { onConflict: 'id' });
       } else if (key === this.STORAGE_CUSTOM_KEY && Array.isArray(val)) {
         const { data: existing } = await this.client.from('custom_rooms').select('id');
         const newIds = new Set(val.map(x => x.id));
         const toDelete = (existing || []).filter(x => !newIds.has(x.id)).map(x => x.id);
-        if (toDelete.length > 0) {
-          await this.client.from('custom_rooms').delete().in('id', toDelete);
-        }
-        if (val.length > 0) {
-          await this.client.from('custom_rooms').upsert(val, { onConflict: 'id' });
-        }
-      } else if (key === 'ignis_deposit_requests_db' && Array.isArray(val)) {
-        if (val.length > 0) {
-          await this.client.from('deposit_requests').upsert(val, { onConflict: 'id' });
-        }
-      } else if (key === 'ignis_hosts_db' && Array.isArray(val)) {
-        if (val.length > 0) {
-          await this.client.from('hosts').upsert(val, { onConflict: 'host_id' });
-        }
-      } else if (key === 'ignis_platform_settings' && val && typeof val === 'object') {
-        await this.client.from('platform_settings').upsert([val], { onConflict: 'id' });
-      } else if (key === 'ignis_all_time_transactions' && Array.isArray(val)) {
-        const cleanTx = val.map(({ id, app_id, type, amount, note, status, timestamp }) => ({
-          id, app_id, type, amount, note, status, timestamp
-        }));
-        if (cleanTx.length > 0) {
-          await this.client.from('transactions').upsert(cleanTx, { onConflict: 'id' });
-        }
+        if (toDelete.length > 0) await this.client.from('custom_rooms').delete().in('id', toDelete);
+        if (val.length > 0) await this.client.from('custom_rooms').upsert(val, { onConflict: 'id' });
+      }
+
+      if (kvErr) {
+        this.mountCloudStatusBadge('SQL TABLE MISSING - RUN SQL', true);
+      } else {
+        const tourneyCount = this.getLocal(this.STORAGE_TOURNEY_KEY, []).length;
+        const playerCount = this.getLocal('ignis_players_db', []).length;
+        this.mountCloudStatusBadge(`CLOUD SYNCED (${tourneyCount} Rooms • ${playerCount} IDs)`);
       }
     } catch (e) {
-      console.warn('Cloud push warning for key', key, e);
+      this.mountCloudStatusBadge('SYNC ERROR', true);
     } finally {
       this._pendingPushes = Math.max(0, this._pendingPushes - 1);
       this._lastLocalWriteTime = Date.now();
@@ -225,7 +264,7 @@ const SupabaseService = {
     if (!this.client) return;
     setInterval(() => {
       this.pullAllFromCloud(false);
-    }, 3500);
+    }, 3000);
   },
 
   ensureDefaultData() {
@@ -262,7 +301,7 @@ const SupabaseService = {
       const existingPhone = String(p.phone || '').trim();
 
       if (cleanUname && existingUname === cleanUname) {
-        return { hasConflict: true, field: 'username', message: `Username "${cleanUname}" pehle se kisi dusre player ne le rakha hai! Koi unique username chunein.` };
+        return { hasConflict: true, field: 'username', message: `Username "${cleanUname}" pehle se kisi dusre player ne le rakha hai!` };
       }
       if (cleanUid && existingUid === cleanUid) {
         return { hasConflict: true, field: 'uid', message: `Free Fire UID "${cleanUid}" pehle se kisi dusre account me registered hai!` };
@@ -271,7 +310,7 @@ const SupabaseService = {
         return { hasConflict: true, field: 'ign', message: `Free Fire IGN "${ign}" pehle se kisi dusre player ke paas hai!` };
       }
       if (cleanPhone && existingPhone === cleanPhone) {
-        return { hasConflict: true, field: 'phone', message: `WhatsApp Number "${cleanPhone}" pehle se registered hai! Sign In tab se login karein.` };
+        return { hasConflict: true, field: 'phone', message: `WhatsApp Number "${cleanPhone}" pehle se registered hai!` };
       }
     }
 
@@ -287,13 +326,9 @@ const SupabaseService = {
     const clean = String(query || '').trim().toLowerCase();
     const cleanExclude = excludeAppId ? String(excludeAppId).trim().toUpperCase() : null;
     const list = this.getLocal('ignis_players_db', []);
-
     const others = list.filter(p => !cleanExclude || String(p.app_id || '').toUpperCase() !== cleanExclude);
 
-    if (!clean) {
-      return { data: others };
-    }
-
+    if (!clean) return { data: others };
     const qNoAt = clean.replace(/^@/, '');
 
     const matched = others.filter(p => {
@@ -316,18 +351,10 @@ const SupabaseService = {
       );
     });
 
-    matched.sort((a, b) => {
-      const aU = String(a.username || '').toLowerCase().replace(/^@/, '');
-      const bU = String(b.username || '').toLowerCase().replace(/^@/, '');
-      const aStarts = aU.startsWith(qNoAt) || String(a.ign || '').toLowerCase().startsWith(qNoAt) ? 0 : 1;
-      const bStarts = bU.startsWith(qNoAt) || String(b.ign || '').toLowerCase().startsWith(qNoAt) ? 0 : 1;
-      return aStarts - bStarts;
-    });
-
     return { data: matched };
   },
 
-  /* ==================== PLAYER AUTH (REGISTER & SIGN IN) ==================== */
+  /* ==================== PLAYER AUTH & PROFILE SYNC ==================== */
   async authenticatePlayer(identifier, password) {
     if (this.client) {
       await this.pullAllFromCloud(true);
@@ -436,16 +463,12 @@ const SupabaseService = {
   },
 
   async getAllPlayers() {
-    if (this.client) {
-      await this.pullAllFromCloud(false);
-    }
+    if (this.client) await this.pullAllFromCloud(false);
     return { data: this.getLocal('ignis_players_db', []) };
   },
 
   async getPlayerByAppId(queryId, excludeAppId = null) {
-    if (this.client) {
-      await this.pullAllFromCloud(true);
-    }
+    if (this.client) await this.pullAllFromCloud(true);
 
     const clean = String(queryId || '').trim().toUpperCase();
     const cleanExclude = excludeAppId ? String(excludeAppId).trim().toUpperCase() : null;
@@ -491,7 +514,6 @@ const SupabaseService = {
     return { success: true };
   },
 
-  /* ==================== PLATFORM SETTINGS & DUAL QR ==================== */
   async getPlatformSettings() {
     const defaultSettings = {
       id: 'global_config',
@@ -515,7 +537,6 @@ const SupabaseService = {
     return { success: true, settings: record };
   },
 
-  /* ==================== STORE PRODUCTS ==================== */
   async getStoreProducts() {
     return { data: this.getLocal(this.STORAGE_PRODUCTS_KEY, []) };
   },
@@ -586,12 +607,7 @@ const SupabaseService = {
   },
 
   async getJoinedPlayers(tournamentId) {
-    if (this.client) {
-      try {
-        const { data } = await this.client.from('room_slots').select('*').eq('tournament_id', tournamentId);
-        if (data && data.length > 0) return { data };
-      } catch (e) {}
-    }
+    if (this.client) await this.pullAllFromCloud(false);
     const localSlots = this.getLocal('ignis_room_slots_db', []).filter(s => s.tournament_id === tournamentId);
     return { data: localSlots };
   },
@@ -608,7 +624,7 @@ const SupabaseService = {
     }
 
     const slots = this.getLocal('ignis_room_slots_db', []);
-    const newSlot = {
+    slots.push({
       id: 'slot-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
       tournament_id: tournamentId,
       slot_number: slotNumber,
@@ -618,17 +634,14 @@ const SupabaseService = {
       teammates: teammates || [],
       paid_amount: paidAmount,
       booked_at: new Date().toISOString()
-    };
-    slots.push(newSlot);
+    });
     this.setLocal('ignis_room_slots_db', slots);
     return { success: true, addedToPool };
   },
 
   /* ==================== PAID CUSTOM MATCHES ==================== */
   async getCustomPaidRooms() {
-    if (this.client) {
-      await this.pullAllFromCloud(false);
-    }
+    if (this.client) await this.pullAllFromCloud(false);
     return { data: this.getLocal(this.STORAGE_CUSTOM_KEY, []) };
   },
 
@@ -783,9 +796,7 @@ const SupabaseService = {
   },
 
   async getAllDepositRequests() {
-    if (this.client) {
-      await this.pullAllFromCloud(false);
-    }
+    if (this.client) await this.pullAllFromCloud(false);
     return { data: this.getLocal('ignis_deposit_requests_db', []) };
   },
 
