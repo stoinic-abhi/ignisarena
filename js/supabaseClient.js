@@ -1,4 +1,4 @@
-// js/supabaseClient.js — Full-Stack Auth, Player Directory & Hybrid Sync Engine[cite: 7]
+// js/supabaseClient.js — Unique Identity Guard, Instagram Search & Hybrid Sync Engine (100% Uncut)
 
 const SupabaseService = {
   client: null,
@@ -48,27 +48,150 @@ const SupabaseService = {
       ];
       this.setLocal('ignis_hosts_db', defaultHosts);
     }
+
+    // Auto-clean any accidental exact duplicate usernames/UIDs from older tests by suffixing them
+    const players = this.getLocal('ignis_players_db', []);
+    const seenUsernames = new Set();
+    const seenUids = new Set();
+    let modified = false;
+
+    players.forEach((p, idx) => {
+      let uname = String(p.username || '@' + (p.ign || 'user').toLowerCase()).trim().toLowerCase();
+      if (!uname.startsWith('@')) uname = '@' + uname;
+      if (seenUsernames.has(uname)) {
+        uname = `${uname}_${idx + 1}`;
+        p.username = uname;
+        modified = true;
+      }
+      seenUsernames.add(uname);
+
+      let uidStr = String(p.uid || '').trim();
+      if (uidStr && seenUids.has(uidStr)) {
+        uidStr = `${uidStr}${idx}`;
+        p.uid = uidStr;
+        modified = true;
+      }
+      if (uidStr) seenUids.add(uidStr);
+    });
+
+    if (modified) {
+      this.setLocal('ignis_players_db', players);
+    }
   },
 
-  /* ==================== PLAYER AUTH (REGISTER & SIGN IN) & SEARCH ==================== */
+  /* ==================== STRICT UNIQUE IDENTITY VALIDATION ==================== */
+  checkIdentityConflict({ username, uid, ign, phone }, excludeAppId = null) {
+    const list = this.getLocal('ignis_players_db', []);
+    const cleanExclude = excludeAppId ? String(excludeAppId).trim().toUpperCase() : null;
+
+    let cleanUname = String(username || '').trim().toLowerCase();
+    if (cleanUname && !cleanUname.startsWith('@')) cleanUname = '@' + cleanUname;
+    const cleanUid = String(uid || '').trim();
+    const cleanIgn = String(ign || '').trim().toLowerCase();
+    const cleanPhone = String(phone || '').trim();
+
+    for (const p of list) {
+      if (cleanExclude && String(p.app_id || '').toUpperCase() === cleanExclude) continue;
+
+      const existingUname = String(p.username || '').trim().toLowerCase();
+      const existingUid = String(p.uid || '').trim();
+      const existingIgn = String(p.ign || '').trim().toLowerCase();
+      const existingPhone = String(p.phone || '').trim();
+
+      if (cleanUname && existingUname === cleanUname) {
+        return { hasConflict: true, field: 'username', message: `Username "${cleanUname}" pehle se kisi dusre player ne le rakha hai! Koi unique username chunein.` };
+      }
+      if (cleanUid && existingUid === cleanUid) {
+        return { hasConflict: true, field: 'uid', message: `Free Fire UID "${cleanUid}" pehle se kisi dusre account me registered hai!` };
+      }
+      if (cleanIgn && existingIgn === cleanIgn) {
+        return { hasConflict: true, field: 'ign', message: `Free Fire IGN "${ign}" pehle se kisi dusre player ke paas hai!` };
+      }
+      if (cleanPhone && existingPhone === cleanPhone) {
+        return { hasConflict: true, field: 'phone', message: `WhatsApp Number "${cleanPhone}" pehle se registered hai! Sign In tab se login karein.` };
+      }
+    }
+
+    return { hasConflict: false, field: null, message: 'Available' };
+  },
+
+  /* ==================== INSTAGRAM-STYLE MULTI-RESULT SEARCH ENGINE ==================== */
+  async searchPlayersInstagramStyle(query, excludeAppId = null) {
+    const clean = String(query || '').trim().toLowerCase();
+    const cleanExclude = excludeAppId ? String(excludeAppId).trim().toUpperCase() : null;
+    const list = this.getLocal('ignis_players_db', []);
+
+    const others = list.filter(p => !cleanExclude || String(p.app_id || '').toUpperCase() !== cleanExclude);
+
+    if (!clean) {
+      return { data: others };
+    }
+
+    const qNoAt = clean.replace(/^@/, '');
+
+    const matched = others.filter(p => {
+      const appId = String(p.app_id || '').toLowerCase();
+      const uname = String(p.username || '').toLowerCase();
+      const unameNoAt = uname.replace(/^@/, '');
+      const ign = String(p.ign || '').toLowerCase();
+      const fullName = String(p.full_name || '').toLowerCase();
+      const uid = String(p.uid || '').toLowerCase();
+      const phone = String(p.phone || '').toLowerCase();
+
+      return (
+        uname.includes(clean) ||
+        unameNoAt.includes(qNoAt) ||
+        ign.includes(qNoAt) ||
+        fullName.includes(clean) ||
+        appId.includes(clean) ||
+        uid.includes(clean) ||
+        phone.includes(clean)
+      );
+    });
+
+    // Rank exact / prefix matches first like Instagram
+    matched.sort((a, b) => {
+      const aU = String(a.username || '').toLowerCase().replace(/^@/, '');
+      const bU = String(b.username || '').toLowerCase().replace(/^@/, '');
+      const aStarts = aU.startsWith(qNoAt) || String(a.ign || '').toLowerCase().startsWith(qNoAt) ? 0 : 1;
+      const bStarts = bU.startsWith(qNoAt) || String(b.ign || '').toLowerCase().startsWith(qNoAt) ? 0 : 1;
+      return aStarts - bStarts;
+    });
+
+    return { data: matched };
+  },
+
+  /* ==================== PLAYER AUTH (REGISTER & SIGN IN) & PROFILE FETCH ==================== */
   async authenticatePlayer(identifier, password) {
     const cleanId = String(identifier || '').trim().toUpperCase();
+    const cleanIdNoAt = cleanId.replace(/^@/, '');
     const cleanPass = String(password || '').trim();
     const list = this.getLocal('ignis_players_db', []);
 
     const found = list.find(p => {
-      const matchAppId = (p.app_id || '').toUpperCase() === cleanId || (p.app_id || '').toUpperCase() === 'IGNIS-' + cleanId;
-      const matchPhone = (p.phone || '') === cleanId;
-      const matchIgn = (p.ign || '').toUpperCase() === cleanId;
-      const matchUser = (p.username || '').toUpperCase() === cleanId || (p.username || '').toUpperCase() === '@' + cleanId;
-      const matchEmail = (p.email || '').toUpperCase() === cleanId;
-      return (matchAppId || matchPhone || matchIgn || matchUser || matchEmail) && String(p.password || '') === cleanPass;
+      const appId = String(p.app_id || '').toUpperCase();
+      const phone = String(p.phone || '');
+      const ign = String(p.ign || '').toUpperCase();
+      const uname = String(p.username || '').toUpperCase().replace(/^@/, '');
+      const email = String(p.email || '').toUpperCase();
+      const uid = String(p.uid || '').toUpperCase();
+
+      const idMatch = (
+        appId === cleanId ||
+        appId === 'IGNIS-' + cleanId ||
+        phone === cleanId ||
+        ign === cleanId ||
+        uname === cleanIdNoAt ||
+        email === cleanId ||
+        uid === cleanId
+      );
+      return idMatch && String(p.password || '') === cleanPass;
     });
 
     if (found) {
       return { success: true, player: this.mapDbRecordToUser(found) };
     }
-    return { success: false, error: 'Invalid App ID / Phone / IGN or Password!' };
+    return { success: false, error: 'Invalid Username / App ID / Phone or Password!' };
   },
 
   mapDbRecordToUser(r) {
@@ -102,10 +225,13 @@ const SupabaseService = {
     const existingIdx = list.findIndex(p => (p.app_id || '').toUpperCase() === userObj.appId.toUpperCase());
     const existing = existingIdx >= 0 ? list[existingIdx] : {};
 
+    let formattedUsername = String(userObj.username || existing.username || '@' + (userObj.ign || 'athlete').toLowerCase()).trim().toLowerCase().replace(/\s+/g, '_');
+    if (!formattedUsername.startsWith('@')) formattedUsername = '@' + formattedUsername;
+
     const record = {
       ...existing,
       app_id: userObj.appId.toUpperCase(),
-      username: userObj.username || existing.username || '@' + (userObj.ign || 'athlete').toLowerCase(),
+      username: formattedUsername,
       full_name: userObj.fullName || existing.full_name || 'Athlete',
       bio: userObj.bio || existing.bio || '🔥 Official Ignis Arena Athlete',
       email: userObj.email || existing.email || '',
@@ -143,25 +269,38 @@ const SupabaseService = {
     return { data: this.getLocal('ignis_players_db', []) };
   },
 
-  async getPlayerByAppId(queryId) {
+  async getPlayerByAppId(queryId, excludeAppId = null) {
     const clean = String(queryId || '').trim().toUpperCase();
+    const cleanExclude = excludeAppId ? String(excludeAppId).trim().toUpperCase() : null;
     if (!clean) return { data: null };
 
     const list = this.getLocal('ignis_players_db', []);
+    // First try exact match on app_id (excluding current user if specified)
+    const exactAppId = list.find(p => {
+      if (cleanExclude && String(p.app_id || '').toUpperCase() === cleanExclude) return false;
+      const appId = String(p.app_id || '').toUpperCase();
+      return appId === clean || appId === 'IGNIS-' + clean;
+    });
+    if (exactAppId) return { data: exactAppId };
+
+    // Otherwise match username, uid, ign, or phone (excluding current user)
     const found = list.find(p => {
+      if (cleanExclude && String(p.app_id || '').toUpperCase() === cleanExclude) return false;
       const appId = String(p.app_id || '').toUpperCase();
       const uid = String(p.uid || '').toUpperCase();
       const ign = String(p.ign || '').toUpperCase();
       const uname = String(p.username || '').toUpperCase();
+      const unameNoAt = uname.replace(/^@/, '');
+      const cleanNoAt = clean.replace(/^@/, '');
       const phone = String(p.phone || '');
 
       return (
-        appId === clean ||
-        appId === 'IGNIS-' + clean ||
         appId.includes(clean) ||
         uid === clean ||
-        ign.includes(clean) ||
-        uname.includes(clean) ||
+        ign === cleanNoAt ||
+        uname === '@' + cleanNoAt ||
+        ign.includes(cleanNoAt) ||
+        unameNoAt.includes(cleanNoAt) ||
         phone === clean
       );
     });
@@ -447,7 +586,6 @@ const SupabaseService = {
     const totalCredited = Number(req.amount) + bonusCoins;
     await this.creditPlayerWalletByAppId(req.app_id, totalCredited, 'deposit', false, true);
 
-    // Also update transaction status in all-time ledger
     const allTxns = this.getLocal('ignis_all_time_transactions', []);
     const matchingTxn = allTxns.find(t => t.app_id === req.app_id && t.note.includes(req.utr_number));
     if (matchingTxn) {
