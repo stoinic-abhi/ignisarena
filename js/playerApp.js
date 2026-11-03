@@ -1,4 +1,4 @@
-// js/playerApp.js — Real Photo DP, 2-Way Friends System, XP Level Engine & All-Time Ledger (100% Uncut)
+// js/playerApp.js — Sign In / Register Flow, Live Multi-Account Friend Search & Esports Engine[cite: 6]
 
 const PlayerApp = {
   BASE_FF_WALLPAPER: 'https://images2.alphacoders.com/112/1126388.jpg',
@@ -6,6 +6,7 @@ const PlayerApp = {
 
   state: {
     user: null,
+    authMode: 'signin',
     currentTab: 'tournaments',
     categoryFilter: 'ALL',
     subModeFilter: 'ALL',
@@ -21,11 +22,8 @@ const PlayerApp = {
     tempProofBase64: '',
     tournaments: [],
     customPaidRooms: [],
-    storeProducts: [],
     joinedMatches: [],
-    notifications: [],
-    depositTransactions: [],
-    withdrawTransactions: []
+    notifications: []
   },
 
   buildIgnisBrandedPosterHTML(m, eco) {
@@ -96,26 +94,79 @@ const PlayerApp = {
     this.state.platformSettings = data;
   },
 
+  /* ==================== SIGN IN & REGISTER AUTH GATEWAY ==================== */
+  switchAuthMode(mode) {
+    this.state.authMode = mode;
+    const isSignIn = mode === 'signin';
+    const signInBtn = document.getElementById('tabAuthSignInBtn');
+    const regBtn = document.getElementById('tabAuthRegisterBtn');
+
+    if (signInBtn) {
+      signInBtn.style.background = isSignIn ? '#FF6B00' : 'transparent';
+      signInBtn.style.color = isSignIn ? '#06070A' : '#94a3b8';
+    }
+    if (regBtn) {
+      regBtn.style.background = !isSignIn ? '#FF6B00' : 'transparent';
+      regBtn.style.color = !isSignIn ? '#06070A' : '#94a3b8';
+    }
+
+    document.getElementById('playerSignInForm')?.classList.toggle('hidden', !isSignIn);
+    document.getElementById('playerRegisterForm')?.classList.toggle('hidden', isSignIn);
+  },
+
   checkSavedSession() {
     const saved = localStorage.getItem('ignis_player_session');
     if (saved) {
       try {
-        this.state.user = JSON.parse(saved);
-        if (!this.state.user.profilePhoto) this.state.user.profilePhoto = this.DEFAULT_DP;
-        if (!this.state.user.friendsList) this.state.user.friendsList = [];
-        if (!this.state.user.friendRequests) this.state.user.friendRequests = [];
-        if (!this.state.user.xp) this.state.user.xp = 0;
+        const sessionUser = JSON.parse(saved);
+        // Pull latest state from ignis_players_db so friend requests / payouts received while offline sync immediately
+        const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
+        const dbMatch = allPlayers.find(p => (p.app_id || '').toUpperCase() === (sessionUser.appId || '').toUpperCase());
+        if (dbMatch) {
+          this.state.user = SupabaseService.mapDbRecordToUser(dbMatch);
+          localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
+        } else {
+          this.state.user = sessionUser;
+          SupabaseService.upsertPlayerProfile(this.state.user);
+        }
+
         document.getElementById('playerAuthGate')?.classList.add('hidden');
         document.getElementById('mainPlayerPortal')?.classList.remove('hidden');
-        SupabaseService.upsertPlayerProfile(this.state.user);
         this.updateUI();
         return;
       } catch (e) {
         localStorage.removeItem('ignis_player_session');
       }
     }
+
+    // If no active session, check if any account exists in db; if none, default to Register tab
+    const existingPlayers = SupabaseService.getLocal('ignis_players_db', []);
+    this.switchAuthMode(existingPlayers.length > 0 ? 'signin' : 'register');
     document.getElementById('playerAuthGate')?.classList.remove('hidden');
     document.getElementById('mainPlayerPortal')?.classList.add('hidden');
+  },
+
+  async loginExistingPlayer() {
+    const idInput = (document.getElementById('loginIdentifierInput')?.value || '').trim();
+    const passInput = (document.getElementById('loginPasswordInput')?.value || '').trim();
+
+    if (!idInput || !passInput) {
+      alert('Please enter your App ID / WhatsApp Number / IGN and Password!');
+      return;
+    }
+
+    const res = await SupabaseService.authenticatePlayer(idInput, passInput);
+    if (!res.success) {
+      alert(res.error || 'Account not found or wrong password! Please Register first if you are a new user.');
+      return;
+    }
+
+    this.state.user = res.player;
+    localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
+    document.getElementById('playerAuthGate')?.classList.add('hidden');
+    document.getElementById('mainPlayerPortal')?.classList.remove('hidden');
+    this.updateUI();
+    this.showToast(`Welcome back, ${this.state.user.ign} (${this.state.user.appId})!`);
   },
 
   async completePlayerAuth() {
@@ -126,17 +177,17 @@ const PlayerApp = {
     const uid = (document.getElementById('authUidInput')?.value || '').trim();
     const ign = (document.getElementById('authIgnInput')?.value || '').trim();
     const level = (document.getElementById('authLevelInput')?.value || '').trim() || 'Level 70';
-    const password = (document.getElementById('authPasswordInput')?.value || '').trim() || 'pass123';
+    const password = (document.getElementById('authPasswordInput')?.value || '').trim();
 
-    if (!fullName || phone.length < 10 || uid.length < 6 || !ign) {
-      alert("Please fill Full Name, WhatsApp Number, FF UID, and IGN.");
+    if (!fullName || phone.length < 10 || uid.length < 5 || !ign || !password) {
+      alert("Please fill Full Name, 10-digit WhatsApp Number, FF UID, IGN, and Password.");
       return;
     }
 
     const appId = 'IGNIS-' + Math.floor(1000 + Math.random() * 9000);
     const username = usernameRaw ? (usernameRaw.startsWith('@') ? usernameRaw : '@' + usernameRaw) : '@' + ign.toLowerCase();
 
-    this.state.user = {
+    const newUser = {
       appId, fullName, username, phone, email, password, uid, ign, level,
       ignisLevel: 1,
       xp: 0,
@@ -151,13 +202,26 @@ const PlayerApp = {
       friendRequests: []
     };
 
+    // Save permanently to ignis_players_db
+    await SupabaseService.upsertPlayerProfile(newUser);
+
+    // Pre-fill Sign In form so user sees their generated App ID and can Sign In or continue
+    this.state.user = newUser;
     localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
-    await SupabaseService.upsertPlayerProfile(this.state.user);
 
     document.getElementById('playerAuthGate')?.classList.add('hidden');
     document.getElementById('mainPlayerPortal')?.classList.remove('hidden');
     this.updateUI();
-    this.showToast(`Welcome ${ign}! App ID: ${appId}`);
+    alert(`🎉 Account Registered Successfully!\n\nYour Official App ID: ${appId}\nYour IGN: ${ign}\n\nSave your App ID to login or share with friends!`);
+  },
+
+  logoutPlayer() {
+    if (!confirm("Switch account or Log Out?")) return;
+    localStorage.removeItem('ignis_player_session');
+    this.state.user = null;
+    this.switchAuthMode('signin');
+    document.getElementById('mainPlayerPortal')?.classList.add('hidden');
+    document.getElementById('playerAuthGate')?.classList.remove('hidden');
   },
 
   /* ==================== REAL PROFILE PHOTO UPLOAD ==================== */
@@ -196,7 +260,6 @@ const PlayerApp = {
     if (!this.state.user) return;
     this.state.user.xp = (this.state.user.xp || 0) + Number(amount);
     
-    // Level formula: 1 Level per 100 XP
     const calculatedLevel = Math.max(1, Math.floor(this.state.user.xp / 100) + 1);
     if (calculatedLevel > (this.state.user.ignisLevel || 1)) {
       this.state.user.ignisLevel = calculatedLevel;
@@ -210,11 +273,38 @@ const PlayerApp = {
     this.updateUI();
   },
 
-  /* ==================== 2-WAY FRIEND REQUEST & SQUAD CO-PAY SYSTEM ==================== */
+  /* ==================== 2-WAY FRIEND REQUEST & MULTI-ACCOUNT SEARCH ==================== */
   openAddFriendsModal() {
     document.getElementById('searchFriendAppIdInput').value = '';
     document.getElementById('searchedUserProfileDisplay').classList.add('hidden');
+    this.renderRegisteredAthletesDirectory();
     this.openModal('addFriendsModal');
+  },
+
+  renderRegisteredAthletesDirectory() {
+    const listBox = document.getElementById('allRegisteredAthletesQuickList');
+    if (!listBox) return;
+
+    const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
+    const others = allPlayers.filter(p => !this.state.user || (p.app_id || '').toUpperCase() !== this.state.user.appId.toUpperCase());
+
+    if (others.length === 0) {
+      listBox.innerHTML = `<div class="text-[11px] text-slate-500 py-2">Abhi is device par koi dusra account registered nahi hai. Log Out karke 2nd account register karein!</div>`;
+      return;
+    }
+
+    listBox.innerHTML = others.map(p => `
+      <div onclick="document.getElementById('searchFriendAppIdInput').value='${p.app_id}'; PlayerApp.searchPlayerProfile();" class="flex items-center justify-between p-2.5 bg-black/50 hover:bg-white/10 border border-white/10 rounded-xl cursor-pointer transition text-xs">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <img src="${p.profile_photo || this.DEFAULT_DP}" class="w-8 h-8 rounded-full object-cover border border-white/20">
+          <div class="min-w-0">
+            <strong class="text-white block truncate">${p.ign}</strong>
+            <span class="text-[10px] text-[#FFC857] font-mono">${p.app_id}</span>
+          </div>
+        </div>
+        <span class="text-[10px] font-bold text-cyan-400 bg-cyan-500/15 px-2.5 py-1 rounded-lg">Inspect Profile</span>
+      </div>
+    `).join('');
   },
 
   async searchPlayerProfile() {
@@ -226,12 +316,12 @@ const PlayerApp = {
     box.classList.remove('hidden');
 
     if (!p) {
-      box.innerHTML = `<div class="p-4 bg-red-950/40 border border-red-500/40 rounded-2xl text-xs text-red-300 text-center">Koi player nahi mila is App ID ya IGN ke sath.</div>`;
+      box.innerHTML = `<div class="p-4 bg-red-950/40 border border-red-500/40 rounded-2xl text-xs text-red-300 text-center">Is App ID ya IGN ("${query}") se koi player nahi mila. Neeche directory list check karein!</div>`;
       return;
     }
 
     if (this.state.user && p.app_id.toUpperCase() === this.state.user.appId.toUpperCase()) {
-      box.innerHTML = `<div class="p-3 bg-white/5 border border-white/10 rounded-xl text-xs text-slate-400 text-center">Yeh aapka apna profile pass hai!</div>`;
+      box.innerHTML = `<div class="p-3 bg-white/5 border border-white/10 rounded-xl text-xs text-slate-400 text-center">Yeh aapka apna profile pass hai (${p.app_id})!</div>`;
       return;
     }
 
@@ -241,12 +331,15 @@ const PlayerApp = {
     const winRate = matches > 0 ? Math.round((wins / matches) * 100) : 0;
 
     box.innerHTML = `
-      <div class="laser-card p-4 space-y-3.5 border border-cyan-500/30">
+      <div class="laser-card p-4 space-y-3.5 border border-cyan-500/40">
         <div class="flex items-center gap-3.5">
           <img src="${p.profile_photo || this.DEFAULT_DP}" class="w-16 h-16 rounded-full object-cover border-2 border-cyan-400" alt="DP">
           <div class="min-w-0 flex-1">
-            <h4 class="font-extrabold text-white text-base truncate">${p.ign}</h4>
-            <div class="text-[11px] text-slate-300">${p.username || '@player'}</div>
+            <div class="flex items-center gap-1.5">
+              <h4 class="font-extrabold text-white text-base truncate">${p.ign}</h4>
+              <i class="ph-fill ph-seal-check text-cyan-400 text-sm"></i>
+            </div>
+            <div class="text-[11px] text-slate-300">${p.username || '@player'} • ${p.full_name || 'Athlete'}</div>
             <div class="text-[10px] text-[#FFC857] font-mono mt-0.5">${p.app_id} • UID: ${p.uid}</div>
           </div>
         </div>
@@ -255,33 +348,32 @@ const PlayerApp = {
 
         <div class="grid grid-cols-4 gap-1 text-center bg-black/50 p-2 rounded-xl text-xs">
           <div><strong class="text-white block">${matches}</strong><span class="text-[8px] text-slate-400">Matches</span></div>
-          <div class="border-l border-white/10"><strong class="text-emerald-400 block">${wins}</strong><span class="text-[8px] text-slate-400">Wins</span></div>
+          <div class="border-l border-white/10"><strong class="text-emerald-400 block">${wins}</strong><span class="text-[8px] text-slate-400">Booyahs</span></div>
           <div class="border-l border-white/10"><strong class="text-[#FFC857] block">${winRate}%</strong><span class="text-[8px] text-slate-400">Win Rate</span></div>
-          <div class="border-l border-white/10"><strong class="text-cyan-400 block">LVL ${p.ignis_level || 1}</strong><span class="text-[8px] text-slate-400">Level</span></div>
+          <div class="border-l border-white/10"><strong class="text-cyan-400 block">LVL ${p.ignis_level || 1}</strong><span class="text-[8px] text-slate-400">Ignis Lvl</span></div>
         </div>
 
         ${!isAlreadyFriend ? `
-          <button onclick="PlayerApp.sendFriendRequestTo('${p.app_id}', '${p.ign}', '${p.profile_photo || this.DEFAULT_DP}')" class="w-full btn-hyper py-2.5 text-xs cursor-pointer">
+          <button onclick="PlayerApp.sendFriendRequestTo('${p.app_id}', '${p.ign}')" class="w-full btn-hyper py-2.5 text-xs cursor-pointer">
             <i class="ph-bold ph-paper-plane mr-1"></i> Send Friend Request
           </button>
         ` : `
-          <div class="text-center font-bold text-xs text-emerald-400 py-1">✓ Already Friends & Teammate</div>
+          <div class="text-center font-bold text-xs text-emerald-400 py-1">✓ Already Friends & Squad Teammate</div>
         `}
       </div>
     `;
   },
 
-  async sendFriendRequestTo(targetAppId, targetIgn, targetPhoto) {
+  async sendFriendRequestTo(targetAppId, targetIgn) {
     if (!this.state.user) return;
     
-    // In local architecture, we store requests in targets' account in db
     const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
-    const target = allPlayers.find(x => x.app_id.toUpperCase() === targetAppId.toUpperCase());
+    const target = allPlayers.find(x => (x.app_id || '').toUpperCase() === targetAppId.toUpperCase());
     
     if (target) {
-      target.friendRequests = target.friendRequests || [];
-      if (!target.friendRequests.some(r => r.appId === this.state.user.appId)) {
-        target.friendRequests.push({
+      target.friend_requests = Array.isArray(target.friend_requests) ? target.friend_requests : [];
+      if (!target.friend_requests.some(r => r.appId === this.state.user.appId)) {
+        target.friend_requests.push({
           appId: this.state.user.appId,
           ign: this.state.user.ign,
           profilePhoto: this.state.user.profilePhoto || this.DEFAULT_DP,
@@ -292,21 +384,30 @@ const PlayerApp = {
     }
 
     this.closeModal('addFriendsModal');
-    this.showToast(`Friend Request sent to ${targetIgn}! Unke accept karne par aap sath squad khel sakenge.`);
+    this.showToast(`Friend Request sent to ${targetIgn} (${targetAppId})!`);
   },
 
   openFriendsListModal() {
+    // Sync latest friend_requests from ignis_players_db first
+    if (this.state.user) {
+      const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
+      const fresh = allPlayers.find(p => (p.app_id || '').toUpperCase() === this.state.user.appId.toUpperCase());
+      if (fresh) {
+        this.state.user = SupabaseService.mapDbRecordToUser(fresh);
+        localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
+      }
+    }
+
     const container = document.getElementById('friendsRosterContainer');
     const reqContainer = document.getElementById('pendingRequestsContainer');
     if (!container || !this.state.user) return;
 
-    // 1. Pending Requests (Accept / Decline)
     const requests = this.state.user.friendRequests || [];
     if (reqContainer) {
       reqContainer.innerHTML = requests.length === 0
         ? `<div class="text-[11px] text-slate-400 font-medium">Koi pending friend request nahi hai.</div>`
         : `
-          <span class="text-[10px] font-bold text-[#FFC857] block uppercase">Pending Requests (${requests.length}):</span>
+          <span class="text-[10px] font-bold text-[#FFC857] block uppercase">Incoming Friend Requests (${requests.length}):</span>
           <div class="space-y-1.5">
             ${requests.map((r, idx) => `
               <div class="p-2.5 bg-black/60 rounded-xl border border-white/10 flex items-center justify-between gap-2">
@@ -327,7 +428,6 @@ const PlayerApp = {
         `;
     }
 
-    // 2. Accepted Friends Roster
     const friends = this.state.user.friendsList || [];
     container.innerHTML = friends.length === 0
       ? `<div class="text-center py-6 text-slate-500 text-xs">Koi friend nahi hai abhi. "Add Friends" se search karke request bhejein!</div>`
@@ -361,13 +461,12 @@ const PlayerApp = {
       });
     }
 
-    // Also add to sender's friendlist
     const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
-    const sender = allPlayers.find(x => x.app_id.toUpperCase() === req.appId.toUpperCase());
+    const sender = allPlayers.find(x => (x.app_id || '').toUpperCase() === req.appId.toUpperCase());
     if (sender) {
-      sender.friendsList = sender.friendsList || [];
-      if (!sender.friendsList.some(f => f.appId === this.state.user.appId)) {
-        sender.friendsList.push({
+      sender.friends_list = Array.isArray(sender.friends_list) ? sender.friends_list : [];
+      if (!sender.friends_list.some(f => f.appId === this.state.user.appId)) {
+        sender.friends_list.push({
           appId: this.state.user.appId,
           ign: this.state.user.ign,
           profilePhoto: this.state.user.profilePhoto || this.DEFAULT_DP
@@ -403,7 +502,7 @@ const PlayerApp = {
     this.updateUI();
   },
 
-  /* ==================== TAB 1: TOURNAMENTS (INR ₹ & AUTO SORT) ==================== */
+  /* ==================== TAB 1: TOURNAMENTS ==================== */
   setCategoryFilter(cat) {
     this.state.categoryFilter = cat;
     ['ALL', 'BR', 'CS', 'LW'].forEach(c => {
@@ -465,7 +564,6 @@ const PlayerApp = {
       return passCat && passSub && passAmmo && passHs && passStat;
     });
 
-    // Auto-Sort: LIVE (Top) -> UPCOMING (Middle) -> COMPLETED (Bottom)
     filtered.sort((a, b) => {
       const ecoA = this.calculateMatchEconomics(a);
       const ecoB = this.calculateMatchEconomics(b);
@@ -478,7 +576,7 @@ const PlayerApp = {
     });
 
     if (filtered.length === 0) {
-      container.innerHTML = `<div class="col-span-full laser-card p-8 text-center text-slate-400 text-xs">No tournaments available. Create one from Admin!</div>`;
+      container.innerHTML = `<div class="col-span-full laser-card p-8 text-center text-slate-400 text-xs">No tournaments available right now. Create one from Admin Panel!</div>`;
       return;
     }
 
@@ -639,6 +737,29 @@ const PlayerApp = {
     `).join('');
   },
 
+  async acceptPaidChallengeAsTeamB(roomId) {
+    if (!this.state.user) return;
+    const room = this.state.customPaidRooms.find(r => r.id === roomId);
+    if (!room) return;
+    if (room.bet_amount > this.getTotalBalance()) {
+      this.switchTab('wallet');
+      this.showToast(`Need ₹${room.bet_amount} to join!`);
+      return;
+    }
+    if (this.state.user.depositBal >= room.bet_amount) this.state.user.depositBal -= room.bet_amount;
+    else {
+      const rem = room.bet_amount - this.state.user.depositBal;
+      this.state.user.depositBal = 0;
+      this.state.user.winningsBal = Math.max(0, this.state.user.winningsBal - rem);
+    }
+    localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
+    await SupabaseService.upsertPlayerProfile(this.state.user);
+    await SupabaseService.joinCustomPaidRoomAsOpponent(roomId, this.state.user.appId, this.state.user.ign);
+    await this.fetchCustomPaidRooms();
+    this.updateUI();
+    this.showToast('Joined Paid Match!');
+  },
+
   openPaidRoomChat(roomId) {
     this.state.activeChatRoomId = roomId;
     const room = this.state.customPaidRooms.find(r => r.id === roomId);
@@ -691,7 +812,6 @@ const PlayerApp = {
     
     await SupabaseService.submitDepositRequest(this.state.user.appId, this.state.user.ign, amt, utr, `Scanner #${this.state.selectedScannerIndex}`);
     
-    // Track in local persistent ledger
     const ledger = SupabaseService.getLocal('ignis_all_time_transactions', []);
     ledger.unshift({
       id: 'TXN-' + Math.floor(1000 + Math.random() * 9000),
@@ -721,7 +841,6 @@ const PlayerApp = {
     localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
     await SupabaseService.upsertPlayerProfile(this.state.user);
 
-    // Track in persistent ledger
     const ledger = SupabaseService.getLocal('ignis_all_time_transactions', []);
     ledger.unshift({
       id: 'WTH-' + Math.floor(1000 + Math.random() * 9000),
@@ -816,7 +935,6 @@ const PlayerApp = {
 
     document.getElementById('joinModalSubtitle').innerText = `${match.title} (${match.ammo_mode} • HS: ${match.headshot_mode})`;
     
-    // Squad / Duo Teammate Selection from Friends List
     const isTeamMode = match.sub_mode !== 'Solo' && match.sub_mode !== '1v1';
     const squadSec = document.getElementById('squadFriendsCoPaySection');
     const dList = document.getElementById('squadTeammateDropdownsList');
@@ -899,6 +1017,135 @@ const PlayerApp = {
     this.showToast(`Slot #${this.state.selectedSlotNumber} Locked! Check Room IDP.`);
   },
 
+  /* ==================== PROFILE SETTINGS & PROOF UPLOAD ==================== */
+  openEditProfileModal() {
+    if (!this.state.user) return;
+    document.getElementById('editProfName').value = this.state.user.fullName || '';
+    document.getElementById('editProfUsername').value = this.state.user.username || '';
+    document.getElementById('editProfBio').value = this.state.user.bio || '';
+    document.getElementById('editProfIgn').value = this.state.user.ign || '';
+    document.getElementById('editProfUid').value = this.state.user.uid || '';
+    document.getElementById('editProfPhone').value = this.state.user.phone || '';
+    document.getElementById('editProfEmail').value = this.state.user.email || '';
+    this.openModal('editProfileModal');
+  },
+
+  async saveEditedProfile() {
+    if (!this.state.user) return;
+    this.state.user.fullName = document.getElementById('editProfName')?.value.trim() || this.state.user.fullName;
+    this.state.user.username = document.getElementById('editProfUsername')?.value.trim() || this.state.user.username;
+    this.state.user.bio = document.getElementById('editProfBio')?.value.trim() || this.state.user.bio;
+    this.state.user.ign = document.getElementById('editProfIgn')?.value.trim() || this.state.user.ign;
+    this.state.user.uid = document.getElementById('editProfUid')?.value.trim() || this.state.user.uid;
+    this.state.user.phone = document.getElementById('editProfPhone')?.value.trim() || this.state.user.phone;
+    this.state.user.email = document.getElementById('editProfEmail')?.value.trim() || this.state.user.email;
+    const pass = document.getElementById('editProfPassword')?.value.trim();
+    if (pass) this.state.user.password = pass;
+
+    localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
+    await SupabaseService.upsertPlayerProfile(this.state.user);
+    this.closeModal('editProfileModal');
+    this.updateUI();
+    this.showToast('Profile Settings Saved!');
+  },
+
+  handleProofImageSelect(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      this.state.tempProofBase64 = ev.target.result;
+      document.getElementById('proofPreviewImg').src = ev.target.result;
+      document.getElementById('proofPreviewImg').classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+  },
+
+  async submitMatchProofToAdmin() {
+    if (!this.state.tempProofBase64 || !this.state.user) { this.showToast('Attach screenshot first!'); return; }
+    await SupabaseService.submitMatchProof({
+      id: 'PRF-' + Math.floor(1000 + Math.random() * 9000),
+      app_id: this.state.user.appId,
+      player_ign: this.state.user.ign,
+      match_title: document.getElementById('proofMatchTitleInput')?.value || 'Match Proof',
+      position: document.getElementById('proofPositionInput')?.value || '1st Place',
+      kills: parseInt(document.getElementById('proofKillsInput')?.value, 10) || 0,
+      screenshot: this.state.tempProofBase64,
+      status: 'PENDING',
+      created_at: new Date().toISOString()
+    });
+    this.closeModal('proofUploadModal');
+    this.showToast('Match Proof Sent to Host/Admin!');
+  },
+
+  async openTournamentDetailsModal(matchId) {
+    const match = this.state.tournaments.find(m => m.id === matchId);
+    if (!match) return;
+    document.getElementById('detailModalTitle').innerText = match.title;
+    const { data: realSlots } = await SupabaseService.getJoinedPlayers(matchId);
+    const participants = realSlots || [];
+    const tbody = document.getElementById('detailModalPlayersTable');
+    if (tbody) {
+      tbody.innerHTML = participants.length === 0
+        ? `<tr><td colspan="4" class="py-6 text-center text-slate-500">No players registered in this room yet.</td></tr>`
+        : participants.map(p => `
+          <tr>
+            <td class="py-2 px-3 text-[#FFC857] font-bold">#${p.slot_number}</td>
+            <td class="py-2 px-3 text-white font-semibold">${p.leader_ign}</td>
+            <td class="py-2 px-3 text-cyan-400">${p.kills || 0}</td>
+            <td class="py-2 px-3 text-right text-emerald-400 font-bold">₹${p.prize_won || 0}</td>
+          </tr>
+        `).join('');
+    }
+    this.openModal('tournamentDetailsModal');
+  },
+
+  loadNotifications() {
+    this.state.notifications = SupabaseService.getLocal('ignis_player_notifications', []);
+    const badge = document.getElementById('notifBadgeCount');
+    if (badge) badge.innerText = this.state.notifications.length;
+  },
+
+  openNotificationModal() {
+    const box = document.getElementById('notificationsListBox');
+    if (box) {
+      box.innerHTML = this.state.notifications.length === 0
+        ? `<div class="py-6 text-center text-slate-500 text-xs">No notifications right now.</div>`
+        : this.state.notifications.map(n => `
+          <div class="p-3 bg-black/50 rounded-xl border border-white/10 space-y-1">
+            <div class="flex justify-between text-xs font-bold text-[#FFC857]"><span>${n.title}</span><span>${n.time}</span></div>
+            <p class="text-xs text-slate-300">${n.msg}</p>
+          </div>
+        `).join('');
+    }
+    this.openModal('notificationModal');
+  },
+
+  clearAllNotifications() {
+    this.state.notifications = [];
+    SupabaseService.setLocal('ignis_player_notifications', []);
+    document.getElementById('notifBadgeCount').innerText = '0';
+    this.openNotificationModal();
+  },
+
+  async submitFeedback() {
+    const message = (document.getElementById('feedbackText')?.value || '').trim();
+    if (!message) return;
+    const list = SupabaseService.getLocal('ignis_feedbacks_db', []);
+    list.unshift({
+      id: 'fb-' + Date.now(),
+      player_app_id: this.state.user?.appId || 'GUEST',
+      player_ign: this.state.user?.ign || 'Guest',
+      category: 'Support / Report',
+      message,
+      created_at: new Date().toISOString()
+    });
+    SupabaseService.setLocal('ignis_feedbacks_db', list);
+    document.getElementById('feedbackText').value = '';
+    this.closeModal('feedbackModal');
+    this.showToast('Submitted to Super Admin!');
+  },
+
   /* ==================== 5-TAB NAVIGATION ROUTER ==================== */
   switchTab(tabId) {
     if (typeof AudioEngine !== 'undefined' && AudioEngine.playClick) AudioEngine.playClick();
@@ -945,8 +1192,14 @@ const PlayerApp = {
 
   setupRealtimeSync() {
     SupabaseService.subscribeToTournaments(async () => {
-      const saved = localStorage.getItem('ignis_player_session');
-      if (saved) this.state.user = JSON.parse(saved);
+      if (this.state.user) {
+        const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
+        const fresh = allPlayers.find(p => (p.app_id || '').toUpperCase() === this.state.user.appId.toUpperCase());
+        if (fresh) {
+          this.state.user = SupabaseService.mapDbRecordToUser(fresh);
+          localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
+        }
+      }
       await this.loadPlatformConfig();
       await this.fetchMatches();
       await this.fetchCustomPaidRooms();
@@ -989,14 +1242,12 @@ const PlayerApp = {
     document.getElementById('statIgnisLevelBox').innerText = `LVL ${currentLevel}`;
     document.getElementById('statWinRateBox').innerText = `${winRate}%`;
 
-    // Real-Time XP Bar
     if (document.getElementById('levelProgressTitle')) {
       document.getElementById('levelProgressTitle').innerText = `Ignis Level ${currentLevel} Athlete`;
       document.getElementById('levelXpFractionText').innerText = `${xpInThisLevel} / 100 XP`;
       document.getElementById('levelXpProgressBar').style.width = `${xpInThisLevel}%`;
     }
 
-    // Pending Friend Requests Badge
     const pendingReqs = (this.state.user.friendRequests || []).length;
     const pBadge = document.getElementById('pendingFriendReqBadge');
     if (pBadge) {
