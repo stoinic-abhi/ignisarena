@@ -1,0 +1,57 @@
+name: Sign Ignis Arena APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Download Raw APK From Release
+        run: |
+          curl -L -o raw-app.apk "https://github.com/stoinic-abhi/ignisarena/releases/download/v1.0/app-release.apk"
+
+      - name: Generate Custom Production Keystore
+        run: |
+          keytool -genkeypair -v \
+            -keystore ignis_prod.keystore \
+            -alias ignisarena \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass "IgnisPass2026" \
+            -keypass "IgnisPass2026" \
+            -dname "CN=Abhishek Jangra, OU=Esports, O=Ignis Arena, L=Ellenabad, ST=Haryana, C=IN"
+
+      - name: Align and Sign APK with v2 & v3 Scheme
+        run: |
+          sudo apt-get install -y zipalign apksigner
+          zipalign -v -p 4 raw-app.apk IgnisArena-aligned.apk
+          apksigner sign --ks ignis_prod.keystore \
+            --ks-pass pass:IgnisPass2026 \
+            --ks-key-alias ignisarena \
+            --key-pass pass:IgnisPass2026 \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            --out app-release.apk IgnisArena-aligned.apk
+
+      - name: Verify Signed APK
+        run: |
+          apksigner verify --verbose app-release.apk
+
+      - name: Upload Clean Signed APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: app-release.apk
