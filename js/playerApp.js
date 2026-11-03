@@ -1,4 +1,4 @@
-// js/playerApp.js — Sign In / Register Flow, Live Multi-Account Friend Search & Esports Engine[cite: 6]
+// js/playerApp.js — Unique Identity Check, Instagram-Style Search & Esports Engine (100% Uncut)
 
 const PlayerApp = {
   BASE_FF_WALLPAPER: 'https://images2.alphacoders.com/112/1126388.jpg',
@@ -94,7 +94,7 @@ const PlayerApp = {
     this.state.platformSettings = data;
   },
 
-  /* ==================== SIGN IN & REGISTER AUTH GATEWAY ==================== */
+  /* ==================== SIGN IN & STRICT UNIQUE REGISTER GATEWAY ==================== */
   switchAuthMode(mode) {
     this.state.authMode = mode;
     const isSignIn = mode === 'signin';
@@ -114,12 +114,61 @@ const PlayerApp = {
     document.getElementById('playerRegisterForm')?.classList.toggle('hidden', isSignIn);
   },
 
+  checkLiveRegisterAvailability() {
+    const usernameRaw = (document.getElementById('authUsernameInput')?.value || '').trim();
+    const uid = (document.getElementById('authUidInput')?.value || '').trim();
+    const ign = (document.getElementById('authIgnInput')?.value || '').trim();
+    const phone = (document.getElementById('authPhoneInput')?.value || '').trim();
+
+    const uBadge = document.getElementById('regUsernameLiveBadge');
+    const uidBadge = document.getElementById('regUidLiveBadge');
+    const ignBadge = document.getElementById('regIgnLiveBadge');
+    const errBox = document.getElementById('registerConflictErrorBox');
+
+    if (uBadge) {
+      if (!usernameRaw) uBadge.innerText = '';
+      else {
+        const res = SupabaseService.checkIdentityConflict({ username: usernameRaw });
+        uBadge.innerText = res.hasConflict ? '✗ Taken' : '✓ Available';
+        uBadge.className = res.hasConflict ? 'text-[9px] font-bold text-red-400' : 'text-[9px] font-bold text-emerald-400';
+      }
+    }
+
+    if (uidBadge) {
+      if (!uid) uidBadge.innerText = '';
+      else {
+        const res = SupabaseService.checkIdentityConflict({ uid });
+        uidBadge.innerText = res.hasConflict ? '✗ UID Used' : '✓ Unique';
+        uidBadge.className = res.hasConflict ? 'text-[9px] font-bold text-red-400' : 'text-[9px] font-bold text-emerald-400';
+      }
+    }
+
+    if (ignBadge) {
+      if (!ign) ignBadge.innerText = '';
+      else {
+        const res = SupabaseService.checkIdentityConflict({ ign });
+        ignBadge.innerText = res.hasConflict ? '✗ Taken' : '✓ Unique';
+        ignBadge.className = res.hasConflict ? 'text-[9px] font-bold text-red-400' : 'text-[9px] font-bold text-emerald-400';
+      }
+    }
+
+    const overall = SupabaseService.checkIdentityConflict({ username: usernameRaw, uid, ign, phone });
+    if (errBox) {
+      if (overall.hasConflict) {
+        errBox.innerText = overall.message;
+        errBox.classList.remove('hidden');
+      } else {
+        errBox.classList.add('hidden');
+      }
+    }
+    return overall;
+  },
+
   checkSavedSession() {
     const saved = localStorage.getItem('ignis_player_session');
     if (saved) {
       try {
         const sessionUser = JSON.parse(saved);
-        // Pull latest state from ignis_players_db so friend requests / payouts received while offline sync immediately
         const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
         const dbMatch = allPlayers.find(p => (p.app_id || '').toUpperCase() === (sessionUser.appId || '').toUpperCase());
         if (dbMatch) {
@@ -139,7 +188,6 @@ const PlayerApp = {
       }
     }
 
-    // If no active session, check if any account exists in db; if none, default to Register tab
     const existingPlayers = SupabaseService.getLocal('ignis_players_db', []);
     this.switchAuthMode(existingPlayers.length > 0 ? 'signin' : 'register');
     document.getElementById('playerAuthGate')?.classList.remove('hidden');
@@ -151,13 +199,13 @@ const PlayerApp = {
     const passInput = (document.getElementById('loginPasswordInput')?.value || '').trim();
 
     if (!idInput || !passInput) {
-      alert('Please enter your App ID / WhatsApp Number / IGN and Password!');
+      alert('Please enter your @Username / App ID / WhatsApp Number and Password!');
       return;
     }
 
     const res = await SupabaseService.authenticatePlayer(idInput, passInput);
     if (!res.success) {
-      alert(res.error || 'Account not found or wrong password! Please Register first if you are a new user.');
+      alert(res.error || 'Account not found or wrong password!');
       return;
     }
 
@@ -166,12 +214,12 @@ const PlayerApp = {
     document.getElementById('playerAuthGate')?.classList.add('hidden');
     document.getElementById('mainPlayerPortal')?.classList.remove('hidden');
     this.updateUI();
-    this.showToast(`Welcome back, ${this.state.user.ign} (${this.state.user.appId})!`);
+    this.showToast(`Welcome back, ${this.state.user.username} (${this.state.user.appId})!`);
   },
 
   async completePlayerAuth() {
     const fullName = (document.getElementById('authFullNameInput')?.value || '').trim();
-    const usernameRaw = (document.getElementById('authUsernameInput')?.value || '').trim();
+    const usernameRaw = (document.getElementById('authUsernameInput')?.value || '').trim().toLowerCase().replace(/\s+/g, '_');
     const phone = (document.getElementById('authPhoneInput')?.value || '').trim();
     const email = (document.getElementById('authEmailInput')?.value || '').trim();
     const uid = (document.getElementById('authUidInput')?.value || '').trim();
@@ -179,13 +227,27 @@ const PlayerApp = {
     const level = (document.getElementById('authLevelInput')?.value || '').trim() || 'Level 70';
     const password = (document.getElementById('authPasswordInput')?.value || '').trim();
 
-    if (!fullName || phone.length < 10 || uid.length < 5 || !ign || !password) {
-      alert("Please fill Full Name, 10-digit WhatsApp Number, FF UID, IGN, and Password.");
+    if (!fullName || !usernameRaw || phone.length < 10 || uid.length < 5 || !ign || !password) {
+      alert("Please fill Full Name, Unique @Username, 10-digit WhatsApp Number, FF UID, IGN, and Password.");
       return;
     }
 
-    const appId = 'IGNIS-' + Math.floor(1000 + Math.random() * 9000);
-    const username = usernameRaw ? (usernameRaw.startsWith('@') ? usernameRaw : '@' + usernameRaw) : '@' + ign.toLowerCase();
+    const username = usernameRaw.startsWith('@') ? usernameRaw : '@' + usernameRaw;
+
+    // STRICT UNIQUENESS CHECK BEFORE ALLOWING REGISTRATION
+    const conflictCheck = SupabaseService.checkIdentityConflict({ username, uid, ign, phone });
+    if (conflictCheck.hasConflict) {
+      alert(`⚠️ REGISTRATION BLOCKED:\n${conflictCheck.message}`);
+      this.checkLiveRegisterAvailability();
+      return;
+    }
+
+    // Generate guaranteed unique App ID
+    let appId = 'IGNIS-' + Math.floor(1000 + Math.random() * 9000);
+    const existingList = SupabaseService.getLocal('ignis_players_db', []);
+    while (existingList.some(p => p.app_id === appId)) {
+      appId = 'IGNIS-' + Math.floor(1000 + Math.random() * 9000);
+    }
 
     const newUser = {
       appId, fullName, username, phone, email, password, uid, ign, level,
@@ -202,17 +264,14 @@ const PlayerApp = {
       friendRequests: []
     };
 
-    // Save permanently to ignis_players_db
     await SupabaseService.upsertPlayerProfile(newUser);
-
-    // Pre-fill Sign In form so user sees their generated App ID and can Sign In or continue
     this.state.user = newUser;
     localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
 
     document.getElementById('playerAuthGate')?.classList.add('hidden');
     document.getElementById('mainPlayerPortal')?.classList.remove('hidden');
     this.updateUI();
-    alert(`🎉 Account Registered Successfully!\n\nYour Official App ID: ${appId}\nYour IGN: ${ign}\n\nSave your App ID to login or share with friends!`);
+    alert(`🎉 Unique Athlete Account Created!\n\n• Username: ${username}\n• App ID: ${appId}\n• FF UID: ${uid}\n\nAb har player aapko "${username}" ya "${appId}" se Instagram ki tarah search kar sakta hai!`);
   },
 
   logoutPlayer() {
@@ -273,92 +332,123 @@ const PlayerApp = {
     this.updateUI();
   },
 
-  /* ==================== 2-WAY FRIEND REQUEST & MULTI-ACCOUNT SEARCH ==================== */
+  /* ==================== INSTAGRAM-STYLE LIVE SEARCH & FULL PROFILE INSPECT ==================== */
   openAddFriendsModal() {
-    document.getElementById('searchFriendAppIdInput').value = '';
-    document.getElementById('searchedUserProfileDisplay').classList.add('hidden');
-    this.renderRegisteredAthletesDirectory();
+    const inp = document.getElementById('searchFriendAppIdInput');
+    if (inp) inp.value = '';
+    document.getElementById('searchedUserProfileDisplay')?.classList.add('hidden');
+    this.handleLiveInstagramSearch('');
     this.openModal('addFriendsModal');
   },
 
-  renderRegisteredAthletesDirectory() {
+  async handleLiveInstagramSearch(query) {
     const listBox = document.getElementById('allRegisteredAthletesQuickList');
+    const countBadge = document.getElementById('instaSearchCountBadge');
+    const headerLabel = document.getElementById('instaSearchHeaderLabel');
     if (!listBox) return;
 
-    const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
-    const others = allPlayers.filter(p => !this.state.user || (p.app_id || '').toUpperCase() !== this.state.user.appId.toUpperCase());
+    const myAppId = this.state.user ? this.state.user.appId : null;
+    const { data: results } = await SupabaseService.searchPlayersInstagramStyle(query, myAppId);
+    const matched = results || [];
 
-    if (others.length === 0) {
-      listBox.innerHTML = `<div class="text-[11px] text-slate-500 py-2">Abhi is device par koi dusra account registered nahi hai. Log Out karke 2nd account register karein!</div>`;
+    if (headerLabel) {
+      headerLabel.innerText = query && query.trim() ? `Search Results for "${query.trim()}"` : 'All Registered Athletes';
+    }
+    if (countBadge) {
+      countBadge.innerText = `${matched.length} ${matched.length === 1 ? 'Athlete' : 'Athletes'}`;
+    }
+
+    if (matched.length === 0) {
+      listBox.innerHTML = `
+        <div class="p-5 bg-white/5 border border-white/10 rounded-2xl text-center space-y-1">
+          <div class="text-xs font-bold text-white">No Athlete Found</div>
+          <p class="text-[11px] text-slate-400">Koi dusra player is @username, IGN, UID ya App ID ke sath nahi mila.</p>
+        </div>
+      `;
       return;
     }
 
-    listBox.innerHTML = others.map(p => `
-      <div onclick="document.getElementById('searchFriendAppIdInput').value='${p.app_id}'; PlayerApp.searchPlayerProfile();" class="flex items-center justify-between p-2.5 bg-black/50 hover:bg-white/10 border border-white/10 rounded-xl cursor-pointer transition text-xs">
-        <div class="flex items-center gap-2.5 min-w-0">
-          <img src="${p.profile_photo || this.DEFAULT_DP}" class="w-8 h-8 rounded-full object-cover border border-white/20">
-          <div class="min-w-0">
-            <strong class="text-white block truncate">${p.ign}</strong>
-            <span class="text-[10px] text-[#FFC857] font-mono">${p.app_id}</span>
+    listBox.innerHTML = matched.map(p => {
+      const isFriend = this.state.user && (this.state.user.friendsList || []).some(f => f.appId === p.app_id);
+      return `
+        <div onclick="PlayerApp.inspectAthleteProfileByAppId('${p.app_id}')" class="flex items-center justify-between p-2.5 bg-black/60 hover:bg-white/10 border border-white/10 rounded-2xl cursor-pointer transition text-xs">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-10 h-10 rounded-full p-0.5 bg-gradient-to-tr from-[#FF6B00] to-[#FFC857] flex-shrink-0">
+              <img src="${p.profile_photo || this.DEFAULT_DP}" class="w-full h-full rounded-full object-cover bg-black">
+            </div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-1">
+                <strong class="text-white font-extrabold truncate">${p.username || '@' + (p.ign || 'player').toLowerCase()}</strong>
+                <i class="ph-fill ph-seal-check text-cyan-400 text-xs"></i>
+              </div>
+              <div class="text-[11px] text-slate-300 truncate">${p.ign} • <span class="text-[#FFC857] font-mono">${p.app_id}</span></div>
+            </div>
           </div>
+          <span class="text-[10px] font-bold ${isFriend ? 'bg-emerald-500/20 text-emerald-300' : 'bg-cyan-500/20 text-cyan-300'} px-3 py-1.5 rounded-xl flex-shrink-0">
+            ${isFriend ? 'Friends ✓' : 'View Profile'}
+          </span>
         </div>
-        <span class="text-[10px] font-bold text-cyan-400 bg-cyan-500/15 px-2.5 py-1 rounded-lg">Inspect Profile</span>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   },
 
-  async searchPlayerProfile() {
-    const query = (document.getElementById('searchFriendAppIdInput')?.value || '').trim();
+  async inspectAthleteProfileByAppId(targetAppId) {
     const box = document.getElementById('searchedUserProfileDisplay');
-    if (!query || !box) return;
+    if (!box) return;
 
-    const { data: p } = await SupabaseService.getPlayerByAppId(query);
+    const myAppId = this.state.user ? this.state.user.appId : null;
+    const { data: p } = await SupabaseService.getPlayerByAppId(targetAppId, myAppId);
+    if (!p) return;
+
     box.classList.remove('hidden');
 
-    if (!p) {
-      box.innerHTML = `<div class="p-4 bg-red-950/40 border border-red-500/40 rounded-2xl text-xs text-red-300 text-center">Is App ID ya IGN ("${query}") se koi player nahi mila. Neeche directory list check karein!</div>`;
-      return;
-    }
-
-    if (this.state.user && p.app_id.toUpperCase() === this.state.user.appId.toUpperCase()) {
-      box.innerHTML = `<div class="p-3 bg-white/5 border border-white/10 rounded-xl text-xs text-slate-400 text-center">Yeh aapka apna profile pass hai (${p.app_id})!</div>`;
-      return;
-    }
-
     const isAlreadyFriend = this.state.user && (this.state.user.friendsList || []).some(f => f.appId === p.app_id);
+    const hasSentReq = Array.isArray(p.friend_requests) && this.state.user && p.friend_requests.some(r => r.appId === this.state.user.appId);
     const matches = Number(p.matches_played || 0);
     const wins = Number(p.tournaments_won || 0);
-    const winRate = matches > 0 ? Math.round((wins / matches) * 100) : 0;
+    const friendsCount = Array.isArray(p.friends_list) ? p.friends_list.length : 0;
 
     box.innerHTML = `
-      <div class="laser-card p-4 space-y-3.5 border border-cyan-500/40">
+      <div class="laser-card p-4 space-y-3.5 border border-cyan-500/40 relative">
+        <button onclick="document.getElementById('searchedUserProfileDisplay').classList.add('hidden')" class="absolute top-3 right-3 text-slate-400 hover:text-white text-xs cursor-pointer">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+
         <div class="flex items-center gap-3.5">
-          <img src="${p.profile_photo || this.DEFAULT_DP}" class="w-16 h-16 rounded-full object-cover border-2 border-cyan-400" alt="DP">
+          <div class="w-16 h-16 rounded-full p-0.5 bg-gradient-to-tr from-[#FF6B00] to-[#FFC857] flex-shrink-0">
+            <img src="${p.profile_photo || this.DEFAULT_DP}" class="w-full h-full rounded-full object-cover bg-black" alt="DP">
+          </div>
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-1.5">
-              <h4 class="font-extrabold text-white text-base truncate">${p.ign}</h4>
+              <h4 class="font-extrabold text-white text-base truncate">${p.username || '@' + p.ign.toLowerCase()}</h4>
               <i class="ph-fill ph-seal-check text-cyan-400 text-sm"></i>
             </div>
-            <div class="text-[11px] text-slate-300">${p.username || '@player'} • ${p.full_name || 'Athlete'}</div>
-            <div class="text-[10px] text-[#FFC857] font-mono mt-0.5">${p.app_id} • UID: ${p.uid}</div>
+            <div class="text-xs font-bold text-slate-200">${p.full_name || 'Athlete'}</div>
+            <div class="text-[10px] text-[#FFC857] font-mono mt-0.5">${p.app_id} • IGN: ${p.ign} • UID: ${p.uid}</div>
           </div>
         </div>
 
-        <p class="text-xs text-slate-300 italic bg-black/40 p-2.5 rounded-xl border border-white/10">${p.bio || 'Official Ignis Arena Esports Athlete'}</p>
+        <p class="text-xs text-slate-300 bg-black/40 p-2.5 rounded-xl border border-white/10">${p.bio || '🔥 Official Ignis Arena Esports Athlete'}</p>
 
-        <div class="grid grid-cols-4 gap-1 text-center bg-black/50 p-2 rounded-xl text-xs">
-          <div><strong class="text-white block">${matches}</strong><span class="text-[8px] text-slate-400">Matches</span></div>
-          <div class="border-l border-white/10"><strong class="text-emerald-400 block">${wins}</strong><span class="text-[8px] text-slate-400">Booyahs</span></div>
-          <div class="border-l border-white/10"><strong class="text-[#FFC857] block">${winRate}%</strong><span class="text-[8px] text-slate-400">Win Rate</span></div>
-          <div class="border-l border-white/10"><strong class="text-cyan-400 block">LVL ${p.ignis_level || 1}</strong><span class="text-[8px] text-slate-400">Ignis Lvl</span></div>
+        <div class="grid grid-cols-4 gap-1 text-center bg-black/50 p-2.5 rounded-xl text-xs border border-white/10">
+          <div><strong class="text-white block font-extrabold">${matches}</strong><span class="text-[8px] text-slate-400">Matches</span></div>
+          <div class="border-l border-white/10"><strong class="text-emerald-400 block font-extrabold">${wins}</strong><span class="text-[8px] text-slate-400">Booyahs</span></div>
+          <div class="border-l border-white/10"><strong class="text-[#FFC857] block font-extrabold">${friendsCount}</strong><span class="text-[8px] text-slate-400">Friends</span></div>
+          <div class="border-l border-white/10"><strong class="text-cyan-400 block font-extrabold">LVL ${p.ignis_level || 1}</strong><span class="text-[8px] text-slate-400">Ignis Lvl</span></div>
         </div>
 
-        ${!isAlreadyFriend ? `
-          <button onclick="PlayerApp.sendFriendRequestTo('${p.app_id}', '${p.ign}')" class="w-full btn-hyper py-2.5 text-xs cursor-pointer">
-            <i class="ph-bold ph-paper-plane mr-1"></i> Send Friend Request
+        ${isAlreadyFriend ? `
+          <div class="text-center font-bold text-xs text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 rounded-xl py-2.5">
+            ✓ Connected as Friends &amp; Squad Teammate
+          </div>
+        ` : hasSentReq ? `
+          <button disabled class="w-full bg-white/10 text-[#FFC857] font-bold py-2.5 rounded-xl text-xs cursor-not-allowed">
+            ⏳ Friend Request Sent (Waiting Acceptance)
           </button>
         ` : `
-          <div class="text-center font-bold text-xs text-emerald-400 py-1">✓ Already Friends & Squad Teammate</div>
+          <button onclick="PlayerApp.sendFriendRequestTo('${p.app_id}', '${p.ign}')" class="w-full btn-hyper py-2.5 text-xs cursor-pointer">
+            <i class="ph-bold ph-user-plus mr-1"></i> Send Friend Request
+          </button>
         `}
       </div>
     `;
@@ -376,6 +466,7 @@ const PlayerApp = {
         target.friend_requests.push({
           appId: this.state.user.appId,
           ign: this.state.user.ign,
+          username: this.state.user.username,
           profilePhoto: this.state.user.profilePhoto || this.DEFAULT_DP,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         });
@@ -383,12 +474,11 @@ const PlayerApp = {
       }
     }
 
-    this.closeModal('addFriendsModal');
+    await this.inspectAthleteProfileByAppId(targetAppId);
     this.showToast(`Friend Request sent to ${targetIgn} (${targetAppId})!`);
   },
 
   openFriendsListModal() {
-    // Sync latest friend_requests from ignis_players_db first
     if (this.state.user) {
       const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
       const fresh = allPlayers.find(p => (p.app_id || '').toUpperCase() === this.state.user.appId.toUpperCase());
@@ -430,10 +520,10 @@ const PlayerApp = {
 
     const friends = this.state.user.friendsList || [];
     container.innerHTML = friends.length === 0
-      ? `<div class="text-center py-6 text-slate-500 text-xs">Koi friend nahi hai abhi. "Add Friends" se search karke request bhejein!</div>`
+      ? `<div class="text-center py-6 text-slate-500 text-xs">Koi friend nahi hai abhi. "Search / Add Friends" se search karke request bhejein!</div>`
       : friends.map((f, idx) => `
         <div class="flex items-center justify-between p-3 bg-black/50 border border-white/10 rounded-xl">
-          <div class="flex items-center gap-2.5">
+          <div class="flex items-center gap-2.5 cursor-pointer" onclick="PlayerApp.closeModal('friendsListModal'); PlayerApp.openAddFriendsModal(); PlayerApp.inspectAthleteProfileByAppId('${f.appId}');">
             <img src="${f.profilePhoto || this.DEFAULT_DP}" class="w-9 h-9 rounded-full object-cover border border-white/20" alt="DP">
             <div>
               <strong class="text-white text-xs block">${f.ign}</strong>
@@ -1017,7 +1107,7 @@ const PlayerApp = {
     this.showToast(`Slot #${this.state.selectedSlotNumber} Locked! Check Room IDP.`);
   },
 
-  /* ==================== PROFILE SETTINGS & PROOF UPLOAD ==================== */
+  /* ==================== PROFILE SETTINGS (WITH UNIQUE CHECK) & PROOF UPLOAD ==================== */
   openEditProfileModal() {
     if (!this.state.user) return;
     document.getElementById('editProfName').value = this.state.user.fullName || '';
@@ -1032,13 +1122,32 @@ const PlayerApp = {
 
   async saveEditedProfile() {
     if (!this.state.user) return;
-    this.state.user.fullName = document.getElementById('editProfName')?.value.trim() || this.state.user.fullName;
-    this.state.user.username = document.getElementById('editProfUsername')?.value.trim() || this.state.user.username;
-    this.state.user.bio = document.getElementById('editProfBio')?.value.trim() || this.state.user.bio;
-    this.state.user.ign = document.getElementById('editProfIgn')?.value.trim() || this.state.user.ign;
-    this.state.user.uid = document.getElementById('editProfUid')?.value.trim() || this.state.user.uid;
-    this.state.user.phone = document.getElementById('editProfPhone')?.value.trim() || this.state.user.phone;
-    this.state.user.email = document.getElementById('editProfEmail')?.value.trim() || this.state.user.email;
+    const newName = document.getElementById('editProfName')?.value.trim() || this.state.user.fullName;
+    let newUname = (document.getElementById('editProfUsername')?.value.trim() || this.state.user.username).toLowerCase().replace(/\s+/g, '_');
+    if (!newUname.startsWith('@')) newUname = '@' + newUname;
+    const newBio = document.getElementById('editProfBio')?.value.trim() || this.state.user.bio;
+    const newIgn = document.getElementById('editProfIgn')?.value.trim() || this.state.user.ign;
+    const newUid = document.getElementById('editProfUid')?.value.trim() || this.state.user.uid;
+    const newPhone = document.getElementById('editProfPhone')?.value.trim() || this.state.user.phone;
+    const newEmail = document.getElementById('editProfEmail')?.value.trim() || this.state.user.email;
+
+    // Validate uniqueness against all other accounts except current user's App ID
+    const conflict = SupabaseService.checkIdentityConflict(
+      { username: newUname, uid: newUid, ign: newIgn, phone: newPhone },
+      this.state.user.appId
+    );
+    if (conflict.hasConflict) {
+      alert(`⚠️ CANNOT SAVE:\n${conflict.message}`);
+      return;
+    }
+
+    this.state.user.fullName = newName;
+    this.state.user.username = newUname;
+    this.state.user.bio = newBio;
+    this.state.user.ign = newIgn;
+    this.state.user.uid = newUid;
+    this.state.user.phone = newPhone;
+    this.state.user.email = newEmail;
     const pass = document.getElementById('editProfPassword')?.value.trim();
     if (pass) this.state.user.password = pass;
 
@@ -1046,7 +1155,7 @@ const PlayerApp = {
     await SupabaseService.upsertPlayerProfile(this.state.user);
     this.closeModal('editProfileModal');
     this.updateUI();
-    this.showToast('Profile Settings Saved!');
+    this.showToast('Unique Profile Settings Saved!');
   },
 
   handleProofImageSelect(e) {
@@ -1213,7 +1322,7 @@ const PlayerApp = {
     if (!this.state.user) return;
     const total = this.getTotalBalance();
     document.getElementById('headerBalance').innerText = `₹${total.toFixed(0)}`;
-    document.getElementById('headerAppIdQuick').innerText = this.state.user.appId;
+    document.getElementById('headerAppIdQuick').innerText = `${this.state.user.username} (${this.state.user.appId})`;
     document.getElementById('walletDeckBalance').innerText = `₹${total.toFixed(0)}`;
     document.getElementById('walletDepositBal').innerText = `₹${Number(this.state.user.depositBal || 0).toFixed(0)}`;
     document.getElementById('walletWinningsBal').innerText = `₹${Number(this.state.user.winningsBal || 0).toFixed(0)}`;
