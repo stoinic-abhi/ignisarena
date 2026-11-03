@@ -1,4 +1,4 @@
-// js/supabaseClient.js — Live Cross-Device Supabase Cloud + Local Mirror Engine (100% Uncut)
+// js/supabaseClient.js — Complete Uncut Live Supabase Cloud + Local Mirror Engine
 
 const SupabaseService = {
   client: null,
@@ -19,10 +19,10 @@ const SupabaseService = {
       ) {
         this.client = window.supabase.createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_ANON_KEY);
         this.isCloudConnected = true;
-        console.log('🔥 IGNIS ARENA: Connected to Live Supabase Cloud!');
+        console.log('IGNIS ARENA: Live Supabase Cloud Connected!');
       }
     } catch (err) {
-      console.warn('Supabase offline, using local storage mirror:', err);
+      console.warn('Supabase offline, using local mirror:', err);
     }
 
     this.ensureDefaultData();
@@ -47,28 +47,17 @@ const SupabaseService = {
     localStorage.setItem(key, JSON.stringify(val));
     window.dispatchEvent(new Event('storage'));
 
-    // Automatically push changes to Supabase Cloud when updated locally
     if (this.isCloudConnected && !this._isSyncingFromCloud) {
       this.pushKeyToCloud(key, val);
     }
   },
 
-  /* ==================== AUTOMATIC CLOUD PULL & PUSH ENGINE ==================== */
+  /* ==================== LIVE CLOUD PULL & PUSH ENGINE ==================== */
   async pullAllFromCloud() {
     if (!this.client) return;
     this._isSyncingFromCloud = true;
     try {
-      const [
-        pRes,
-        tRes,
-        sRes,
-        cRes,
-        dRes,
-        hRes,
-        cfgRes,
-        txRes,
-        kvRes
-      ] = await Promise.all([
+      const [pRes, tRes, sRes, cRes, dRes, hRes, cfgRes, txRes, kvRes] = await Promise.all([
         this.client.from('players').select('*').order('created_at', { ascending: false }),
         this.client.from('tournaments').select('*').order('created_at', { ascending: false }),
         this.client.from('room_slots').select('*'),
@@ -97,7 +86,6 @@ const SupabaseService = {
         });
       }
 
-      // Refresh active logged-in player session with latest cloud friend requests & wallet balance
       const activeRaw = localStorage.getItem('ignis_player_session');
       if (activeRaw && pRes.data) {
         const activeUser = JSON.parse(activeRaw);
@@ -163,7 +151,6 @@ const SupabaseService = {
 
   startLiveCloudSyncLoop() {
     if (!this.client) return;
-    // Poll every 3.5 seconds so cross-device friend requests, Room IDPs & settlements update live
     setInterval(() => {
       this.pullAllFromCloud();
     }, 3500);
@@ -219,7 +206,7 @@ const SupabaseService = {
     return { hasConflict: false, field: null, message: 'Available' };
   },
 
-  /* ==================== INSTAGRAM-STYLE MULTI-RESULT SEARCH ENGINE (CLOUD + LOCAL) ==================== */
+  /* ==================== INSTAGRAM-STYLE MULTI-RESULT SEARCH ENGINE ==================== */
   async searchPlayersInstagramStyle(query, excludeAppId = null) {
     if (this.client) {
       try {
@@ -606,6 +593,29 @@ const SupabaseService = {
     return { success: true };
   },
 
+  async updateCustomPaidRoomDetails(roomId, updates) {
+    const list = this.getLocal(this.STORAGE_CUSTOM_KEY, []);
+    const room = list.find(r => r.id === roomId);
+    if (!room) return { success: false };
+
+    if (updates.title) room.title = updates.title;
+    if (updates.team_size) room.team_size = updates.team_size;
+    if (updates.ammo_mode) room.ammo_mode = updates.ammo_mode;
+    if (updates.headshot_mode) room.headshot_mode = updates.headshot_mode;
+    if (updates.assigned_operator) room.assigned_operator = updates.assigned_operator;
+    if (updates.bet_amount) {
+      const newBet = Number(updates.bet_amount);
+      room.bet_amount = newBet;
+      room.total_pool = newBet * 2;
+      room.winner_payout = Math.round(room.total_pool * 0.80);
+      room.host_cut = Math.round(room.total_pool * 0.10);
+      room.admin_cut = Math.round(room.total_pool * 0.10);
+    }
+
+    this.setLocal(this.STORAGE_CUSTOM_KEY, list);
+    return { success: true, room };
+  },
+
   async joinCustomPaidRoomAsOpponent(roomId, teamBAppId, teamBIgn) {
     const list = this.getLocal(this.STORAGE_CUSTOM_KEY, []);
     const room = list.find(r => r.id === roomId);
@@ -650,8 +660,14 @@ const SupabaseService = {
   },
 
   async deleteCustomPaidRoom(roomId) {
-    const list = this.getLocal(this.STORAGE_CUSTOM_KEY, []).filter(r => r.id !== roomId);
-    this.setLocal(this.STORAGE_CUSTOM_KEY, list);
+    const list = this.getLocal(this.STORAGE_CUSTOM_KEY, []);
+    const room = list.find(r => r.id === roomId);
+    if (room && room.room_status !== 'COMPLETED' && room.room_status !== 'REJECTED') {
+      if (room.team_a_app_id && room.bet_amount) await this.creditPlayerWalletByAppId(room.team_a_app_id, room.bet_amount, 'deposit', false);
+      if (room.team_b_app_id && room.bet_amount) await this.creditPlayerWalletByAppId(room.team_b_app_id, room.bet_amount, 'deposit', false);
+    }
+    const updated = list.filter(r => r.id !== roomId);
+    this.setLocal(this.STORAGE_CUSTOM_KEY, updated);
     return { success: true };
   },
 
