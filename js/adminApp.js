@@ -1,4 +1,4 @@
-// js/adminApp.js — 2026 Enterprise Command Deck & Real Roster Settle Engine (100% Uncut)
+// js/adminApp.js — 2026 Enterprise Command Deck, Host Payout Queue & Real Roster Settle Engine (100% Uncut)
 
 const AdminApp = {
   _verifySecretPin(input) {
@@ -14,6 +14,7 @@ const AdminApp = {
   usersList: [],
   userSearchQuery: '',
   hostsList: [],
+  hostWithdrawalsList: [],
   storeProducts: [],
   depositRequestsList: [],
   feedbacksList: [],
@@ -28,6 +29,20 @@ const AdminApp = {
       if (this.currentRole === 'owner') this.fetchSuperAdminData();
       else if (this.currentHost) this.fetchHostWorkspaceData();
     });
+  },
+
+  /* ==================== CLOUD + LOCAL SYNC FOR HOST WITHDRAWALS ==================== */
+  async saveHostWithdrawalsToCloud(list) {
+    SupabaseService.setLocal('ignis_host_withdrawals_db', list);
+    if (SupabaseService.client) {
+      try {
+        await SupabaseService.client
+          .from('app_kv_store')
+          .upsert([{ key: 'ignis_host_withdrawals_db', value: list, updated_at: new Date().toISOString() }], { onConflict: 'key' });
+      } catch (e) {
+        console.warn('Host withdrawal cloud sync warning:', e);
+      }
+    }
   },
 
   switchAuthMode(mode) {
@@ -101,7 +116,7 @@ const AdminApp = {
 
     if (isOwner) {
       document.getElementById('dashboardTitle').innerText = 'SUPER ADMIN MASTER DECK';
-      document.getElementById('dashboardSubtitle').innerHTML = 'Full Control • <span class="text-[#FFC857]">Tournaments, Dual Scanners & 10% Vault</span>';
+      document.getElementById('dashboardSubtitle').innerHTML = 'Full Control • <span class="text-[#FFC857]">Tournaments, Host Payouts &amp; 10% Vault</span>';
       document.getElementById('roleBadge').innerText = 'MASTER OWNER';
       this.fetchSuperAdminData();
       this.switchOwnerSection('overview');
@@ -113,8 +128,8 @@ const AdminApp = {
       if (document.getElementById('hostWalletUnclaimedText')) {
         document.getElementById('hostWalletUnclaimedText').innerText = `₹${Number(this.currentHost.commission_balance || 0).toFixed(0)}`;
       }
-      if (document.getElementById('hostWalletUpiText')) {
-        document.getElementById('hostWalletUpiText').innerText = this.currentHost.upi_id || 'operator@upi';
+      if (document.getElementById('hostWalletUpiInput')) {
+        document.getElementById('hostWalletUpiInput').value = this.currentHost.upi_id || 'operator@upi';
       }
       this.fetchHostWorkspaceData();
       this.switchHostSection('tournaments');
@@ -135,6 +150,7 @@ const AdminApp = {
       if (mBtn) mBtn.style.color = isCur ? '#FF6B00' : '#64748b';
     });
     if (tabKey === 'accounts') this.renderHostAccountsTable();
+    if (tabKey === 'wallet') this.renderHostWithdrawalHistory();
   },
 
   switchOwnerSection(tabKey) {
@@ -153,8 +169,176 @@ const AdminApp = {
 
     if (tabKey === 'tournaments-manage') this.renderSuperManageTournamentsTable();
     if (tabKey === 'deposits') this.refreshDepositQueue();
+    if (tabKey === 'operators') this.renderSuperHostWithdrawalsTable();
     if (tabKey === 'qr') this.loadDualQrSettings();
     if (tabKey === 'store') this.fetchAdminStoreProducts();
+  },
+
+  /* ==================== HOST COMMISSION WITHDRAWAL SYSTEM (HOST -> SUPER ADMIN) ==================== */
+  async submitHostWithdrawalRequest() {
+    if (!this.currentHost) return;
+    const upi = (document.getElementById('hostWalletUpiInput')?.value || '').trim();
+    const amt = parseFloat(document.getElementById('hostWithdrawAmountInput')?.value) || 0;
+
+    // Refresh host's latest balance from local/cloud DB
+    const allHosts = SupabaseService.getLocal('ignis_hosts_db', []);
+    const dbHost = allHosts.find(h => h.host_id === this.currentHost.host_id);
+    const currentBal = dbHost ? Number(dbHost.commission_balance || 0) : Number(this.currentHost.commission_balance || 0);
+
+    if (!upi || !upi.includes('@')) {
+      alert('Kripya sahi UPI ID daalein (e.g. name@ybl)!');
+      return;
+    }
+    if (amt < 50) {
+      alert('Minimum withdrawal amount ₹50 hai!');
+      return;
+    }
+    if (amt > currentBal) {
+      alert(`Insufficient Commission Balance! Aapke paas ₹${currentBal.toFixed(0)} available hain.`);
+      return;
+    }
+
+    // Deduct balance from Host & update UPI ID
+    const newBal = Math.max(0, currentBal - amt);
+    this.currentHost.commission_balance = newBal;
+    this.currentHost.upi_id = upi;
+
+    if (dbHost) {
+      dbHost.commission_balance = newBal;
+      dbHost.upi_id = upi;
+      SupabaseService.setLocal('ignis_hosts_db', allHosts);
+    }
+
+    document.getElementById('liveCommissionText').innerText = `₹${newBal.toFixed(0)}`;
+    if (document.getElementById('hostWalletUnclaimedText')) {
+      document.getElementById('hostWalletUnclaimedText').innerText = `₹${newBal.toFixed(0)}`;
+    }
+
+    // Create withdrawal request for Super Admin
+    const reqList = SupabaseService.getLocal('ignis_host_withdrawals_db', []);
+    const newReq = {
+      id: 'HWD-' + Math.floor(100000 + Math.random() * 900000),
+      host_id: this.currentHost.host_id,
+      host_name: this.currentHost.host_name,
+      upi_id: upi,
+      amount: amt,
+      status: 'PENDING',
+      created_at: new Date().toISOString()
+    };
+    reqList.unshift(newReq);
+    await this.saveHostWithdrawalsToCloud(reqList);
+
+    document.getElementById('hostWithdrawAmountInput').value = '';
+    this.renderHostWithdrawalHistory();
+    alert(`₹${amt} ki Commission Withdrawal Request Super Admin ke paas bhej di gayi hai! Status: PENDING.`);
+  },
+
+  renderHostWithdrawalHistory() {
+    const tbody = document.getElementById('hostWithdrawalHistoryTableBody');
+    if (!tbody || !this.currentHost) return;
+
+    const allReqs = SupabaseService.getLocal('ignis_host_withdrawals_db', []);
+    const myReqs = allReqs.filter(r => r.host_id === this.currentHost.host_id);
+
+    // Sync host balance display
+    const allHosts = SupabaseService.getLocal('ignis_hosts_db', []);
+    const dbHost = allHosts.find(h => h.host_id === this.currentHost.host_id);
+    if (dbHost) {
+      this.currentHost.commission_balance = Number(dbHost.commission_balance || 0);
+      document.getElementById('liveCommissionText').innerText = `₹${this.currentHost.commission_balance.toFixed(0)}`;
+      if (document.getElementById('hostWalletUnclaimedText')) {
+        document.getElementById('hostWalletUnclaimedText').innerText = `₹${this.currentHost.commission_balance.toFixed(0)}`;
+      }
+    }
+
+    tbody.innerHTML = myReqs.length === 0
+      ? `<tr><td colspan="4" class="py-6 text-center text-slate-500">Abhi tak koi payout request nahi bheji gayi hai.</td></tr>`
+      : myReqs.map(r => `
+        <tr class="hover:bg-white/5">
+          <td class="py-2.5 px-3 text-slate-300">${r.id}<br><span class="text-[10px] text-slate-500">${new Date(r.created_at).toLocaleString()}</span></td>
+          <td class="py-2.5 px-3 text-[#FFC857] font-bold">${r.upi_id}</td>
+          <td class="py-2.5 px-3 text-emerald-400 font-bold text-sm">₹${r.amount}</td>
+          <td class="py-2.5 px-3 text-right">
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-russo ${
+              r.status === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-300' :
+              r.status === 'REJECTED' ? 'bg-red-500/20 text-red-300' :
+              'bg-[#FFC857]/20 text-[#FFC857]'
+            }">${r.status === 'APPROVED' ? 'PAID ✓' : r.status === 'REJECTED' ? 'REJECTED (REFUNDED)' : 'PENDING SUPER ADMIN'}</span>
+          </td>
+        </tr>
+      `).join('');
+  },
+
+  renderSuperHostWithdrawalsTable() {
+    const tbody = document.getElementById('superHostWithdrawalsTableBody');
+    const badge = document.getElementById('superPendingHostWithdrawalsCount');
+    this.hostWithdrawalsList = SupabaseService.getLocal('ignis_host_withdrawals_db', []);
+
+    const pendingCount = this.hostWithdrawalsList.filter(r => r.status === 'PENDING').length;
+    if (badge) badge.innerText = pendingCount;
+    if (!tbody) return;
+
+    tbody.innerHTML = this.hostWithdrawalsList.length === 0
+      ? `<tr><td colspan="6" class="py-6 text-center text-slate-500">Koi host commission withdrawal request pending nahi hai.</td></tr>`
+      : this.hostWithdrawalsList.map(r => {
+        const isPending = r.status === 'PENDING';
+        return `
+          <tr class="hover:bg-white/5">
+            <td class="py-2.5 px-3 text-[10px] text-slate-400">${r.id}<br><span>${new Date(r.created_at).toLocaleString()}</span></td>
+            <td class="py-2.5 px-3"><strong class="text-white">${r.host_name}</strong><br><span class="text-[#FFC857] text-[10px]">${r.host_id}</span></td>
+            <td class="py-2.5 px-3">
+              <span class="text-cyan-300 font-bold">${r.upi_id}</span>
+              <button type="button" onclick="navigator.clipboard.writeText('${r.upi_id}'); alert('Copied UPI: ${r.upi_id}');" class="ml-1.5 bg-white/10 text-white px-2 py-0.5 rounded text-[9px] cursor-pointer">COPY</button>
+            </td>
+            <td class="py-2.5 px-3 text-emerald-400 font-bold text-sm">₹${r.amount}</td>
+            <td class="py-2.5 px-3">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-russo ${
+                r.status === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-300' :
+                r.status === 'REJECTED' ? 'bg-red-500/20 text-red-300' :
+                'bg-[#FFC857]/20 text-[#FFC857]'
+              }">${r.status}</span>
+            </td>
+            <td class="py-2.5 px-3 text-right space-x-1">
+              ${isPending ? `
+                <button type="button" onclick="AdminApp.approveHostWithdrawal('${r.id}')" class="bg-emerald-500 text-black font-russo px-3 py-1 rounded-lg text-[10px] cursor-pointer">MARK PAID ✓</button>
+                <button type="button" onclick="AdminApp.rejectHostWithdrawal('${r.id}')" class="bg-red-500/20 text-red-300 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">REJECT &amp; REFUND</button>
+              ` : `<span class="text-slate-500 text-[10px]">COMPLETED</span>`}
+            </td>
+          </tr>
+        `;
+      }).join('');
+  },
+
+  async approveHostWithdrawal(reqId) {
+    const list = SupabaseService.getLocal('ignis_host_withdrawals_db', []);
+    const req = list.find(r => r.id === reqId);
+    if (!req) return;
+
+    req.status = 'APPROVED';
+    await this.saveHostWithdrawalsToCloud(list);
+    await this.fetchSuperAdminData();
+    alert(`Host Payout ${req.id} (₹${req.amount} to ${req.upi_id}) marked as PAID & APPROVED!`);
+  },
+
+  async rejectHostWithdrawal(reqId) {
+    if (!confirm('Is request ko reject karein aur paisa wapas Host ke commission wallet me refund karein?')) return;
+    const list = SupabaseService.getLocal('ignis_host_withdrawals_db', []);
+    const req = list.find(r => r.id === reqId);
+    if (!req || req.status !== 'PENDING') return;
+
+    req.status = 'REJECTED';
+    await this.saveHostWithdrawalsToCloud(list);
+
+    // Refund amount back to Host's commission_balance
+    const hosts = SupabaseService.getLocal('ignis_hosts_db', []);
+    const targetHost = hosts.find(h => h.host_id === req.host_id);
+    if (targetHost) {
+      targetHost.commission_balance = Number(targetHost.commission_balance || 0) + Number(req.amount || 0);
+      SupabaseService.setLocal('ignis_hosts_db', hosts);
+    }
+
+    await this.fetchSuperAdminData();
+    alert(`Request Rejected! ₹${req.amount} wapas ${req.host_name} ke commission wallet me refund kar diye gaye hain.`);
   },
 
   /* ==================== TOURNAMENTS MANAGER: PRESETS, ADD & FAST DELETE ==================== */
@@ -358,7 +542,6 @@ const AdminApp = {
 
     document.getElementById('settleMatchHeaderTitle').innerText = `Settle: ${match.title}`;
 
-    // Fetch ONLY real joined players for this tournament
     const { data: players } = await SupabaseService.getJoinedPlayers(tournamentId);
     const roster = players || [];
 
@@ -446,6 +629,12 @@ const AdminApp = {
     if (this.currentHost) {
       this.currentHost.commission_balance = Number(this.currentHost.commission_balance || 0) + hostCut;
       document.getElementById('liveCommissionText').innerText = `₹${this.currentHost.commission_balance.toFixed(0)}`;
+      const hosts = SupabaseService.getLocal('ignis_hosts_db', []);
+      const h = hosts.find(x => x.host_id === this.currentHost.host_id);
+      if (h) {
+        h.commission_balance = this.currentHost.commission_balance;
+        SupabaseService.setLocal('ignis_hosts_db', hosts);
+      }
     }
 
     await SupabaseService.toggleMatchStatus(match.id, 'COMPLETED');
@@ -605,6 +794,7 @@ const AdminApp = {
     this.renderHostMatches();
     this.renderOperatorCustomRooms();
     this.renderHostAccountsTable();
+    this.renderHostWithdrawalHistory();
   },
 
   renderHostMatches() {
@@ -706,7 +896,7 @@ const AdminApp = {
 
         <div class="flex flex-wrap gap-1.5 pt-1">
           ${!isCompleted ? `
-            <button type="button" onclick="AdminApp.acceptAndPushCustomRoom('${r.id}', ${idx})" class="bg-emerald-500 text-black font-russo text-[10px] px-3 py-1.5 rounded-xl cursor-pointer">ACCEPT & UNLOCK CHAT</button>
+            <button type="button" onclick="AdminApp.acceptAndPushCustomRoom('${r.id}', ${idx})" class="bg-emerald-500 text-black font-russo text-[10px] px-3 py-1.5 rounded-xl cursor-pointer">ACCEPT &amp; UNLOCK CHAT</button>
             <button type="button" onclick="AdminApp.settleCustomRoomWinner('${r.id}', '${r.team_a_app_id}')" class="bg-[#FFC857]/20 text-[#FFC857] font-russo text-[10px] px-2.5 py-1.5 rounded-xl cursor-pointer">WIN SIDE A (80%)</button>
             ${r.team_b_app_id ? `<button type="button" onclick="AdminApp.settleCustomRoomWinner('${r.id}', '${r.team_b_app_id}')" class="bg-cyan-500/20 text-cyan-300 font-russo text-[10px] px-2.5 py-1.5 rounded-xl cursor-pointer">WIN SIDE B (80%)</button>` : ''}
             <button type="button" onclick="AdminApp.rejectCustomRoom('${r.id}')" class="bg-red-500/20 text-red-300 font-russo text-[10px] px-2 py-1.5 rounded-xl cursor-pointer">REJECT</button>
@@ -861,13 +1051,6 @@ const AdminApp = {
     alert(`₹${amt} successfully transferred to ${res.player.ign} (${appId})!`);
   },
 
-  async submitHostWithdrawalRequest() {
-    const amt = parseFloat(document.getElementById('hostWithdrawAmountInput')?.value) || 0;
-    if (amt <= 0) return;
-    alert(`₹${amt} cashout request sent!`);
-    document.getElementById('hostWithdrawAmountInput').value = '';
-  },
-
   /* ==================== SUPER ADMIN FETCH & USERS ==================== */
   async fetchSuperAdminData() {
     const { data: cfg } = await SupabaseService.getPlatformSettings();
@@ -884,6 +1067,7 @@ const AdminApp = {
     this.hostsList = hosts || [];
     document.getElementById('superTotalHosts').innerText = this.hostsList.length;
     this.renderSuperHostsTable();
+    this.renderSuperHostWithdrawalsTable();
 
     const tRes = await SupabaseService.getTournaments();
     this.matches = (tRes && tRes.data) ? tRes.data : [];
@@ -953,7 +1137,7 @@ const AdminApp = {
         <td class="py-2.5 px-3"><strong class="text-white block font-russo">${h.host_name}</strong><span class="text-[10px] text-[#FFC857]">${h.host_id}</span></td>
         <td class="py-2.5 px-3 text-slate-300">${h.password}</td>
         <td class="py-2.5 px-3 text-emerald-400 font-bold">₹${Number(h.commission_balance || 0).toFixed(0)}</td>
-        <td class="py-2.5 px-3"><span class="text-[10px] font-russo px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">${h.status}</span></td>
+        <td class="py-2.5 px-3 text-cyan-300">${h.upi_id || 'operator@upi'}</td>
         <td class="py-2.5 px-3 text-right">
           <button type="button" onclick="AdminApp.deleteHostAccount('${h.host_id}')" class="bg-red-500/20 text-red-300 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">REMOVE</button>
         </td>
