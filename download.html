@@ -1,14 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta name="title" content="Ignis Arena — Free Fire Esports & Tournament Platform">
-<meta name="description" content="Join daily Free Fire paid custom matches, esports scrims and tournaments with instant UPI cashouts on Ignis Arena. Download official app.">
-<meta name="keywords" content="Ignis Arena, Free Fire Tournament App, Free Fire Custom Room, FF Paid Scrims, Ignis Arena APK">
-<meta name="robots" content="index, follow">
-  <meta name="google-site-verification" content="7BIR1_x4BY5HAVXxUvnEyRaZtXpicMiYO6SK2-I7u70" />
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Ignis Arena — Download APK</title>
+  <title>Ignis Arena — Official Esports Client</title>
+  
+  <!-- iOS Native Web App Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Ignis Arena">
+  <link rel="apple-touch-icon" href="logo.png">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
   <style>
@@ -41,33 +43,130 @@
     </h1>
     <p class="text-xs text-neutral-400 uppercase tracking-widest mt-1 font-semibold">Official Esports Client</p>
 
-    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-semibold mt-3 mb-8">
+    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-semibold mt-3 mb-6">
       <i class="fa-solid fa-shield-check"></i>
-      <span>Verified Clean Build • 0/66 VirusTotal</span>
+      <span>Verified Clean Build • Fast & Secure</span>
     </div>
 
     <!-- Action Box -->
     <div class="w-full bg-neutral-900/60 border border-neutral-800/90 rounded-3xl p-5 backdrop-blur-xl shadow-2xl">
-      <a href="https://github.com/stoinic-abhi/ignisarena/releases/download/v1.0/app-release.apk" 
-         class="btn-glow w-full py-4 bg-gradient-to-r from-orange-600 via-amber-500 to-orange-500 hover:from-orange-500 hover:to-amber-400 text-white font-extrabold text-base uppercase tracking-wider rounded-2xl flex items-center justify-center gap-3 active:scale-95 transition-all">
-        <i class="fa-solid fa-download text-lg"></i>
-        <span>Download Android APK</span>
-      </a>
+      
+      <!-- Android Button (Default) -->
+      <div id="android-section">
+        <a href="https://github.com/stoinic-abhi/ignisarena/releases/download/v1.0/app-release.apk" 
+           class="btn-glow w-full py-4 bg-gradient-to-r from-orange-600 via-amber-500 to-orange-500 hover:from-orange-500 hover:to-amber-400 text-white font-extrabold text-base uppercase tracking-wider rounded-2xl flex items-center justify-center gap-3 active:scale-95 transition-all">
+          <i class="fa-brands fa-android text-xl"></i>
+          <span>Download Android APK</span>
+        </a>
 
-      <div class="flex items-center justify-center gap-3 mt-3.5 text-[11px] text-neutral-400 font-medium">
-        <span><i class="fa-brands fa-android text-emerald-400 mr-1"></i> Android 7.0+</span>
-        <span>•</span>
-        <span>10.3 MB</span>
-        <span>•</span>
-        <span>v1.0.0</span>
+        <div class="flex items-center justify-center gap-3 mt-3.5 text-[11px] text-neutral-400 font-medium">
+          <span><i class="fa-brands fa-android text-emerald-400 mr-1"></i> Android 7.0+</span>
+          <span>•</span>
+          <span>10.3 MB</span>
+          <span>•</span>
+          <span>v1.0.0</span>
+        </div>
+
+        <button onclick="showIosGuide()" class="mt-4 text-xs text-neutral-400 hover:text-white underline underline-offset-4 flex items-center justify-center gap-1.5 mx-auto">
+          <i class="fa-brands fa-apple text-sm"></i>
+          <span>Using an iPhone? Tap here</span>
+        </button>
       </div>
+
+      <!-- iOS Section (Visible on iPhone / iPad) -->
+      <div id="ios-section" class="hidden">
+        <button onclick="showIosGuide()" 
+           class="btn-glow w-full py-4 bg-gradient-to-r from-neutral-800 to-neutral-700 hover:from-neutral-700 hover:to-neutral-600 text-white font-extrabold text-base uppercase tracking-wider rounded-2xl flex items-center justify-center gap-3 active:scale-95 transition-all border border-white/20">
+          <i class="fa-brands fa-apple text-2xl"></i>
+          <span>Install Web App (iOS)</span>
+        </button>
+
+        <div class="flex items-center justify-center gap-3 mt-3.5 text-[11px] text-neutral-400 font-medium">
+          <span><i class="fa-brands fa-apple text-white mr-1"></i> iOS 14.0+</span>
+          <span>•</span>
+          <span>Instant Launch</span>
+          <span>•</span>
+          <span>Zero Storage</span>
+        </div>
+
+        <button onclick="showAndroidSection()" class="mt-4 text-xs text-neutral-400 hover:text-white underline underline-offset-4 flex items-center justify-center gap-1.5 mx-auto">
+          <i class="fa-brands fa-android text-sm text-emerald-400"></i>
+          <span>Need Android APK instead?</span>
+        </button>
+      </div>
+
     </div>
 
   </main>
 
+  <!-- iOS Step-by-Step Instruction Modal -->
+  <div id="ios-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-4 hidden">
+    <div class="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 w-full max-w-sm text-center relative shadow-2xl animate-fade-in">
+      
+      <button onclick="closeIosGuide()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-neutral-800 text-neutral-400 flex items-center justify-center hover:text-white">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center mx-auto mb-3 text-xl">
+        <i class="fa-brands fa-apple"></i>
+      </div>
+
+      <h3 class="text-lg font-bold text-white">Add Ignis Arena to iPhone</h3>
+      <p class="text-xs text-neutral-400 mt-1 mb-5">Sirf 2 simple steps mein full-screen app install karein (Safari Browser):</p>
+
+      <div class="space-y-3 text-left">
+        <div class="flex items-center gap-3.5 p-3 rounded-2xl bg-neutral-950/70 border border-neutral-800/80">
+          <div class="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-arrow-up-from-bracket text-sm"></i>
+          </div>
+          <div class="text-xs text-neutral-300">
+            Safari ke bottom bar par <span class="text-white font-bold">'Share' (Export)</span> icon dabayein.
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3.5 p-3 rounded-2xl bg-neutral-950/70 border border-neutral-800/80">
+          <div class="w-8 h-8 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center shrink-0">
+            <i class="fa-regular fa-square-plus text-sm"></i>
+          </div>
+          <div class="text-xs text-neutral-300">
+            Scroll karke <span class="text-amber-400 font-bold">'Add to Home Screen'</span> chunein aur <span class="text-white font-bold">'Add'</span> dabayein.
+          </div>
+        </div>
+      </div>
+
+      <a href="https://ignisarena.vercel.app/" class="mt-5 w-full py-3.5 bg-gradient-to-r from-orange-600 to-amber-500 text-white font-bold text-sm uppercase rounded-xl flex items-center justify-center gap-2">
+        <span>Open Web App Now</span>
+        <i class="fa-solid fa-arrow-right text-xs"></i>
+      </a>
+    </div>
+  </div>
+
   <footer class="relative z-10 text-[11px] text-neutral-600 mt-8 text-center">
-    © 2026 Ignis Arena Esports • Secure Client
+    © 2026 Ignis Arena Esports • Universal Web Client
   </footer>
+
+  <script>
+    // Auto detect iOS device
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+    if (isIOS) {
+      document.getElementById('android-section').classList.add('hidden');
+      document.getElementById('ios-section').classList.remove('hidden');
+    }
+
+    function showIosGuide() {
+      document.getElementById('ios-modal').classList.remove('hidden');
+    }
+
+    function closeIosGuide() {
+      document.getElementById('ios-modal').classList.add('hidden');
+    }
+
+    function showAndroidSection() {
+      document.getElementById('ios-section').classList.add('hidden');
+      document.getElementById('android-section').classList.remove('hidden');
+    }
+  </script>
 
 </body>
 </html>
