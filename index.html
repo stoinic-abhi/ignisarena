@@ -595,7 +595,7 @@
     </nav>
   </div>
 
-  <!-- ==================== ALL MODALS ==================== -->
+  <!-- ==================== ALL 12 MODALS (COMPLETE & UNCUT) ==================== -->
 
   <!-- MODAL 1: INSTAGRAM-STYLE LIVE SEARCH & FULL PROFILE EXPLORER -->
   <div id="addFriendsModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
@@ -606,16 +606,13 @@
         <h3 class="font-extrabold text-base text-white">Search by @Username, IGN, UID or App ID</h3>
       </div>
 
-      <!-- Live Search Input -->
       <div class="relative">
         <i class="ph-bold ph-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
         <input type="text" id="searchFriendAppIdInput" oninput="PlayerApp.handleLiveInstagramSearch(this.value)" placeholder="Search @username, IGN, UID or IGNIS-XXXX..." class="w-full bg-white/5 border border-white/15 focus:border-cyan-400 rounded-2xl pl-9 pr-4 py-2.5 text-xs text-white font-semibold focus:outline-none">
       </div>
 
-      <!-- Selected Athlete Full Instagram Profile Card -->
       <div id="searchedUserProfileDisplay" class="hidden"></div>
 
-      <!-- Live Filtered Search Results List -->
       <div class="space-y-2">
         <div class="flex items-center justify-between">
           <span id="instaSearchHeaderLabel" class="text-[10px] font-bold text-slate-400 uppercase">All Registered Athletes</span>
@@ -630,9 +627,7 @@
   <div id="friendsListModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-md w-full p-5 space-y-4 max-h-[85vh] overflow-y-auto relative">
       <button onclick="PlayerApp.closeModal('friendsListModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
-      
       <div id="pendingRequestsContainer" class="space-y-2 border-b border-white/10 pb-3"></div>
-
       <h3 class="font-extrabold text-base text-white">Accepted Teammates &amp; Friends</h3>
       <div id="friendsRosterContainer" class="space-y-2"></div>
     </div>
@@ -747,7 +742,47 @@
     </div>
   </div>
 
-  <!-- MODAL 7: TOURNAMENT DETAILS -->
+  <!-- MODAL 7: EDIT PAID ROOM MODAL -->
+  <div id="editPaidRoomModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-md w-full p-5 space-y-3.5 relative">
+      <button onclick="PlayerApp.closeModal('editPaidRoomModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+      <h3 class="font-extrabold text-base text-white">Edit Paid Room / Change Entry Fee</h3>
+      <input type="hidden" id="editPaidRoomIdInput">
+      <div class="space-y-3 text-xs">
+        <input type="text" id="editPaidRoomTitle" class="w-full bg-white/5 border border-white/15 rounded-xl px-3.5 py-2.5 text-white">
+        <div class="grid grid-cols-2 gap-2.5">
+          <select id="editPaidRoomSize" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2.5 text-white font-bold">
+            <option value="CS 1v1" class="bg-[#06070A]">CS 1v1</option>
+            <option value="CS 2v2" class="bg-[#06070A]">CS 2v2</option>
+            <option value="CS 3v3" class="bg-[#06070A]">CS 3v3</option>
+            <option value="CS 4v4" class="bg-[#06070A]">CS 4v4</option>
+          </select>
+          <select id="editPaidRoomAmmo" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2.5 text-white font-bold">
+            <option value="Unlimited" class="bg-[#06070A]">Unlimited</option>
+            <option value="Limited" class="bg-[#06070A]">Limited</option>
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-2.5">
+          <select id="editPaidRoomHs" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2.5 text-[#FFC857] font-bold">
+            <option value="YES" class="bg-[#06070A]">HS: YES</option>
+            <option value="NO" class="bg-[#06070A]">HS: NO</option>
+          </select>
+          <input type="number" id="editPaidRoomBet" min="50" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2.5 text-emerald-400 font-bold">
+        </div>
+        <select id="editPaidRoomHost" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2.5 text-white">
+          <option value="ANY_HOST" class="bg-[#06070A]">Any Host</option>
+          <option value="host_01" class="bg-[#06070A]">host_01 (Aman)</option>
+          <option value="host_02" class="bg-[#06070A]">host_02 (Rohit)</option>
+          <option value="host_03" class="bg-[#06070A]">host_03 (Vikas)</option>
+          <option value="host_04" class="bg-[#06070A]">host_04 (Karan)</option>
+          <option value="host_05" class="bg-[#06070A]">host_05 (Deepak)</option>
+        </select>
+      </div>
+      <button onclick="PlayerApp.saveEditedPaidRoom()" class="w-full btn-hyper py-3 text-xs cursor-pointer">Save Changes</button>
+    </div>
+  </div>
+
+  <!-- MODAL 8: TOURNAMENT DETAILS -->
   <div id="tournamentDetailsModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-lg w-full p-5 relative max-h-[90vh] overflow-y-auto space-y-3">
       <button onclick="PlayerApp.closeModal('tournamentDetailsModal')" class="absolute top-4 right-4 text-slate-300"><i class="fa-solid fa-xmark"></i></button>
@@ -761,7 +796,7 @@
     </div>
   </div>
 
-  <!-- MODAL 8: PAID ROOM HOST CHAT -->
+  <!-- MODAL 9: PAID ROOM HOST CHAT -->
   <div id="paidRoomChatModal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-lg w-full p-5 relative max-h-[90vh] flex flex-col justify-between space-y-3.5">
       <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
@@ -776,7 +811,7 @@
     </div>
   </div>
 
-  <!-- MODAL 9: NOTIFICATIONS -->
+  <!-- MODAL 10: NOTIFICATIONS -->
   <div id="notificationModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-md w-full p-5 space-y-3.5">
       <div class="flex justify-between border-b border-white/10 pb-2"><h3 class="font-extrabold text-white">Notifications</h3><button onclick="PlayerApp.closeModal('notificationModal')"><i class="fa-solid fa-xmark"></i></button></div>
@@ -785,7 +820,7 @@
     </div>
   </div>
 
-  <!-- MODAL 10: FEEDBACK -->
+  <!-- MODAL 11: FEEDBACK -->
   <div id="feedbackModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-sm w-full p-5 space-y-3">
       <div class="flex justify-between"><h3 class="font-extrabold text-white">Support &amp; Cheater Report</h3><button onclick="PlayerApp.closeModal('feedbackModal')"><i class="fa-solid fa-xmark"></i></button></div>
@@ -794,7 +829,7 @@
     </div>
   </div>
 
-  <!-- MODAL 11: PROOF UPLOAD -->
+  <!-- MODAL 12: PROOF UPLOAD -->
   <div id="proofUploadModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-sm w-full p-5 space-y-3.5 relative">
       <button onclick="PlayerApp.closeModal('proofUploadModal')" class="absolute top-4 right-4 text-slate-400"><i class="fa-solid fa-xmark text-lg"></i></button>
