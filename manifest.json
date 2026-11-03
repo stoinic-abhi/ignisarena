@@ -2,8 +2,8 @@
   "name": "Ignis Arena",
   "short_name": "IgnisArena",
   "description": "Official Free Fire India Esports Tournament Platform",
-  "start_url": "https://stoinic-abhi.github.io/ignisarena/",
-  "scope": "https://stoinic-abhi.github.io/ignisarena/",
+  "start_url": "/ignisarena/",
+  "scope": "/ignisarena/",
   "id": "/ignisarena/",
   "display": "standalone",
   "orientation": "portrait",
@@ -11,32 +11,16 @@
   "theme_color": "#06070A",
   "icons": [
     {
-      "src": "https://stoinic-abhi.github.io/ignisarena/logo.png",
+      "src": "logo.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://stoinic-abhi.github.io/ignisarena/logo.png",
+      "src": "logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "https://stoinic-abhi.github.io/ignisarena/splash.png",
-      "sizes": "1080x1920",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Ignis Arena Mobile"
-    },
-    {
-      "src": "https://stoinic-abhi.github.io/ignisarena/splash.png",
-      "sizes": "1080x1920",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Ignis Arena Deck"
     }
   ]
 }
