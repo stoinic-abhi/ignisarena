@@ -1,4 +1,4 @@
-// js/playerApp.js — 100% Complete Uncut Player Engine (All 9 Bugs Fixed + 4K Crown Logo & Live Sync)
+// js/playerApp.js — 100% Complete Uncut Player Engine (1-Click Instant Auth, Profile-Only Setup, Custom Logo & Clean Splash)
 
 const PlayerApp = {
   BASE_FF_WALLPAPER: 'https://images2.alphacoders.com/112/1126388.jpg',
@@ -9,30 +9,15 @@ const PlayerApp = {
   _lastSeenNotifId: localStorage.getItem('ignis_last_seen_notif_id') || '',
   _chatPollTimer: null,
 
-  // Custom 4K Vector Crown + Ignis Shield Logo (Replaces old fire icon)
-  IGNIS_4K_LOGO_SVG: `
-    <svg viewBox="0 0 120 120" class="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="igBg" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stop-color="#1A0B2E"/>
-          <stop offset="50%" stop-color="#0B0716"/>
-          <stop offset="100%" stop-color="#2D0845"/>
-        </linearGradient>
-        <linearGradient id="igGold" x1="20" y1="15" x2="100" y2="105" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stop-color="#FFE066"/>
-          <stop offset="50%" stop-color="#FF6B00"/>
-          <stop offset="100%" stop-color="#A855F7"/>
-        </linearGradient>
-      </defs>
-      <rect width="120" height="120" rx="28" fill="url(#igBg)"/>
-      <rect x="3" y="3" width="114" height="114" rx="25" stroke="url(#igGold)" stroke-width="4"/>
-      <path d="M24 46L42 60L60 30L78 60L96 46L88 82H32L24 46Z" fill="url(#igGold)"/>
-      <path d="M32 88H88V95C88 97.2 86.2 99 84 99H36C33.8 99 32 97.2 32 95V88Z" fill="#FFC857"/>
-      <circle cx="60" cy="24" r="5" fill="#FFE066"/>
-      <circle cx="24" cy="40" r="4" fill="#FF6B00"/>
-      <circle cx="96" cy="40" r="4" fill="#A855F7"/>
+  // Fallback 4K Crown SVG (Used ONLY if assets/app-icon.png or logo.png is not uploaded yet)
+  FALLBACK_CROWN_LOGO_SVG_URI: 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+    <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="120" rx="28" fill="#120824"/>
+      <rect x="4" y="4" width="112" height="112" rx="24" stroke="#FF6B00" stroke-width="4"/>
+      <path d="M24 46L42 60L60 30L78 60L96 46L88 82H32L24 46Z" fill="#FFC857"/>
+      <path d="M32 88H88V95C88 97.2 86.2 99 84 99H36C33.8 99 32 97.2 32 95V88Z" fill="#FF6B00"/>
     </svg>
-  `,
+  `.trim()),
 
   state: {
     user: null,
@@ -57,43 +42,37 @@ const PlayerApp = {
     notifications: []
   },
 
-  inject4KBrandingAndSplash() {
-    // Replace all old fire icons in header & auth gate with 4K Crown Emblem
-    document.querySelectorAll('.ph-fire').forEach(icon => {
-      const parent = icon.parentElement;
-      if (parent) {
-        parent.innerHTML = this.IGNIS_4K_LOGO_SVG;
-        parent.style.background = 'transparent';
-        parent.style.padding = '0';
-      }
+  setupCustomLogoAndSplash() {
+    // 1. Setup Header & Auth Logo: Checks assets/app-icon.png -> logo.png -> assets/logo.png -> Fallback SVG
+    const logoPaths = ['assets/app-icon.png', 'logo.png', 'assets/logo.png', 'assets/app-icon.jpg', this.FALLBACK_CROWN_LOGO_SVG_URI];
+    ['headerBrandLogo', 'authGateBrandLogo'].forEach(imgId => {
+      const imgEl = document.getElementById(imgId);
+      if (!imgEl) return;
+      let idx = 0;
+      imgEl.onerror = () => {
+        idx++;
+        if (idx < logoPaths.length) imgEl.src = logoPaths[idx];
+      };
+      imgEl.src = logoPaths[0];
     });
 
-    // Set SVG as crisp 4K data-URI favicon
-    const svgBlob = 'data:image/svg+xml;utf8,' + encodeURIComponent(this.IGNIS_4K_LOGO_SVG.trim());
-    const fav = document.getElementById('dynamicFavicon');
-    const appFav = document.getElementById('dynamicAppleIcon');
-    if (fav) fav.href = svgBlob;
-    if (appFav) appFav.href = svgBlob;
-
-    // Smart fallback loader for user's custom 9:16 Splash Poster
+    // 2. Setup Clean Full-Screen Opening Poster: Checks assets/splash.png -> splash.png -> assets/splash.jpg
     const splashImg = document.getElementById('customSplashPosterImg');
     if (splashImg) {
-      const candidatePaths = [
+      const splashPaths = [
         'assets/splash.png',
-        'assets/splash.jpg',
-        'assets/splash.jpeg',
         'splash.png',
+        'assets/splash.jpg',
         'splash.jpg',
+        'assets/splash.jpeg',
         'https://images2.alphacoders.com/112/1126388.jpg'
       ];
-      let idx = 0;
-      const tryNext = () => {
-        if (idx < candidatePaths.length) {
-          splashImg.src = candidatePaths[idx++];
-        }
+      let sIdx = 0;
+      splashImg.onerror = () => {
+        sIdx++;
+        if (sIdx < splashPaths.length) splashImg.src = splashPaths[sIdx];
       };
-      splashImg.onerror = tryNext;
-      tryNext();
+      splashImg.src = splashPaths[0];
     }
   },
 
@@ -145,38 +124,45 @@ const PlayerApp = {
 
   async init() {
     this.stabilizeSupabaseBridge();
-    this.inject4KBrandingAndSplash();
+    this.setupCustomLogoAndSplash();
     this.initAtmosphericCanvas();
 
     const splashEl = document.getElementById('ignisSplashScreen');
     const alreadyShown = sessionStorage.getItem('ignis_splash_done');
-    const splashDelay = alreadyShown ? 350 : 2400;
+    const splashDelay = alreadyShown ? 250 : 2000;
 
-    if (SupabaseService.isCloudConnected) {
-      await SupabaseService.pullAllFromCloud(true);
-    }
-    await this.loadPlatformConfig();
+    // Immediately load from local mirror so app never hangs on startup
     this.checkSavedSession();
-    await this.fetchMatches(true);
-    await this.fetchCustomPaidRooms(true);
+    this.state.tournaments = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
+    this.state.customPaidRooms = SupabaseService.getLocal(SupabaseService.STORAGE_CUSTOM_KEY, []);
     this.syncJoinedMatchesFromSlots();
     this.loadNotifications(false);
     this.setupRealtimeSync();
     this.startLiveChatAndNotifPoller();
     this.recalcCustomWagerMath();
+    this.renderTournaments(true);
+    this.renderCustomPaidRooms(true);
+
+    // Pull latest cloud data in background without blocking splash screen
+    if (SupabaseService.isCloudConnected) {
+      SupabaseService.pullAllFromCloud(true).then(() => {
+        this.loadPlatformConfig();
+        this.fetchMatches(true);
+        this.fetchCustomPaidRooms(true);
+      });
+    }
 
     setTimeout(() => {
       sessionStorage.setItem('ignis_splash_done', 'true');
       if (splashEl) {
         splashEl.style.opacity = '0';
-        setTimeout(() => splashEl.classList.add('hidden'), 450);
+        setTimeout(() => splashEl.classList.add('hidden'), 400);
       }
       this.loadAllTimeTransactions();
       this.checkDeepLinkPaidRoom();
     }, splashDelay);
   },
 
-  // Check if user tapped a shared Paid Room invite link (?paidroom=WGR-XXXX)
   checkDeepLinkPaidRoom() {
     const params = new URLSearchParams(window.location.search);
     const roomId = params.get('paidroom');
@@ -222,7 +208,7 @@ const PlayerApp = {
     this.state.platformSettings = data;
   },
 
-  /* ==================== AUTH & ONE-TIME COMPLETE PROFILE ==================== */
+  /* ==================== 1-CLICK INSTANT AUTH (NO DELAY, NO AUTO POPUP ON HOME) ==================== */
   switchAuthMode(mode) {
     this.state.authMode = mode;
     const isSignIn = mode === 'signin';
@@ -270,7 +256,6 @@ const PlayerApp = {
         this.syncJoinedMatchesFromSlots();
         this.populateOpponentFriendsDropdown();
         this.updateUI();
-        if (!this.isProfileComplete(this.state.user)) this.openCompleteProfileModal();
         return;
       } catch (e) {}
     }
@@ -305,33 +290,50 @@ const PlayerApp = {
     const idInput = (document.getElementById('loginIdentifierInput')?.value || '').trim();
     const passInput = (document.getElementById('loginPasswordInput')?.value || '').trim();
     if (!idInput || !passInput) { alert('Enter @Username / WhatsApp Number and Password!'); return; }
-    const res = await SupabaseService.authenticatePlayer(idInput, passInput);
-    if (!res.success) { alert(res.error || 'Account not found or wrong password!'); return; }
-    this.state.user = res.player;
-    this.state.user.profileCompleted = this.isProfileComplete(this.state.user);
-    localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
-    document.getElementById('playerAuthGate')?.classList.add('hidden');
-    document.getElementById('mainPlayerPortal')?.classList.remove('hidden');
-    this.syncJoinedMatchesFromSlots();
-    this.populateOpponentFriendsDropdown();
-    this.updateUI();
-    if (!this.state.user.profileCompleted) this.openCompleteProfileModal();
-    this.showToast(`Welcome back, ${this.state.user.username}!`);
+
+    const btn = document.getElementById('btnSignInSubmit');
+    if (btn) btn.innerHTML = '<span>Signing In...</span>';
+
+    try {
+      const res = await SupabaseService.authenticatePlayer(idInput, passInput);
+      if (!res.success) {
+        alert(res.error || 'Account not found or wrong password!');
+        return;
+      }
+      this.state.user = res.player;
+      this.state.user.profileCompleted = this.isProfileComplete(this.state.user);
+      localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
+
+      document.getElementById('playerAuthGate')?.classList.add('hidden');
+      document.getElementById('mainPlayerPortal')?.classList.remove('hidden');
+      this.syncJoinedMatchesFromSlots();
+      this.populateOpponentFriendsDropdown();
+      this.updateUI();
+      this.switchTab('tournaments');
+      this.showToast(`Welcome back, ${this.state.user.username}!`);
+    } finally {
+      if (btn) btn.innerHTML = '<span>Sign In &amp; Open Arena</span><i class="ph-bold ph-sign-in"></i>';
+    }
   },
 
-  async completePlayerAuth() {
+  // 1-CLICK INSTANT ACCOUNT CREATION (0ms local save + background cloud sync, NO immediate popup)
+  completePlayerAuth() {
     const fullName = (document.getElementById('authFullNameInput')?.value || '').trim();
     const usernameRaw = (document.getElementById('authUsernameInput')?.value || '').trim().toLowerCase().replace(/\s+/g, '_');
     const phone = (document.getElementById('authPhoneInput')?.value || '').trim();
     const password = (document.getElementById('authPasswordInput')?.value || '').trim();
+
     if (!fullName || !usernameRaw || phone.length < 10 || !password) {
       alert('Please fill Full Name, Unique @Username, 10-digit WhatsApp Number, and Password.');
       return;
     }
+
     const username = usernameRaw.startsWith('@') ? usernameRaw : '@' + usernameRaw;
-    if (SupabaseService.isCloudConnected) await SupabaseService.pullAllFromCloud(true);
     const conflictCheck = SupabaseService.checkIdentityConflict({ username, phone });
-    if (conflictCheck.hasConflict) { alert(conflictCheck.message); return; }
+    if (conflictCheck.hasConflict) {
+      alert(conflictCheck.message);
+      return;
+    }
 
     let appId = 'IGNIS-' + Math.floor(1000 + Math.random() * 9000);
     const existingList = SupabaseService.getLocal('ignis_players_db', []);
@@ -340,20 +342,41 @@ const PlayerApp = {
     }
 
     const newUser = {
-      appId, fullName, username, phone, email: '', password, uid: '',
-      ign: username.replace(/^@/, ''), level: 'Level 70', ignisLevel: 1, xp: 0,
-      bio: '🔥 Official Ignis Arena Athlete', profilePhoto: this.DEFAULT_DP,
-      firstDepositDone: false, profileCompleted: false, matchesPlayed: 0, tournamentsWon: 0,
-      depositBal: 0, winningsBal: 0, friendsList: [], friendRequests: []
+      appId,
+      fullName,
+      username,
+      phone,
+      email: '',
+      password,
+      uid: '',
+      ign: username.replace(/^@/, ''),
+      level: 'Level 70',
+      ignisLevel: 1,
+      xp: 0,
+      bio: '🔥 Official Ignis Arena Athlete',
+      profilePhoto: this.DEFAULT_DP,
+      firstDepositDone: false,
+      profileCompleted: false,
+      matchesPlayed: 0,
+      tournamentsWon: 0,
+      depositBal: 0,
+      winningsBal: 0,
+      friendsList: [],
+      friendRequests: []
     };
 
-    await SupabaseService.upsertPlayerProfile(newUser);
+    // Save locally & transition to Tournaments immediately on 1st click!
     this.state.user = newUser;
     localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
+
     document.getElementById('playerAuthGate')?.classList.add('hidden');
     document.getElementById('mainPlayerPortal')?.classList.remove('hidden');
     this.updateUI();
-    this.openCompleteProfileModal();
+    this.switchTab('tournaments');
+    this.showToast(`Welcome ${username} (${appId})!`);
+
+    // Sync to Supabase Cloud in the background without blocking UI
+    SupabaseService.upsertPlayerProfile(newUser);
   },
 
   openCompleteProfileModal() {
@@ -362,7 +385,8 @@ const PlayerApp = {
       return;
     }
     document.getElementById('compUidInput').value = this.state.user.uid || '';
-    document.getElementById('compIgnInput').value = '';
+    const defaultIgn = this.state.user.username ? this.state.user.username.replace(/^@/, '') : '';
+    document.getElementById('compIgnInput').value = (this.state.user.ign && this.state.user.ign !== defaultIgn) ? this.state.user.ign : '';
     document.getElementById('compEmailInput').value = this.state.user.email || '';
     document.getElementById('completeProfileModal')?.classList.remove('hidden');
   },
@@ -399,11 +423,13 @@ const PlayerApp = {
     this.state.user.level = level;
     this.state.user.profileCompleted = true;
     localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
-    await SupabaseService.upsertPlayerProfile(this.state.user);
+
     document.getElementById('completeProfileModal')?.classList.add('hidden');
     document.getElementById('incompleteProfileBanner')?.classList.add('hidden');
     this.updateUI();
-    this.showToast(`Profile Completed! Welcome ${ign}`);
+    this.showToast(`Profile Completed! IGN: ${ign}`);
+
+    SupabaseService.upsertPlayerProfile(this.state.user);
   },
 
   logoutPlayer() {
@@ -625,7 +651,7 @@ const PlayerApp = {
     this.updateUI();
   },
 
-  /* ==================== TAB 1: TOURNAMENTS & COMPLETED STANDINGS ==================== */
+  /* ==================== TAB 1: TOURNAMENTS ==================== */
   setCategoryFilter(cat) {
     this.state.categoryFilter = cat;
     this._lastTourneyRenderHash = '';
@@ -727,7 +753,7 @@ const PlayerApp = {
     });
   },
 
-  /* ==================== TAB 2: ROOM IDP WITH 3 TABS (UPCOMING / LIVE / COMPLETED) & HOST MESSAGE ==================== */
+  /* ==================== TAB 2: ROOM IDP WITH 3 TABS ==================== */
   switchRoomIdpFilter(tabStatus) {
     this.state.idpTabFilter = tabStatus;
     ['UPCOMING', 'LIVE', 'COMPLETED'].forEach(st => {
@@ -807,7 +833,7 @@ const PlayerApp = {
       `).join('');
   },
 
-  /* ==================== TAB 3: PAID ROOMS (ADD OPPONENT FROM FRIENDS, SHARE LINK & WINNER BANNER) ==================== */
+  /* ==================== TAB 3: PAID ROOMS ==================== */
   populateOpponentFriendsDropdown() {
     const sel = document.getElementById('customRoomOpponentSelect');
     if (!sel) return;
@@ -827,7 +853,10 @@ const PlayerApp = {
 
   async createPaidCustomChallenge() {
     if (!this.state.user) return;
-    if (!this.isProfileComplete(this.state.user)) { this.openCompleteProfileModal(); return; }
+    if (!this.isProfileComplete(this.state.user)) {
+      this.switchTab('profile');
+      return;
+    }
 
     const title = (document.getElementById('customRoomTitle')?.value || '').trim() || `${this.state.user.ign}'s Wager Room`;
     const teamSize = document.getElementById('customTeamSize')?.value || 'CS 4v4';
@@ -856,7 +885,7 @@ const PlayerApp = {
       this.state.user.winningsBal = Math.max(0, this.state.user.winningsBal - rem);
     }
     localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
-    await SupabaseService.upsertPlayerProfile(this.state.user);
+    SupabaseService.upsertPlayerProfile(this.state.user);
 
     const totalPool = bet * 2;
     const roomId = 'WGR-' + Date.now().toString().slice(-5);
@@ -895,7 +924,7 @@ const PlayerApp = {
   sharePaidRoomLink(roomId) {
     const shareUrl = `${window.location.origin}${window.location.pathname}?paidroom=${roomId}`;
     navigator.clipboard.writeText(shareUrl);
-    this.showToast(`🔗 Paid Room Link Copied! Send to your opponent to join directly.`);
+    this.showToast(`🔗 Paid Room Link Copied! Share with your opponent.`);
   },
 
   renderCustomPaidRooms(forceRender = false) {
@@ -975,7 +1004,10 @@ const PlayerApp = {
 
   async acceptPaidChallengeAsTeamB(roomId) {
     if (!this.state.user) return;
-    if (!this.isProfileComplete(this.state.user)) { this.openCompleteProfileModal(); return; }
+    if (!this.isProfileComplete(this.state.user)) {
+      this.switchTab('profile');
+      return;
+    }
     const room = this.state.customPaidRooms.find(r => r.id === roomId);
     if (!room) return;
     if (room.bet_amount > this.getTotalBalance()) {
@@ -990,7 +1022,7 @@ const PlayerApp = {
       this.state.user.winningsBal = Math.max(0, this.state.user.winningsBal - rem);
     }
     localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
-    await SupabaseService.upsertPlayerProfile(this.state.user);
+    SupabaseService.upsertPlayerProfile(this.state.user);
     await SupabaseService.joinCustomPaidRoomAsOpponent(roomId, this.state.user.appId, this.state.user.ign);
     this._lastCustomRoomRenderHash = '';
     await this.fetchCustomPaidRooms(true);
@@ -998,7 +1030,6 @@ const PlayerApp = {
     this.showToast('Joined Side B! Open Host Chat for updates.');
   },
 
-  /* ==================== LIVE AUTO-REFRESHING PAID ROOM CHAT & BROADCAST POLLER ==================== */
   startLiveChatAndNotifPoller() {
     if (this._chatPollTimer) clearInterval(this._chatPollTimer);
     this._chatPollTimer = setInterval(async () => {
@@ -1108,7 +1139,7 @@ const PlayerApp = {
     }
     this.state.user.winningsBal -= amt;
     localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
-    await SupabaseService.upsertPlayerProfile(this.state.user);
+    SupabaseService.upsertPlayerProfile(this.state.user);
 
     const ledger = SupabaseService.getLocal('ignis_all_time_transactions', []);
     ledger.unshift({
@@ -1199,7 +1230,10 @@ const PlayerApp = {
   /* ==================== SQUAD CO-PAY & TOURNAMENT WINNER STANDINGS MODAL ==================== */
   openJoinModal(matchId) {
     if (!this.state.user) return;
-    if (!this.isProfileComplete(this.state.user)) { this.openCompleteProfileModal(); return; }
+    if (!this.isProfileComplete(this.state.user)) {
+      this.switchTab('profile');
+      return;
+    }
     const match = this.state.tournaments.find(m => m.id === matchId);
     if (!match) return;
     this.state.pendingJoinMatchId = matchId;
@@ -1279,7 +1313,7 @@ const PlayerApp = {
     this.state.user.matchesPlayed = (this.state.user.matchesPlayed || 0) + 1;
     this.addXpPoints(50, 'Tournament Joined');
     localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
-    await SupabaseService.upsertPlayerProfile(this.state.user);
+    SupabaseService.upsertPlayerProfile(this.state.user);
 
     await SupabaseService.bookSquadSlot(match.id, this.state.selectedSlotNumber, this.state.user.appId, this.state.user.uid, this.state.user.ign, selectedMates, fee);
     this.syncJoinedMatchesFromSlots();
@@ -1369,7 +1403,7 @@ const PlayerApp = {
     if (pass) this.state.user.password = pass;
 
     localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
-    await SupabaseService.upsertPlayerProfile(this.state.user);
+    SupabaseService.upsertPlayerProfile(this.state.user);
     this.closeModal('editProfileModal');
     this.updateUI();
     this.showToast('Profile Settings Saved!');
@@ -1504,6 +1538,7 @@ const PlayerApp = {
     this.showToast(`Callback Requested on ${phone}!`);
   },
 
+  /* ==================== 5-TAB ROUTER (COMPLETE PROFILE OPENS ONLY IN PROFILE TAB) ==================== */
   switchTab(tabId) {
     this.state.currentTab = tabId;
     ['tournaments', 'roomidp', 'paidmatches', 'wallet', 'profile'].forEach(t => {
@@ -1517,9 +1552,15 @@ const PlayerApp = {
       const mBtn = document.getElementById(`m-nav-${t}`);
       if (mBtn) mBtn.style.color = isCur ? '#FF6B00' : '#94a3b8';
     });
+
     if (tabId === 'roomidp') this.renderMyBattles();
     if (tabId === 'paidmatches') this.populateOpponentFriendsDropdown();
     if (tabId === 'wallet') this.loadAllTimeTransactions();
+
+    // Open Complete Profile Modal ONLY when user visits the Profile section
+    if (tabId === 'profile' && this.state.user && !this.isProfileComplete(this.state.user)) {
+      this.openCompleteProfileModal();
+    }
   },
 
   getTotalBalance() {
