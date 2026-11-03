@@ -1,4 +1,4 @@
-// js/playerApp.js — Unique Identity Check, Instagram-Style Search & Esports Engine (100% Uncut)
+// js/playerApp.js — Complete Uncut Player Engine (Sign In/Register, Unique Check, Instagram Search, Co-Pay Squads & XP)
 
 const PlayerApp = {
   BASE_FF_WALLPAPER: 'https://images2.alphacoders.com/112/1126388.jpg',
@@ -234,7 +234,10 @@ const PlayerApp = {
 
     const username = usernameRaw.startsWith('@') ? usernameRaw : '@' + usernameRaw;
 
-    // STRICT UNIQUENESS CHECK BEFORE ALLOWING REGISTRATION
+    if (SupabaseService.isCloudConnected) {
+      await SupabaseService.pullAllFromCloud();
+    }
+
     const conflictCheck = SupabaseService.checkIdentityConflict({ username, uid, ign, phone });
     if (conflictCheck.hasConflict) {
       alert(`⚠️ REGISTRATION BLOCKED:\n${conflictCheck.message}`);
@@ -242,7 +245,6 @@ const PlayerApp = {
       return;
     }
 
-    // Generate guaranteed unique App ID
     let appId = 'IGNIS-' + Math.floor(1000 + Math.random() * 9000);
     const existingList = SupabaseService.getLocal('ignis_players_db', []);
     while (existingList.some(p => p.app_id === appId)) {
@@ -478,7 +480,10 @@ const PlayerApp = {
     this.showToast(`Friend Request sent to ${targetIgn} (${targetAppId})!`);
   },
 
-  openFriendsListModal() {
+  async openFriendsListModal() {
+    if (SupabaseService.isCloudConnected) {
+      await SupabaseService.pullAllFromCloud();
+    }
     if (this.state.user) {
       const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
       const fresh = allPlayers.find(p => (p.app_id || '').toUpperCase() === this.state.user.appId.toUpperCase());
@@ -750,7 +755,7 @@ const PlayerApp = {
       `).join('');
   },
 
-  /* ==================== TAB 3: PAID ROOMS ==================== */
+  /* ==================== TAB 3: PAID ROOMS (CREATE, EDIT, DELETE & JOIN) ==================== */
   recalcCustomWagerMath() {
     const bet = parseFloat(document.getElementById('customRoomBet')?.value) || 200;
     const totalPool = bet * 2;
@@ -801,30 +806,85 @@ const PlayerApp = {
     this.showToast(`Paid Room Created! Host: ${operator}`);
   },
 
+  openEditPaidRoomModal(roomId) {
+    const r = this.state.customPaidRooms.find(x => x.id === roomId);
+    if (!r) return;
+    document.getElementById('editPaidRoomIdInput').value = r.id;
+    document.getElementById('editPaidRoomTitle').value = r.title;
+    document.getElementById('editPaidRoomSize').value = r.team_size || 'CS 4v4';
+    document.getElementById('editPaidRoomAmmo').value = r.ammo_mode || 'Unlimited';
+    document.getElementById('editPaidRoomHs').value = r.headshot_mode || 'YES';
+    document.getElementById('editPaidRoomBet').value = r.bet_amount || 200;
+    document.getElementById('editPaidRoomHost').value = r.assigned_operator || 'ANY_HOST';
+    this.openModal('editPaidRoomModal');
+  },
+
+  async saveEditedPaidRoom() {
+    const id = document.getElementById('editPaidRoomIdInput').value;
+    const title = document.getElementById('editPaidRoomTitle').value.trim();
+    const team_size = document.getElementById('editPaidRoomSize').value;
+    const ammo_mode = document.getElementById('editPaidRoomAmmo').value;
+    const headshot_mode = document.getElementById('editPaidRoomHs').value;
+    const bet_amount = parseFloat(document.getElementById('editPaidRoomBet').value) || 200;
+    const assigned_operator = document.getElementById('editPaidRoomHost').value;
+
+    await SupabaseService.updateCustomPaidRoomDetails(id, {
+      title, team_size, ammo_mode, headshot_mode, bet_amount, assigned_operator
+    });
+    this.closeModal('editPaidRoomModal');
+    await this.fetchCustomPaidRooms();
+    this.showToast('Room Updated!');
+  },
+
+  async removeMyPaidRoom(roomId) {
+    if (!confirm('Remove this room and refund ₹ entry fee?')) return;
+    await SupabaseService.deleteCustomPaidRoom(roomId);
+    const saved = localStorage.getItem('ignis_player_session');
+    if (saved) this.state.user = JSON.parse(saved);
+    await this.fetchCustomPaidRooms();
+    this.updateUI();
+    this.showToast('Room Removed & Balance Refunded!');
+  },
+
   renderCustomPaidRooms() {
     const container = document.getElementById('customPaidRoomsContainer');
     if (!container) return;
-    container.innerHTML = this.state.customPaidRooms.map(r => `
-      <div class="laser-card p-4 space-y-3">
-        <div class="flex justify-between border-b border-white/10 pb-2">
-          <div><span class="text-[10px] text-[#FFC857] block">Host: ${r.assigned_operator}</span><h4 class="font-bold text-white text-sm">${r.title}</h4></div>
-          <span class="text-[10px] text-emerald-400 font-bold">${r.room_status}</span>
+    if (this.state.customPaidRooms.length === 0) {
+      container.innerHTML = `<div class="col-span-full laser-card p-6 text-center text-slate-400 text-xs">No custom paid rooms yet. Create one above!</div>`;
+      return;
+    }
+
+    container.innerHTML = this.state.customPaidRooms.map(r => {
+      const isMyRoom = this.state.user && r.team_a_app_id === this.state.user.appId;
+      const isCompleted = r.room_status === 'COMPLETED';
+      return `
+        <div class="laser-card p-4 space-y-3">
+          <div class="flex items-center justify-between border-b border-white/10 pb-2">
+            <div><span class="text-[10px] text-[#FFC857] block">Host: ${r.assigned_operator}</span><h4 class="font-bold text-white text-sm">${r.title}</h4></div>
+            <div class="flex items-center gap-1.5">
+              <span class="text-[10px] text-emerald-400 font-bold">${r.room_status}</span>
+              ${isMyRoom && !isCompleted ? `
+                <button onclick="PlayerApp.openEditPaidRoomModal('${r.id}')" class="bg-white/10 text-[#FFC857] p-1.5 rounded-lg text-xs cursor-pointer"><i class="fa-solid fa-pen"></i></button>
+                <button onclick="PlayerApp.removeMyPaidRoom('${r.id}')" class="bg-red-500/20 text-red-300 p-1.5 rounded-lg text-xs cursor-pointer"><i class="fa-solid fa-trash"></i></button>
+              ` : ''}
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2 bg-black/40 p-2 rounded-xl text-xs font-mono">
+            <div>Side A: <strong class="text-white">${r.team_a_ign}</strong> (₹${r.bet_amount})</div>
+            <div>Side B: <strong class="text-emerald-400">${r.team_b_ign}</strong></div>
+          </div>
+          <div class="grid grid-cols-3 gap-1 bg-black/30 p-2 rounded-xl text-xs text-center font-bold">
+            <div>Pool: ₹${r.total_pool}</div>
+            <div class="text-emerald-400">Win: ₹${r.winner_payout}</div>
+            <div class="text-[#FFC857]">Host: ₹${r.host_cut}</div>
+          </div>
+          ${!r.team_b_app_id && !isMyRoom && !isCompleted ? `
+            <button onclick="PlayerApp.acceptPaidChallengeAsTeamB('${r.id}')" class="w-full btn-hyper py-2 text-xs cursor-pointer">Join (₹${r.bet_amount})</button>
+          ` : ''}
+          <button onclick="PlayerApp.openPaidRoomChat('${r.id}')" class="w-full bg-white/5 border border-white/10 py-2 rounded-xl text-xs text-slate-300 font-bold cursor-pointer">Host Chat</button>
         </div>
-        <div class="grid grid-cols-2 gap-2 bg-black/40 p-2 rounded-xl text-xs font-mono">
-          <div>Side A: <strong class="text-white">${r.team_a_ign}</strong> (₹${r.bet_amount})</div>
-          <div>Side B: <strong class="text-emerald-400">${r.team_b_ign}</strong></div>
-        </div>
-        <div class="grid grid-cols-3 gap-1 bg-black/30 p-2 rounded-xl text-xs text-center font-bold">
-          <div>Pool: ₹${r.total_pool}</div>
-          <div class="text-emerald-400">Win: ₹${r.winner_payout}</div>
-          <div class="text-[#FFC857]">Host: ₹${r.host_cut}</div>
-        </div>
-        ${!r.team_b_app_id && r.team_a_app_id !== this.state.user?.appId ? `
-          <button onclick="PlayerApp.acceptPaidChallengeAsTeamB('${r.id}')" class="w-full btn-hyper py-2 text-xs">Join (₹${r.bet_amount})</button>
-        ` : ''}
-        <button onclick="PlayerApp.openPaidRoomChat('${r.id}')" class="w-full bg-white/5 border border-white/10 py-2 rounded-xl text-xs text-slate-300 font-bold">Host Chat</button>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   },
 
   async acceptPaidChallengeAsTeamB(roomId) {
@@ -1092,13 +1152,19 @@ const PlayerApp = {
       this.state.user.winningsBal = Math.max(0, this.state.user.winningsBal - rem);
     }
 
+    const selectedMates = [];
+    for (let i = 0; i < 3; i++) {
+      const selVal = document.getElementById(`squad-mate-select-${i}`)?.value;
+      if (selVal) selectedMates.push(selVal);
+    }
+
     this.state.user.matchesPlayed = (this.state.user.matchesPlayed || 0) + 1;
     this.addXpPoints(50, 'Tournament Joined');
 
     localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
     await SupabaseService.upsertPlayerProfile(this.state.user);
 
-    await SupabaseService.bookSquadSlot(match.id, this.state.selectedSlotNumber, this.state.user.appId, this.state.user.uid, this.state.user.ign, [], fee);
+    await SupabaseService.bookSquadSlot(match.id, this.state.selectedSlotNumber, this.state.user.appId, this.state.user.uid, this.state.user.ign, selectedMates, fee);
     this.state.joinedMatches.push({ id: match.id, mySlot: this.state.selectedSlotNumber, paidAmount: fee });
     this.closeModal('joinModal');
     await this.fetchMatches();
@@ -1131,7 +1197,6 @@ const PlayerApp = {
     const newPhone = document.getElementById('editProfPhone')?.value.trim() || this.state.user.phone;
     const newEmail = document.getElementById('editProfEmail')?.value.trim() || this.state.user.email;
 
-    // Validate uniqueness against all other accounts except current user's App ID
     const conflict = SupabaseService.checkIdentityConflict(
       { username: newUname, uid: newUid, ign: newIgn, phone: newPhone },
       this.state.user.appId
