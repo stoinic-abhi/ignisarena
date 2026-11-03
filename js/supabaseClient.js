@@ -1,4 +1,4 @@
-// js/supabaseClient.js — Zero-Flicker Atomic Cloud Sync Engine (100% Complete)
+// js/supabaseClient.js — Complete Cross-Device Cloud Sync, 2-Step Wager Host, Standings & Broadcast Engine (100% Uncut)
 
 const DIRECT_SUPABASE_URL = "https://ihhdyqnqxjrlkvipivyz.supabase.co";
 const DIRECT_SUPABASE_KEY = "sb_publishable_90X6vGV0iBEG_ffIf11e5g_LsK6iF2Y";
@@ -7,8 +7,8 @@ const SupabaseService = {
   client: null,
   isCloudConnected: false,
   _isSyncingFromCloud: false,
-  _activeMutations: 0,
-  _lastMutationTime: 0,
+  _pendingPushes: 0,
+  _lastLocalWriteTime: 0,
   STORAGE_TOURNEY_KEY: 'ignis_tournaments_2026_v4',
   STORAGE_CUSTOM_KEY: 'ignis_custom_wagers_2026_v4',
   STORAGE_PRODUCTS_KEY: 'ignis_store_products_db',
@@ -30,12 +30,8 @@ const SupabaseService = {
         this.isCloudConnected = true;
       }
     } catch (err) {
-      console.warn('Supabase init warning:', err);
+      console.error('Supabase init error:', err);
     }
-
-    // Remove any old blinking badge if present
-    const oldBadge = document.getElementById('ignisCloudLiveBadge');
-    if (oldBadge) oldBadge.remove();
 
     this.ensureDefaultData();
 
@@ -44,6 +40,12 @@ const SupabaseService = {
       this.startLiveCloudSyncLoop();
     }
     return this.client;
+  },
+
+  mountCloudStatusBadge() {
+    // Blinking floating pill disabled permanently for clean UX
+    const pill = document.getElementById('ignisCloudLiveBadge');
+    if (pill) pill.style.display = 'none';
   },
 
   getLocal(key, defaultVal = []) {
@@ -55,99 +57,101 @@ const SupabaseService = {
     }
   },
 
-  // Synchronous local update + queued atomic cloud write
   setLocal(key, val) {
-    this._lastMutationTime = Date.now();
     localStorage.setItem(key, JSON.stringify(val));
-    this.refreshAppsQuietly();
+    this._lastLocalWriteTime = Date.now();
+    window.dispatchEvent(new Event('storage'));
 
     if (this.isCloudConnected && !this._isSyncingFromCloud) {
       this.pushKeyToCloud(key, val);
     }
   },
 
-  // Awaited atomic update for critical 1-click actions (Room create/delete, User delete, Wallet approve)
-  async setLocalAsync(key, val) {
-    this._lastMutationTime = Date.now();
-    localStorage.setItem(key, JSON.stringify(val));
-    this.refreshAppsQuietly();
-
-    if (this.isCloudConnected) {
-      await this.pushKeyToCloud(key, val);
-    }
-  },
-
-  refreshAppsQuietly() {
-    try {
-      if (typeof PlayerApp !== 'undefined' && PlayerApp.state) {
-        PlayerApp.state.tournaments = this.getLocal(this.STORAGE_TOURNEY_KEY, []);
-        PlayerApp.state.customPaidRooms = this.getLocal(this.STORAGE_CUSTOM_KEY, []);
-        if (typeof PlayerApp.updateUI === 'function' && PlayerApp.state.user) {
-          PlayerApp.updateUI();
-        } else if (typeof PlayerApp.renderTournaments === 'function') {
-          PlayerApp.renderTournaments();
-        }
-      }
-      if (typeof AdminApp !== 'undefined' && AdminApp.isMounted) {
-        AdminApp.matches = this.getLocal(this.STORAGE_TOURNEY_KEY, []);
-        AdminApp.customRooms = this.getLocal(this.STORAGE_CUSTOM_KEY, []);
-        AdminApp.usersList = this.getLocal('ignis_players_db', []);
-        AdminApp.depositRequestsList = this.getLocal('ignis_deposit_requests_db', []);
-        AdminApp.feedbacksList = this.getLocal('ignis_feedbacks_db', []);
-        AdminApp.refreshActiveViewOnly();
-      }
-    } catch (e) {}
-  },
-
-  /* ==================== ATOMIC CLOUD PUSH & DIFF-ONLY PULL ENGINE ==================== */
-  async pushKeyToCloud(key, val) {
-    if (!this.client) return;
-    this._activeMutations++;
-    this._lastMutationTime = Date.now();
-
-    try {
-      // Master KV Store holds exact JSON state for all keys so zero column mismatch ever occurs
-      await this.client
-        .from('app_kv_store')
-        .upsert([{ key, value: val, updated_at: new Date().toISOString() }], { onConflict: 'key' });
-    } catch (e) {
-      console.warn('Cloud KV push warning:', e);
-    } finally {
-      this._activeMutations = Math.max(0, this._activeMutations - 1);
-      this._lastMutationTime = Date.now();
-    }
-  },
-
+  /* ==================== UNIVERSAL CROSS-DEVICE CLOUD PULL & PUSH ==================== */
   async pullAllFromCloud(forcePull = false) {
     if (!this.client) return;
-    // Never pull while a local action is saving or within 5 seconds of a user click
-    if (!forcePull && (this._activeMutations > 0 || Date.now() - this._lastMutationTime < 5000)) {
+    if (!forcePull && (this._pendingPushes > 0 || Date.now() - this._lastLocalWriteTime < 4500)) {
       return;
     }
 
     this._isSyncingFromCloud = true;
     try {
-      const { data: kvData, error } = await this.client.from('app_kv_store').select('*');
-      if (error || !Array.isArray(kvData)) return;
+      const [kvRes, pRes, tRes, sRes, cRes, dRes, hRes, cfgRes, txRes] = await Promise.all([
+        this.client.from('app_kv_store').select('*'),
+        this.client.from('players').select('*').order('created_at', { ascending: false }),
+        this.client.from('tournaments').select('*').order('created_at', { ascending: false }),
+        this.client.from('room_slots').select('*'),
+        this.client.from('custom_rooms').select('*').order('created_at', { ascending: false }),
+        this.client.from('deposit_requests').select('*').order('created_at', { ascending: false }),
+        this.client.from('hosts').select('*'),
+        this.client.from('platform_settings').select('*').eq('id', 'global_config').maybeSingle(),
+        this.client.from('transactions').select('*').order('created_at', { ascending: false })
+      ]);
 
-      // Double check no mutation started while network request was in flight
-      if (!forcePull && (this._activeMutations > 0 || Date.now() - this._lastMutationTime < 5000)) {
-        return;
+      const kvMap = {};
+      if (kvRes.data && Array.isArray(kvRes.data)) {
+        kvRes.data.forEach(item => {
+          if (item.key && item.value !== undefined) {
+            kvMap[item.key] = item.value;
+            localStorage.setItem(item.key, JSON.stringify(item.value));
+          }
+        });
       }
 
-      let anyChanged = false;
-      kvData.forEach(item => {
-        if (item.key && item.value !== undefined) {
-          const incomingStr = JSON.stringify(item.value);
-          const currentStr = localStorage.getItem(item.key);
-          if (incomingStr !== currentStr) {
-            localStorage.setItem(item.key, incomingStr);
-            anyChanged = true;
-          }
-        }
-      });
+      // Sync Players (Prefer KV Store if it has full extra fields, else SQL table)
+      if (Array.isArray(kvMap['ignis_players_db']) && kvMap['ignis_players_db'].length > 0) {
+        localStorage.setItem('ignis_players_db', JSON.stringify(kvMap['ignis_players_db']));
+      } else if (!pRes.error && Array.isArray(pRes.data) && pRes.data.length > 0) {
+        localStorage.setItem('ignis_players_db', JSON.stringify(pRes.data));
+      }
 
-      // Keep active logged-in player session synced with latest wallet & profile state
+      // Sync Tournaments (KV Store holds host_message, winner_ign, settled_results reliably)
+      if (Array.isArray(kvMap[this.STORAGE_TOURNEY_KEY])) {
+        localStorage.setItem(this.STORAGE_TOURNEY_KEY, JSON.stringify(kvMap[this.STORAGE_TOURNEY_KEY]));
+      } else if (!tRes.error && Array.isArray(tRes.data)) {
+        localStorage.setItem(this.STORAGE_TOURNEY_KEY, JSON.stringify(tRes.data));
+      }
+
+      // Sync Room Slots
+      if (Array.isArray(kvMap['ignis_room_slots_db'])) {
+        localStorage.setItem('ignis_room_slots_db', JSON.stringify(kvMap['ignis_room_slots_db']));
+      } else if (!sRes.error && Array.isArray(sRes.data)) {
+        localStorage.setItem('ignis_room_slots_db', JSON.stringify(sRes.data));
+      }
+
+      // Sync Custom Paid Rooms (KV Store holds live chat_messages, invited_opponent, winner_ign)
+      if (Array.isArray(kvMap[this.STORAGE_CUSTOM_KEY])) {
+        localStorage.setItem(this.STORAGE_CUSTOM_KEY, JSON.stringify(kvMap[this.STORAGE_CUSTOM_KEY]));
+      } else if (!cRes.error && Array.isArray(cRes.data)) {
+        localStorage.setItem(this.STORAGE_CUSTOM_KEY, JSON.stringify(cRes.data));
+      }
+
+      // Sync Deposits, Hosts, Settings & All-Time Transactions
+      if (Array.isArray(kvMap['ignis_deposit_requests_db'])) {
+        localStorage.setItem('ignis_deposit_requests_db', JSON.stringify(kvMap['ignis_deposit_requests_db']));
+      } else if (!dRes.error && Array.isArray(dRes.data)) {
+        localStorage.setItem('ignis_deposit_requests_db', JSON.stringify(dRes.data));
+      }
+
+      if (Array.isArray(kvMap['ignis_hosts_db']) && kvMap['ignis_hosts_db'].length > 0) {
+        localStorage.setItem('ignis_hosts_db', JSON.stringify(kvMap['ignis_hosts_db']));
+      } else if (!hRes.error && Array.isArray(hRes.data) && hRes.data.length > 0) {
+        localStorage.setItem('ignis_hosts_db', JSON.stringify(hRes.data));
+      }
+
+      if (kvMap['ignis_platform_settings']) {
+        localStorage.setItem('ignis_platform_settings', JSON.stringify(kvMap['ignis_platform_settings']));
+      } else if (!cfgRes.error && cfgRes.data) {
+        localStorage.setItem('ignis_platform_settings', JSON.stringify(cfgRes.data));
+      }
+
+      if (Array.isArray(kvMap['ignis_all_time_transactions'])) {
+        localStorage.setItem('ignis_all_time_transactions', JSON.stringify(kvMap['ignis_all_time_transactions']));
+      } else if (!txRes.error && Array.isArray(txRes.data)) {
+        localStorage.setItem('ignis_all_time_transactions', JSON.stringify(txRes.data));
+      }
+
+      // Refresh active logged-in player's session with fresh cloud balance & friends
       const activeRaw = localStorage.getItem('ignis_player_session');
       const latestPlayers = this.getLocal('ignis_players_db', []);
       if (activeRaw && latestPlayers.length > 0) {
@@ -157,21 +161,15 @@ const SupabaseService = {
         );
         if (freshCloudUser) {
           const mapped = this.mapDbRecordToUser(freshCloudUser);
-          const mappedStr = JSON.stringify(mapped);
-          if (mappedStr !== activeRaw) {
-            localStorage.setItem('ignis_player_session', mappedStr);
-            if (typeof PlayerApp !== 'undefined' && PlayerApp.state) {
-              PlayerApp.state.user = mapped;
-            }
-            anyChanged = true;
+          mapped.profileCompleted = activeUser.profileCompleted || mapped.profileCompleted;
+          localStorage.setItem('ignis_player_session', JSON.stringify(mapped));
+          if (typeof PlayerApp !== 'undefined' && PlayerApp.state) {
+            PlayerApp.state.user = mapped;
           }
         }
       }
 
-      // Only re-render DOM if cloud data actually changed (stops all flickering!)
-      if (anyChanged || forcePull) {
-        this.refreshAppsQuietly();
-      }
+      window.dispatchEvent(new Event('storage'));
     } catch (e) {
       console.warn('Cloud pull warning:', e);
     } finally {
@@ -179,11 +177,82 @@ const SupabaseService = {
     }
   },
 
+  async pushKeyToCloud(key, val) {
+    if (!this.client) return;
+    this._pendingPushes++;
+    this._lastLocalWriteTime = Date.now();
+
+    try {
+      // 1. Primary Universal Save in app_kv_store (Guarantees 100% cross-device sync for all fields & notifications)
+      await this.client
+        .from('app_kv_store')
+        .upsert([{ key, value: val, updated_at: new Date().toISOString() }], { onConflict: 'key' });
+
+      // 2. Mirror to structured SQL tables
+      if (key === 'ignis_players_db' && Array.isArray(val) && val.length > 0) {
+        await this.client.from('players').upsert(val, { onConflict: 'app_id' });
+      } else if (key === this.STORAGE_TOURNEY_KEY && Array.isArray(val)) {
+        const { data: existing } = await this.client.from('tournaments').select('id');
+        const newIds = new Set(val.map(x => x.id));
+        const toDelete = (existing || []).filter(x => !newIds.has(x.id)).map(x => x.id);
+        if (toDelete.length > 0) await this.client.from('tournaments').delete().in('id', toDelete);
+        if (val.length > 0) {
+          const sqlClean = val.map(t => ({
+            id: t.id, title: t.title, category: t.category, sub_mode: t.sub_mode, format: t.format,
+            map: t.map, ammo_mode: t.ammo_mode, headshot_mode: t.headshot_mode, total_slots: t.total_slots,
+            filled_slots: t.filled_slots, entry_fee: t.entry_fee, per_kill: t.per_kill, prize_pool: t.prize_pool,
+            max_prize_pool: t.max_prize_pool, match_hour: t.match_hour ?? 23, match_time: t.match_time,
+            room_id: t.room_id || '', room_password: t.room_password || '', match_status: t.match_status || 'UPCOMING',
+            assigned_host: t.assigned_host || 'UNCLAIMED', created_at: t.created_at || new Date().toISOString()
+          }));
+          await this.client.from('tournaments').upsert(sqlClean, { onConflict: 'id' });
+        }
+      } else if (key === 'ignis_room_slots_db' && Array.isArray(val) && val.length > 0) {
+        const sqlSlots = val.map(s => ({
+          id: s.id, tournament_id: s.tournament_id, slot_number: s.slot_number,
+          leader_app_id: s.leader_app_id, leader_uid: s.leader_uid, leader_ign: s.leader_ign,
+          teammates: s.teammates || [], paid_amount: s.paid_amount || 0,
+          kills: s.kills || 0, prize_won: s.prize_won || 0, booked_at: s.booked_at || new Date().toISOString()
+        }));
+        await this.client.from('room_slots').upsert(sqlSlots, { onConflict: 'id' });
+      } else if (key === this.STORAGE_CUSTOM_KEY && Array.isArray(val)) {
+        const { data: existing } = await this.client.from('custom_rooms').select('id');
+        const newIds = new Set(val.map(x => x.id));
+        const toDelete = (existing || []).filter(x => !newIds.has(x.id)).map(x => x.id);
+        if (toDelete.length > 0) await this.client.from('custom_rooms').delete().in('id', toDelete);
+        if (val.length > 0) {
+          const sqlRooms = val.map(r => ({
+            id: r.id, title: r.title, map: r.map || 'Bermuda', team_size: r.team_size,
+            ammo_mode: r.ammo_mode, headshot_mode: r.headshot_mode, bet_amount: r.bet_amount,
+            total_pool: r.total_pool, winner_payout: r.winner_payout, host_cut: r.host_cut,
+            admin_cut: r.admin_cut, team_a_app_id: r.team_a_app_id, team_a_ign: r.team_a_ign,
+            team_b_app_id: r.team_b_app_id || '', team_b_ign: r.team_b_ign || 'Open Slot',
+            assigned_operator: r.assigned_operator || 'ANY_HOST', operator_accepted: !!r.operator_accepted,
+            room_id: r.room_id || '', room_password: r.room_password || '',
+            room_status: r.room_status || 'WAITING_HOST', winner_app_id: r.winner_app_id || '',
+            chat_messages: r.chat_messages || [], created_at: r.created_at || new Date().toISOString()
+          }));
+          await this.client.from('custom_rooms').upsert(sqlRooms, { onConflict: 'id' });
+        }
+      } else if (key === 'ignis_all_time_transactions' && Array.isArray(val) && val.length > 0) {
+        const cleanTx = val.map(({ id, app_id, type, amount, note, status, timestamp }) => ({
+          id, app_id, type, amount, note, status, timestamp
+        }));
+        await this.client.from('transactions').upsert(cleanTx, { onConflict: 'id' });
+      }
+    } catch (e) {
+      console.warn('Cloud push warning for key', key, e);
+    } finally {
+      this._pendingPushes = Math.max(0, this._pendingPushes - 1);
+      this._lastLocalWriteTime = Date.now();
+    }
+  },
+
   startLiveCloudSyncLoop() {
     if (!this.client) return;
     setInterval(() => {
       this.pullAllFromCloud(false);
-    }, 4500);
+    }, 2500);
   },
 
   ensureDefaultData() {
@@ -222,14 +291,14 @@ const SupabaseService = {
       if (cleanUname && existingUname === cleanUname) {
         return { hasConflict: true, field: 'username', message: `Username "${cleanUname}" pehle se kisi dusre player ne le rakha hai!` };
       }
-      if (cleanUid && cleanUid !== 'PENDING' && existingUid && existingUid !== 'PENDING' && existingUid === cleanUid) {
+      if (cleanUid && existingUid === cleanUid) {
         return { hasConflict: true, field: 'uid', message: `Free Fire UID "${cleanUid}" pehle se kisi dusre account me registered hai!` };
       }
-      if (cleanIgn && !cleanIgn.startsWith('athlete_') && existingIgn === cleanIgn) {
+      if (cleanIgn && existingIgn === cleanIgn) {
         return { hasConflict: true, field: 'ign', message: `Free Fire IGN "${ign}" pehle se kisi dusre player ke paas hai!` };
       }
       if (cleanPhone && existingPhone === cleanPhone) {
-        return { hasConflict: true, field: 'phone', message: `WhatsApp Number "${cleanPhone}" pehle se registered hai! Sign In karein.` };
+        return { hasConflict: true, field: 'phone', message: `WhatsApp Number "${cleanPhone}" pehle se registered hai!` };
       }
     }
 
@@ -238,7 +307,9 @@ const SupabaseService = {
 
   /* ==================== INSTAGRAM-STYLE MULTI-RESULT SEARCH ENGINE ==================== */
   async searchPlayersInstagramStyle(query, excludeAppId = null) {
-    if (this.client) await this.pullAllFromCloud(false);
+    if (this.client) {
+      await this.pullAllFromCloud(true);
+    }
 
     const clean = String(query || '').trim().toLowerCase();
     const cleanExclude = excludeAppId ? String(excludeAppId).trim().toUpperCase() : null;
@@ -273,7 +344,9 @@ const SupabaseService = {
 
   /* ==================== PLAYER AUTH & PROFILE SYNC ==================== */
   async authenticatePlayer(identifier, password) {
-    if (this.client) await this.pullAllFromCloud(true);
+    if (this.client) {
+      await this.pullAllFromCloud(true);
+    }
 
     const cleanId = String(identifier || '').trim().toUpperCase();
     const cleanIdNoAt = cleanId.replace(/^@/, '');
@@ -303,12 +376,13 @@ const SupabaseService = {
     if (found) {
       return { success: true, player: this.mapDbRecordToUser(found) };
     }
-    return { success: false, error: 'Invalid Username / App ID / WhatsApp Number or Password!' };
+    return { success: false, error: 'Invalid Username / App ID / Phone or Password!' };
   },
 
   mapDbRecordToUser(r) {
-    const hasRealUid = Boolean(r.uid && r.uid !== 'PENDING' && String(r.uid).trim().length >= 5);
-    const hasRealIgn = Boolean(r.ign && !String(r.ign).startsWith('Athlete_') && String(r.ign).trim().length >= 2);
+    const hasUid = String(r.uid || '').trim().length >= 5 && r.uid !== 'Not Set';
+    const hasIgn = String(r.ign || '').trim().length >= 2 && r.ign !== 'Not Set';
+    const hasEmail = String(r.email || '').trim().includes('@');
     return {
       appId: r.app_id,
       fullName: r.full_name || 'Athlete',
@@ -317,14 +391,14 @@ const SupabaseService = {
       email: r.email || '',
       password: r.password || 'pass123',
       uid: r.uid || '',
-      ign: r.ign || r.full_name || 'Athlete',
+      ign: r.ign || 'Player',
       level: r.level || 'Level 70',
       ignisLevel: Number(r.ignis_level || 1),
       xp: Number(r.xp || 0),
       bio: r.bio || '🔥 Official Ignis Arena Athlete',
       profilePhoto: r.profile_photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&q=80',
-      profileCompleted: Boolean(r.profile_completed || (hasRealUid && hasRealIgn)),
-      firstDepositDone: Boolean(r.first_deposit_done),
+      firstDepositDone: !!r.first_deposit_done,
+      profileCompleted: !!(r.profile_completed || (hasUid && hasIgn && hasEmail)),
       matchesPlayed: Number(r.matches_played || 0),
       tournamentsWon: Number(r.tournaments_won || 0),
       depositBal: Number(r.deposit_bal || 0),
@@ -340,7 +414,7 @@ const SupabaseService = {
     const existingIdx = list.findIndex(p => (p.app_id || '').toUpperCase() === userObj.appId.toUpperCase());
     const existing = existingIdx >= 0 ? list[existingIdx] : {};
 
-    let formattedUsername = String(userObj.username || existing.username || '@athlete').trim().toLowerCase().replace(/\s+/g, '_');
+    let formattedUsername = String(userObj.username || existing.username || '@' + (userObj.ign || 'athlete').toLowerCase()).trim().toLowerCase().replace(/\s+/g, '_');
     if (!formattedUsername.startsWith('@')) formattedUsername = '@' + formattedUsername;
 
     const record = {
@@ -349,39 +423,45 @@ const SupabaseService = {
       username: formattedUsername,
       full_name: userObj.fullName || existing.full_name || 'Athlete',
       bio: userObj.bio || existing.bio || '🔥 Official Ignis Arena Athlete',
-      email: userObj.email !== undefined ? userObj.email : (existing.email || ''),
+      email: userObj.email ?? existing.email ?? '',
       password: userObj.password || existing.password || 'pass123',
       phone: userObj.phone || existing.phone || '',
-      uid: userObj.uid !== undefined ? userObj.uid : (existing.uid || ''),
-      ign: userObj.ign !== undefined ? userObj.ign : (existing.ign || userObj.fullName || 'Athlete'),
+      uid: userObj.uid ?? existing.uid ?? '',
+      ign: userObj.ign || existing.ign || 'Player',
       level: userObj.level || existing.level || 'Level 70',
       ignis_level: Number(userObj.ignisLevel ?? existing.ignis_level ?? 1),
       xp: Number(userObj.xp ?? existing.xp ?? 0),
       profile_photo: userObj.profilePhoto || existing.profile_photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&q=80',
-      profile_completed: Boolean(userObj.profileCompleted ?? existing.profile_completed ?? false),
       deposit_bal: Number(userObj.depositBal ?? existing.deposit_bal ?? 0),
       winnings_bal: Number(userObj.winningsBal ?? existing.winnings_bal ?? 0),
-      first_deposit_done: Boolean(userObj.firstDepositDone ?? existing.first_deposit_done ?? false),
+      first_deposit_done: userObj.firstDepositDone ?? existing.first_deposit_done ?? false,
       matches_played: Number(userObj.matchesPlayed ?? existing.matches_played ?? 0),
       tournaments_won: Number(userObj.tournamentsWon ?? existing.tournaments_won ?? 0),
       friends_list: Array.isArray(userObj.friendsList) ? userObj.friendsList : (existing.friends_list || []),
       friend_requests: Array.isArray(userObj.friendRequests) ? userObj.friendRequests : (existing.friend_requests || []),
-      status: 'ACTIVE',
-      created_at: existing.created_at || new Date().toISOString()
+      status: 'ACTIVE'
     };
 
     if (existingIdx >= 0) list[existingIdx] = record;
     else list.unshift(record);
 
-    await this.setLocalAsync('ignis_players_db', list);
+    this._lastLocalWriteTime = Date.now();
+    localStorage.setItem('ignis_players_db', JSON.stringify(list));
+
+    if (this.client) {
+      await this.pushKeyToCloud('ignis_players_db', list);
+    }
     return { success: true, record };
   },
 
   async getAllPlayers() {
+    if (this.client) await this.pullAllFromCloud(false);
     return { data: this.getLocal('ignis_players_db', []) };
   },
 
   async getPlayerByAppId(queryId, excludeAppId = null) {
+    if (this.client) await this.pullAllFromCloud(true);
+
     const clean = String(queryId || '').trim().toUpperCase();
     const cleanExclude = excludeAppId ? String(excludeAppId).trim().toUpperCase() : null;
     if (!clean) return { data: null };
@@ -418,11 +498,11 @@ const SupabaseService = {
   },
 
   async deletePlayerByAppId(appId) {
-    const cleanTarget = String(appId || '').trim().toUpperCase();
-    const list = this.getLocal('ignis_players_db', []).filter(
-      p => String(p.app_id || '').trim().toUpperCase() !== cleanTarget
-    );
-    await this.setLocalAsync('ignis_players_db', list);
+    const list = this.getLocal('ignis_players_db', []).filter(p => p.app_id !== appId);
+    if (this.client) {
+      try { await this.client.from('players').delete().eq('app_id', appId); } catch (e) {}
+    }
+    this.setLocal('ignis_players_db', list);
     return { success: true };
   },
 
@@ -445,7 +525,7 @@ const SupabaseService = {
   async updatePlatformSettings(settingsObj) {
     const { data: current } = await this.getPlatformSettings();
     const record = { ...current, ...settingsObj, id: 'global_config', updated_at: new Date().toISOString() };
-    await this.setLocalAsync('ignis_platform_settings', record);
+    this.setLocal('ignis_platform_settings', record);
     return { success: true, settings: record };
   },
 
@@ -465,37 +545,34 @@ const SupabaseService = {
       created_at: new Date().toISOString()
     };
     list.unshift(newProd);
-    await this.setLocalAsync(this.STORAGE_PRODUCTS_KEY, list);
+    this.setLocal(this.STORAGE_PRODUCTS_KEY, list);
     return { success: true, product: newProd };
   },
 
   async deleteStoreProduct(prodId) {
     const list = this.getLocal(this.STORAGE_PRODUCTS_KEY, []).filter(p => p.id !== prodId);
-    await this.setLocalAsync(this.STORAGE_PRODUCTS_KEY, list);
+    this.setLocal(this.STORAGE_PRODUCTS_KEY, list);
     return { success: true };
   },
 
-  /* ==================== TOURNAMENTS (1-CLICK ATOMIC CREATE, LOCK/UNLOCK & DELETE) ==================== */
+  /* ==================== TOURNAMENTS & HOST MESSAGE WITH IDP ==================== */
   async getTournaments() {
-    return { data: this.getLocal(this.STORAGE_TOURNEY_KEY, []), error: null };
+    if (this.client) {
+      await this.pullAllFromCloud(false);
+    }
+    const localData = this.getLocal(this.STORAGE_TOURNEY_KEY, []);
+    return { data: localData, error: null };
   },
 
   async claimTournament(matchId, hostId) {
     const list = this.getLocal(this.STORAGE_TOURNEY_KEY, []);
     const item = list.find(x => x.id === matchId);
     if (item) {
+      if (item.assigned_host && item.assigned_host !== 'UNCLAIMED' && item.assigned_host !== hostId) {
+        return { success: false, error: `Already locked by ${item.assigned_host}` };
+      }
       item.assigned_host = hostId;
-      await this.setLocalAsync(this.STORAGE_TOURNEY_KEY, list);
-    }
-    return { success: true };
-  },
-
-  async unclaimTournament(matchId) {
-    const list = this.getLocal(this.STORAGE_TOURNEY_KEY, []);
-    const item = list.find(x => x.id === matchId);
-    if (item) {
-      item.assigned_host = 'UNCLAIMED';
-      await this.setLocalAsync(this.STORAGE_TOURNEY_KEY, list);
+      this.setLocal(this.STORAGE_TOURNEY_KEY, list);
     }
     return { success: true };
   },
@@ -505,24 +582,25 @@ const SupabaseService = {
     const item = list.find(x => x.id === matchId);
     if (item) {
       item.match_status = newStatus;
-      item.is_locked = (newStatus === 'LIVE' || newStatus === 'LOCKED');
-      await this.setLocalAsync(this.STORAGE_TOURNEY_KEY, list);
+      this.setLocal(this.STORAGE_TOURNEY_KEY, list);
     }
     return { success: true };
   },
 
-  async dispatchCredentials(matchId, roomId, roomPassword) {
+  async dispatchCredentials(matchId, roomId, roomPassword, hostMessage = '') {
     const list = this.getLocal(this.STORAGE_TOURNEY_KEY, []);
     const item = list.find(x => x.id === matchId);
     if (item) {
       item.room_id = roomId;
       item.room_password = roomPassword;
-      await this.setLocalAsync(this.STORAGE_TOURNEY_KEY, list);
+      if (hostMessage !== undefined) item.host_message = hostMessage;
+      this.setLocal(this.STORAGE_TOURNEY_KEY, list);
     }
     return { success: true };
   },
 
   async getJoinedPlayers(tournamentId) {
+    if (this.client) await this.pullAllFromCloud(false);
     const localSlots = this.getLocal('ignis_room_slots_db', []).filter(s => s.tournament_id === tournamentId);
     return { data: localSlots };
   },
@@ -535,7 +613,7 @@ const SupabaseService = {
     if (match) {
       match.filled_slots = (Number(match.filled_slots) || 0) + 1;
       match.prize_pool = (Number(match.prize_pool) || 0) + addedToPool;
-      await this.setLocalAsync(this.STORAGE_TOURNEY_KEY, list);
+      this.setLocal(this.STORAGE_TOURNEY_KEY, list);
     }
 
     const slots = this.getLocal('ignis_room_slots_db', []);
@@ -548,14 +626,17 @@ const SupabaseService = {
       leader_ign: leaderIgn,
       teammates: teammates || [],
       paid_amount: paidAmount,
+      kills: 0,
+      prize_won: 0,
       booked_at: new Date().toISOString()
     });
-    await this.setLocalAsync('ignis_room_slots_db', slots);
+    this.setLocal('ignis_room_slots_db', slots);
     return { success: true, addedToPool };
   },
 
-  /* ==================== PAID CUSTOM MATCHES ==================== */
+  /* ==================== PAID CUSTOM MATCHES (2-STEP HOST ACCEPT -> PUSH IDP) ==================== */
   async getCustomPaidRooms() {
+    if (this.client) await this.pullAllFromCloud(false);
     return { data: this.getLocal(this.STORAGE_CUSTOM_KEY, []) };
   },
 
@@ -566,13 +647,13 @@ const SupabaseService = {
         {
           senderRole: 'SYSTEM',
           senderName: 'IGNIS WAGER PROTOCOL',
-          text: `Room Created (${roomObj.team_size} • ${roomObj.ammo_mode} • HS: ${roomObj.headshot_mode}). Split: 80% Winner | 10% Host | 10% Admin.`,
+          text: `Room Created (${roomObj.team_size} • ${roomObj.ammo_mode} • HS: ${roomObj.headshot_mode}). Waiting for Host to Accept Room.`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ];
     }
     list.unshift(roomObj);
-    await this.setLocalAsync(this.STORAGE_CUSTOM_KEY, list);
+    this.setLocal(this.STORAGE_CUSTOM_KEY, list);
     return { success: true };
   },
 
@@ -595,7 +676,7 @@ const SupabaseService = {
       room.admin_cut = Math.round(room.total_pool * 0.10);
     }
 
-    await this.setLocalAsync(this.STORAGE_CUSTOM_KEY, list);
+    this.setLocal(this.STORAGE_CUSTOM_KEY, list);
     return { success: true, room };
   },
 
@@ -605,29 +686,40 @@ const SupabaseService = {
     if (!room) return { success: false };
     room.team_b_app_id = teamBAppId;
     room.team_b_ign = teamBIgn;
-    room.room_status = room.operator_accepted ? 'LIVE_READY' : 'FUNDED_WAITING_HOST';
-    await this.setLocalAsync(this.STORAGE_CUSTOM_KEY, list);
+    room.room_status = room.operator_accepted ? 'HOST_ACCEPTED' : 'FUNDED_WAITING_HOST';
+    room.chat_messages = room.chat_messages || [];
+    room.chat_messages.push({
+      senderRole: 'SYSTEM',
+      senderName: 'IGNIS LOBBY',
+      text: `Opponent ${teamBIgn} (${teamBAppId}) joined Side B and locked ₹${room.bet_amount}!`,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
+    this.setLocal(this.STORAGE_CUSTOM_KEY, list);
     return { success: true, room };
   },
 
-  async operatorAcceptCustomRoom(roomId, hostId, customRoomId, customPass) {
+  // STEP 1: Host Accepts Room First (Unlocks IDP Inputs)
+  async operatorAcceptCustomRoom(roomId, hostId, customRoomId = '', customPass = '') {
     const list = this.getLocal(this.STORAGE_CUSTOM_KEY, []);
     const room = list.find(r => r.id === roomId);
     if (!room) return { success: false };
+
     room.assigned_operator = hostId;
     room.operator_accepted = true;
     if (customRoomId) room.room_id = customRoomId;
     if (customPass) room.room_password = customPass;
-    room.room_status = room.team_b_app_id ? 'LIVE_READY' : 'HOST_ACCEPTED';
+    room.room_status = customRoomId ? 'LIVE_READY' : 'HOST_ACCEPTED';
 
     room.chat_messages = room.chat_messages || [];
     room.chat_messages.push({
       senderRole: 'OPERATOR',
       senderName: `Host (${hostId})`,
-      text: customRoomId ? `ROOM READY! ID: ${customRoomId} | Pass: ${customPass}` : `Host (${hostId}) accepted your room! Chat unlocked.`,
+      text: customRoomId
+        ? `🔑 ROOM CREDENTIALS PUSHED! Room ID: ${customRoomId} | Pass: ${customPass}`
+        : `✅ Host (${hostId}) has ACCEPTED this room! Creating custom lobby & pushing ID/Pass shortly.`,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     });
-    await this.setLocalAsync(this.STORAGE_CUSTOM_KEY, list);
+    this.setLocal(this.STORAGE_CUSTOM_KEY, list);
     return { success: true };
   },
 
@@ -638,7 +730,7 @@ const SupabaseService = {
     room.room_status = 'REJECTED';
     if (room.team_a_app_id && room.bet_amount) await this.creditPlayerWalletByAppId(room.team_a_app_id, room.bet_amount, 'deposit', false);
     if (room.team_b_app_id && room.bet_amount) await this.creditPlayerWalletByAppId(room.team_b_app_id, room.bet_amount, 'deposit', false);
-    await this.setLocalAsync(this.STORAGE_CUSTOM_KEY, list);
+    this.setLocal(this.STORAGE_CUSTOM_KEY, list);
     return { success: true };
   },
 
@@ -650,7 +742,7 @@ const SupabaseService = {
       if (room.team_b_app_id && room.bet_amount) await this.creditPlayerWalletByAppId(room.team_b_app_id, room.bet_amount, 'deposit', false);
     }
     const updated = list.filter(r => r.id !== roomId);
-    await this.setLocalAsync(this.STORAGE_CUSTOM_KEY, updated);
+    this.setLocal(this.STORAGE_CUSTOM_KEY, updated);
     return { success: true };
   },
 
@@ -659,17 +751,36 @@ const SupabaseService = {
     const room = list.find(r => r.id === roomId);
     if (!room) return { success: false };
 
+    const winnerIgn = winnerAppId === room.team_a_app_id ? room.team_a_ign : room.team_b_ign;
     room.room_status = 'COMPLETED';
     room.winner_app_id = winnerAppId;
-    await this.setLocalAsync(this.STORAGE_CUSTOM_KEY, list);
+    room.winner_ign = winnerIgn;
+    room.settled_at = new Date().toLocaleString();
 
-    await this.creditPlayerWalletByAppId(winnerAppId, room.winner_payout, 'winnings', true);
+    room.chat_messages = room.chat_messages || [];
+    room.chat_messages.push({
+      senderRole: 'OPERATOR',
+      senderName: `Host (${hostId})`,
+      text: `🏆 MATCH SETTLED! Winner: ${winnerIgn} (${winnerAppId}) credited with ₹${room.winner_payout} (80% Pool)!`,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
+    this.setLocal(this.STORAGE_CUSTOM_KEY, list);
+
+    // Credit Winner Wallet + Record in All-Time Passbook Ledger
+    await this.creditPlayerWalletByAppId(
+      winnerAppId,
+      room.winner_payout,
+      'winnings',
+      true,
+      false,
+      `🏆 Paid Room Won: ${room.title} (vs ${winnerAppId === room.team_a_app_id ? room.team_b_ign : room.team_a_ign})`
+    );
 
     const hosts = this.getLocal('ignis_hosts_db', []);
     const h = hosts.find(x => x.host_id === hostId);
     if (h) {
       h.commission_balance = Number(h.commission_balance || 0) + Number(room.host_cut || 0);
-      await this.setLocalAsync('ignis_hosts_db', hosts);
+      this.setLocal('ignis_hosts_db', hosts);
     }
 
     const { data: cfg } = await this.getPlatformSettings();
@@ -678,7 +789,7 @@ const SupabaseService = {
       await this.updatePlatformSettings(cfg);
     }
 
-    return { success: true, winnerPayout: room.winner_payout, hostCut: room.host_cut, adminCut: room.admin_cut };
+    return { success: true, winnerIgn, winnerPayout: room.winner_payout, hostCut: room.host_cut, adminCut: room.admin_cut };
   },
 
   async sendCustomRoomChatMessage(roomId, senderRole, senderName, text) {
@@ -686,16 +797,21 @@ const SupabaseService = {
     const room = list.find(r => r.id === roomId);
     if (!room) return { success: false };
     room.chat_messages = room.chat_messages || [];
-    room.chat_messages.push({ senderRole, senderName, text, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
-    await this.setLocalAsync(this.STORAGE_CUSTOM_KEY, list);
+    room.chat_messages.push({
+      senderRole,
+      senderName,
+      text,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
+    this.setLocal(this.STORAGE_CUSTOM_KEY, list);
     return { success: true };
   },
 
-  /* ==================== DEPOSITS & WALLETS (ATOMIC APPROVAL FIX) ==================== */
+  /* ==================== DEPOSITS, WINNINGS HISTORY & WALLETS ==================== */
   async submitDepositRequest(appId, ign, amount, utrNumber, scannerUsed = 'Scanner #1') {
     const reqItem = {
       id: 'DEP-' + Math.floor(100000 + Math.random() * 900000),
-      app_id: String(appId || '').trim().toUpperCase(),
+      app_id: appId,
       player_ign: ign,
       amount: Number(amount),
       utr_number: utrNumber,
@@ -705,78 +821,42 @@ const SupabaseService = {
     };
     const list = this.getLocal('ignis_deposit_requests_db', []);
     list.unshift(reqItem);
-    await this.setLocalAsync('ignis_deposit_requests_db', list);
+    this.setLocal('ignis_deposit_requests_db', list);
     return { success: true, request: reqItem };
   },
 
   async getAllDepositRequests() {
+    if (this.client) await this.pullAllFromCloud(false);
     return { data: this.getLocal('ignis_deposit_requests_db', []) };
   },
 
   async approveDepositRequest(reqId) {
     const list = this.getLocal('ignis_deposit_requests_db', []);
     const req = list.find(r => r.id === reqId);
-    if (!req || req.status === 'APPROVED') return { success: false };
+    if (!req) return { success: false };
 
     req.status = 'APPROVED';
+    this.setLocal('ignis_deposit_requests_db', list);
 
     const players = this.getLocal('ignis_players_db', []);
-    const cleanTargetId = String(req.app_id || '').trim().toUpperCase();
-    const p = players.find(
-      x => String(x.app_id || '').trim().toUpperCase() === cleanTargetId ||
-           String(x.ign || '').trim().toUpperCase() === String(req.player_ign || '').trim().toUpperCase()
-    );
-
+    const p = players.find(x => x.app_id.toUpperCase() === req.app_id.toUpperCase());
     let bonusCoins = 0;
-    const baseAmt = Number(req.amount) || 0;
     if (p && !p.first_deposit_done) {
-      bonusCoins = Math.round(baseAmt * 0.20);
+      bonusCoins = Math.round(Number(req.amount) * 0.20);
       p.first_deposit_done = true;
+      this.setLocal('ignis_players_db', players);
     }
 
-    const totalCredited = baseAmt + bonusCoins;
-    if (p) {
-      p.deposit_bal = Number(p.deposit_bal || 0) + totalCredited;
-    }
+    const totalCredited = Number(req.amount) + bonusCoins;
+    await this.creditPlayerWalletByAppId(req.app_id, totalCredited, 'deposit', false, true);
 
-    // Update active player session if on same device
-    try {
-      const activeRaw = localStorage.getItem('ignis_player_session');
-      if (activeRaw) {
-        const activeUser = JSON.parse(activeRaw);
-        if (String(activeUser.appId || '').trim().toUpperCase() === cleanTargetId) {
-          activeUser.depositBal = Number(activeUser.depositBal || 0) + totalCredited;
-          activeUser.firstDepositDone = true;
-          localStorage.setItem('ignis_player_session', JSON.stringify(activeUser));
-          if (typeof PlayerApp !== 'undefined' && PlayerApp.state) {
-            PlayerApp.state.user = activeUser;
-          }
-        }
-      }
-    } catch (e) {}
-
-    // Update passbook ledger
     const allTxns = this.getLocal('ignis_all_time_transactions', []);
-    const matchingTxn = allTxns.find(t => t.note && t.note.includes(req.utr_number));
+    const matchingTxn = allTxns.find(t => t.app_id === req.app_id && (t.note || '').includes(req.utr_number));
     if (matchingTxn) {
       matchingTxn.status = 'APPROVED';
       matchingTxn.amount = totalCredited;
-    } else {
-      allTxns.unshift({
-        id: 'TXN-' + Math.floor(1000 + Math.random() * 9000),
-        app_id: cleanTargetId,
-        type: 'DEPOSIT',
-        amount: totalCredited,
-        note: `Approved Deposit (UTR: ${req.utr_number})`,
-        status: 'APPROVED',
-        timestamp: new Date().toLocaleString()
-      });
+      this.setLocal('ignis_all_time_transactions', allTxns);
     }
-
-    // Save all 3 states atomically in sequence
-    await this.setLocalAsync('ignis_players_db', players);
-    await this.setLocalAsync('ignis_deposit_requests_db', list);
-    await this.setLocalAsync('ignis_all_time_transactions', allTxns);
 
     return { success: true, req, totalCredited, bonusCoins };
   },
@@ -786,15 +866,15 @@ const SupabaseService = {
     const req = list.find(r => r.id === reqId);
     if (!req) return { success: false };
     req.status = 'REJECTED';
-    await this.setLocalAsync('ignis_deposit_requests_db', list);
+    this.setLocal('ignis_deposit_requests_db', list);
     return { success: true };
   },
 
-  async creditPlayerWalletByAppId(appId, amount, walletType = 'winnings', incrementWin = false, markFirstDep = false) {
+  async creditPlayerWalletByAppId(appId, amount, walletType = 'winnings', incrementWin = false, markFirstDep = false, customLedgerNote = '') {
     const cleanId = (appId || '').trim().toUpperCase();
     const amt = Number(amount) || 0;
     const list = this.getLocal('ignis_players_db', []);
-    const target = list.find(p => String(p.app_id || '').trim().toUpperCase() === cleanId);
+    const target = list.find(p => (p.app_id || '').toUpperCase() === cleanId);
 
     if (target) {
       if (walletType === 'deposit') target.deposit_bal = Number(target.deposit_bal || 0) + amt;
@@ -805,7 +885,22 @@ const SupabaseService = {
         target.ignis_level = Math.max(1, Math.floor(target.xp / 100) + 1);
       }
       if (markFirstDep) target.first_deposit_done = true;
-      await this.setLocalAsync('ignis_players_db', list);
+      this.setLocal('ignis_players_db', list);
+    }
+
+    // Automatically log tournament / wager winnings into All-Time Passbook Ledger
+    if (customLedgerNote && amt > 0) {
+      const allTxns = this.getLocal('ignis_all_time_transactions', []);
+      allTxns.unshift({
+        id: 'WIN-' + Math.floor(10000 + Math.random() * 90000),
+        app_id: cleanId,
+        type: walletType === 'deposit' ? 'DEPOSIT' : 'WINNINGS',
+        amount: amt,
+        note: customLedgerNote,
+        status: 'CREDITED',
+        timestamp: new Date().toLocaleString()
+      });
+      this.setLocal('ignis_all_time_transactions', allTxns);
     }
 
     try {
@@ -822,10 +917,7 @@ const SupabaseService = {
           }
           if (markFirstDep) activeUser.firstDepositDone = true;
           localStorage.setItem('ignis_player_session', JSON.stringify(activeUser));
-          if (typeof PlayerApp !== 'undefined' && PlayerApp.state) {
-            PlayerApp.state.user = activeUser;
-            PlayerApp.updateUI();
-          }
+          window.dispatchEvent(new Event('storage'));
         }
       }
     } catch (e) {}
@@ -853,20 +945,23 @@ const SupabaseService = {
   async addNewHost(hostId, hostName, password, upiId = 'operator@upi') {
     const list = this.getLocal('ignis_hosts_db', []);
     list.unshift({ host_id: hostId, host_name: hostName, password, upi_id: upiId, total_rooms_managed: 0, commission_balance: 0, status: 'ACTIVE', created_at: new Date().toISOString() });
-    await this.setLocalAsync('ignis_hosts_db', list);
+    this.setLocal('ignis_hosts_db', list);
     return { success: true };
   },
 
   async deleteHost(hostId) {
     const list = this.getLocal('ignis_hosts_db', []).filter(h => h.host_id !== hostId);
-    await this.setLocalAsync('ignis_hosts_db', list);
+    if (this.client) {
+      try { await this.client.from('hosts').delete().eq('host_id', hostId); } catch (e) {}
+    }
+    this.setLocal('ignis_hosts_db', list);
     return { success: true };
   },
 
   async submitMatchProof(proofObj) {
     const list = this.getLocal('ignis_match_proofs_db', []);
     list.unshift(proofObj);
-    await this.setLocalAsync('ignis_match_proofs_db', list);
+    this.setLocal('ignis_match_proofs_db', list);
     return { success: true };
   },
 
