@@ -4,7 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#06070A">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>IGNIS ARENA — Official Esports APK</title>
+
+  <!-- 4K APP ICON LINKS (Replace assets/app-icon.png or we will embed your Part 2 icon) -->
+  <link id="dynamicFavicon" rel="icon" type="image/png" href="assets/app-icon.png">
+  <link id="dynamicAppleIcon" rel="apple-touch-icon" href="assets/app-icon.png">
   
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -14,11 +21,15 @@
 
   <style>
     .apk-safe-bottom { padding-bottom: 6.5rem; }
-    @keyframes splashPulse {
-      0%, 100% { transform: scale(1); opacity: 0.95; }
-      50% { transform: scale(1.04); opacity: 1; }
+    .full-apk-splash {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100dvh;
+      z-index: 9999;
+      background: #06070A;
+      overflow: hidden;
     }
-    .splash-poster-anim { animation: splashPulse 2.5s ease-in-out infinite; }
   </style>
 </head>
 <body class="apk-safe-bottom lg:pb-16 select-none bg-[#06070A]">
@@ -26,52 +37,41 @@
   <canvas id="emberCanvas" class="fixed inset-0 pointer-events-none z-0 opacity-25"></canvas>
   <div id="toastContainer" class="fixed top-4 right-3 left-3 sm:left-auto sm:right-5 z-[100] flex flex-col gap-2 sm:max-w-sm pointer-events-none"></div>
 
-  <!-- ==================== POINT 7: 9:16 IGNIS ARENA SPLASH POSTER SCREEN (2.5 SECONDS) ==================== -->
-  <div id="ignisSplashScreen" class="fixed inset-0 z-[90] bg-[#06070A] flex items-center justify-center p-0 sm:p-4 transition-opacity duration-500">
-    <div class="relative w-full h-full sm:max-w-[390px] sm:max-h-[780px] sm:aspect-[9/16] sm:rounded-3xl overflow-hidden border-0 sm:border sm:border-[#FF6B00]/40 shadow-2xl flex flex-col justify-between p-6">
-      <img src="https://images2.alphacoders.com/112/1126388.jpg" alt="Ignis Arena 9:16 Poster" class="absolute inset-0 w-full h-full object-cover object-center opacity-45 splash-poster-anim">
-      <div class="absolute inset-0 bg-gradient-to-t from-[#06070A] via-[#06070A]/60 to-black/70"></div>
+  <!-- ==================== FULL-SCREEN 9:16 ANDROID APK OPENING SPLASH SCREEN ==================== -->
+  <!-- Note: Save your custom opening image as 'assets/splash.png' or send in Message 2 to auto-embed -->
+  <div id="ignisSplashScreen" class="full-apk-splash flex flex-col justify-between transition-opacity duration-500">
+    <img
+      id="customSplashPosterImg"
+      src="assets/splash.png"
+      onerror="this.onerror=null; this.src='https://images2.alphacoders.com/112/1126388.jpg';"
+      alt="Ignis Arena Opening Screen"
+      class="absolute inset-0 w-full h-full object-cover object-center"
+    >
+    <div class="absolute inset-0 bg-gradient-to-t from-[#06070A] via-transparent to-black/40"></div>
 
-      <div class="relative z-10 flex items-center justify-between text-[10px] font-mono text-slate-300">
-        <span class="bg-black/70 border border-white/15 px-2.5 py-1 rounded-full text-[#FFC857] font-bold">INDIA OFFICIAL ESPORTS</span>
-        <span class="bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-2.5 py-1 rounded-full font-bold">v4.2 LIVE</span>
+    <div class="relative z-10 p-5 flex items-center justify-between text-[10px] font-mono">
+      <span class="bg-black/75 border border-white/15 px-3 py-1 rounded-full text-[#FFC857] font-bold">IGNIS ARENA OFFICIAL</span>
+      <span class="bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-3 py-1 rounded-full font-bold">INDIA 4K APK</span>
+    </div>
+
+    <div class="relative z-10 p-6 pb-10 space-y-2.5 max-w-md mx-auto w-full">
+      <div class="flex justify-between text-[11px] font-mono text-[#FFC857] font-bold drop-shadow">
+        <span>ENTERING ARENA...</span>
+        <span id="splashPercentText">100%</span>
       </div>
-
-      <div class="relative z-10 text-center space-y-3 my-auto">
-        <div class="w-20 h-20 rounded-3xl flex items-center justify-center text-4xl mx-auto shadow-2xl text-black border-2 border-white/20" style="background: linear-gradient(135deg, #FF6B00, #FFC857);">
-          <i class="ph-fill ph-fire"></i>
-        </div>
-        <div>
-          <h1 class="text-4xl font-extrabold tracking-tight text-white drop-shadow-lg">
-            IGNIS <span class="text-[#FF6B00]">ARENA</span>
-          </h1>
-          <p class="text-xs font-bold tracking-[0.25em] text-[#FFC857] uppercase mt-1">
-            × FREE FIRE INDIA SERIES
-          </p>
-        </div>
-        <div class="flex items-center justify-center gap-2 text-[11px] text-slate-300 font-semibold pt-2">
-          <span>80% Winner Pool</span> • <span>Instant UPI Payouts</span> • <span>Anti-Cheat</span>
-        </div>
-      </div>
-
-      <div class="relative z-10 space-y-2">
-        <div class="flex justify-between text-[10px] font-mono text-[#FFC857]">
-          <span>LOADING TOURNAMENTS DECK...</span>
-          <span id="splashPercentText">100%</span>
-        </div>
-        <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-          <div id="splashProgressBar" class="h-full rounded-full transition-all duration-1000" style="width: 100%; background: linear-gradient(90deg, #FF6B00, #FFC857);"></div>
-        </div>
+      <div class="w-full h-2 bg-black/70 border border-white/15 rounded-full overflow-hidden p-0.5">
+        <div id="splashProgressBar" class="h-full rounded-full transition-all duration-1000" style="width: 100%; background: linear-gradient(90deg, #FF6B00, #FFC857);"></div>
       </div>
     </div>
   </div>
 
-  <!-- ==================== POINT 1: CLEAN AUTH GATEWAY (BASIC SIGN IN / REGISTER) ==================== -->
+  <!-- ==================== CLEAN AUTH GATEWAY (BASIC SIGN IN / REGISTER) ==================== -->
   <div id="playerAuthGate" class="fixed inset-0 z-50 bg-[#06070A]/95 backdrop-blur-2xl flex items-center justify-center p-4 overflow-y-auto hidden">
     <div class="laser-card max-w-md w-full p-6 sm:p-7 space-y-5 relative overflow-hidden my-auto">
       <div class="text-center space-y-1">
-        <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl mx-auto shadow-2xl text-black" style="background: linear-gradient(135deg, #FF6B00, #FFC857);">
-          <i class="ph-fill ph-fire"></i>
+        <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl mx-auto shadow-2xl text-black overflow-hidden border border-[#FF6B00]/50" style="background: linear-gradient(135deg, #FF6B00, #FFC857);">
+          <img src="assets/app-icon.png" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" class="w-full h-full object-cover">
+          <i class="ph-fill ph-fire hidden"></i>
         </div>
         <h2 class="text-2xl font-extrabold tracking-tight text-white mt-1.5">Ignis Arena</h2>
         <p class="text-xs text-slate-400 font-medium">Sign In or Create Your Athlete Account</p>
@@ -106,7 +106,7 @@
         </p>
       </div>
 
-      <!-- FORM 2: CLEAN REGISTER (UID, IGN & GMAIL COLLECTED LATER IN COMPLETE PROFILE) -->
+      <!-- FORM 2: CLEAN REGISTER -->
       <div id="playerRegisterForm" class="hidden space-y-3 text-xs">
         <div>
           <label class="font-semibold text-slate-300 block mb-1 text-[11px]">Your Full Name</label>
@@ -140,12 +140,12 @@
     </div>
   </div>
 
-  <!-- ==================== POINT 1: ONE-TIME "COMPLETE YOUR PROFILE" MODAL ==================== -->
+  <!-- ==================== ONE-TIME "COMPLETE YOUR PROFILE" MODAL ==================== -->
   <div id="completeProfileModal" class="fixed inset-0 z-[60] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-4 hidden">
     <div class="laser-card max-w-md w-full p-6 space-y-4 relative border border-[#FF6B00]/50">
       <div class="flex items-center gap-3 border-b border-white/10 pb-3">
         <div class="w-11 h-11 rounded-2xl flex items-center justify-center text-black text-xl font-bold flex-shrink-0" style="background: linear-gradient(135deg, #FF6B00, #FFC857);">
-          <i class="ph-bold ph-user-Check"></i>
+          <i class="ph-bold ph-user-check"></i>
         </div>
         <div>
           <span class="text-[10px] font-bold text-[#FFC857] uppercase block">One-Time Athlete Setup</span>
@@ -201,8 +201,9 @@
     <!-- STICKY TOP BAR -->
     <header class="sticky top-2 z-30 laser-card px-3 py-2.5 mb-3.5 flex items-center justify-between gap-2">
       <div class="flex items-center gap-2.5 cursor-pointer min-w-0" onclick="PlayerApp.switchTab('tournaments')">
-        <div class="w-9 h-9 rounded-xl flex items-center justify-center text-black text-lg shadow-md flex-shrink-0" style="background: linear-gradient(135deg, #FF6B00, #FFC857);">
-          <i class="ph-fill ph-fire"></i>
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center text-black text-lg shadow-md flex-shrink-0 overflow-hidden" style="background: linear-gradient(135deg, #FF6B00, #FFC857);">
+          <img src="assets/app-icon.png" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" class="w-full h-full object-cover">
+          <i class="ph-fill ph-fire hidden"></i>
         </div>
         <div class="min-w-0">
           <div class="flex items-center gap-1 leading-none">
@@ -279,7 +280,7 @@
             Battle Royale • Clash Squad • Lone Wolf
           </h1>
           <p class="text-xs text-slate-400">
-            80% Pool to Winner • Per kill bounty credited live to your Winnings wallet!
+            Tap any Completed Tournament to view 1st Place Winner &amp; Full Kill Standings!
           </p>
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
@@ -331,33 +332,50 @@
       <div id="matchesContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5"></div>
     </main>
 
-    <!-- ==================== TAB 2: ROOM IDP ==================== -->
+    <!-- ==================== TAB 2: ROOM IDP (WITH 3 TABS: UPCOMING, LIVE, COMPLETED) ==================== -->
     <section id="view-roomidp" class="space-y-4 hidden">
       <div class="laser-card p-5 space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
           <div>
-            <span class="text-[10px] font-bold text-[#FFC857] uppercase block">Live Match Credentials</span>
+            <span class="text-[10px] font-bold text-[#FFC857] uppercase block">Registered Match Credentials &amp; Host Notes</span>
             <h2 class="text-base sm:text-xl font-extrabold text-white flex items-center gap-2">
               <i class="ph-fill ph-key text-[#FF6B00]"></i>
-              <span>My Joined Rooms (ID &amp; Password)</span>
+              <span>My Registered Tournaments (Room IDP)</span>
             </h2>
           </div>
           <button onclick="PlayerApp.switchTab('tournaments')" class="btn-hyper px-3.5 py-1.5 text-xs cursor-pointer">
             + Join More Rooms
           </button>
         </div>
+
+        <!-- 3-TAB SWITCHER FOR REGISTERED TOURNAMENTS: UPCOMING / LIVE / COMPLETED -->
+        <div class="grid grid-cols-3 gap-1.5 p-1 bg-black/60 rounded-2xl border border-white/10 text-xs font-extrabold">
+          <button id="btnIdpTab-UPCOMING" type="button" onclick="PlayerApp.switchRoomIdpFilter('UPCOMING')" class="py-2.5 clip-esports-sm text-black cursor-pointer transition" style="background: #FF6B00;">
+            UPCOMING (<span id="idpCountUpcoming">0</span>)
+          </button>
+          <button id="btnIdpTab-LIVE" type="button" onclick="PlayerApp.switchRoomIdpFilter('LIVE')" class="py-2.5 clip-esports-sm text-slate-400 hover:text-white cursor-pointer transition">
+            LIVE / IDP (<span id="idpCountLive">0</span>)
+          </button>
+          <button id="btnIdpTab-COMPLETED" type="button" onclick="PlayerApp.switchRoomIdpFilter('COMPLETED')" class="py-2.5 clip-esports-sm text-slate-400 hover:text-white cursor-pointer transition">
+            COMPLETED (<span id="idpCountCompleted">0</span>)
+          </button>
+        </div>
+
         <div id="joinedMatchesList" class="grid grid-cols-1 md:grid-cols-2 gap-3.5"></div>
       </div>
     </section>
 
-    <!-- ==================== TAB 3: PAID ROOMS (80/10/10) ==================== -->
+    <!-- ==================== TAB 3: PAID ROOMS (WITH ADD OPPONENT FROM FRIENDS & SHARE LINK) ==================== -->
     <section id="view-paidmatches" class="space-y-4 hidden">
       <div class="laser-card p-4 sm:p-6 space-y-4">
         <div class="flex items-center justify-between gap-2 border-b border-white/10 pb-3">
           <div>
             <span class="text-[10px] font-bold text-[#FF6B00] uppercase block">Custom Wager Lobby • 80% Winner Payout</span>
-            <h2 class="text-base sm:text-lg font-extrabold text-white">Create Paid Room &amp; Bookmark Host</h2>
+            <h2 class="text-base sm:text-lg font-extrabold text-white">Create Paid Room, Add Opponent &amp; Share Link</h2>
           </div>
+          <button type="button" onclick="PlayerApp.openAddFriendsModal()" class="bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-bold text-[11px] px-3 py-1.5 rounded-xl cursor-pointer">
+            + Add Friend First
+          </button>
         </div>
 
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
@@ -403,6 +421,14 @@
               <option value="host_05" class="bg-[#06070A]">host_05 (Deepak)</option>
             </select>
           </div>
+
+          <!-- NEW: ADD OPPONENT FROM FRIENDS DROPDOWN -->
+          <div class="col-span-2 sm:col-span-3">
+            <label class="font-semibold text-cyan-400 block mb-1 text-[11px]">Add / Challenge Opponent from Friends Roster (Optional — or Share Link after creating)</label>
+            <select id="customRoomOpponentSelect" class="w-full bg-white/5 border border-cyan-500/30 rounded-xl px-3 py-2.5 text-white font-semibold focus:outline-none">
+              <option value="" class="bg-[#06070A]">-- Open for Anyone / Challenge via Share Link --</option>
+            </select>
+          </div>
         </div>
 
         <div class="grid grid-cols-4 gap-2 bg-black/40 p-3 rounded-2xl border border-white/10 text-center">
@@ -425,14 +451,14 @@
         </div>
 
         <button id="btnPublishPaidRoom" type="button" onclick="PlayerApp.createPaidCustomChallenge()" class="w-full btn-hyper py-3 text-xs flex items-center justify-center gap-2 cursor-pointer">
-          <i class="ph-bold ph-plus-circle"></i><span>Publish Paid Room (1-Click Open)</span>
+          <i class="ph-bold ph-plus-circle"></i><span>Create Paid Room &amp; Generate Share Link</span>
         </button>
       </div>
 
       <div id="customPaidRoomsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-3.5"></div>
     </section>
 
-    <!-- ==================== TAB 4: WALLET (ALL-TIME LEDGER ACTIVE) ==================== -->
+    <!-- ==================== TAB 4: WALLET (WITH WINNINGS, DEPOSITS & WITHDRAWALS PASSBOOK) ==================== -->
     <section id="view-wallet" class="space-y-4 hidden">
       <div class="laser-card p-4 border border-[#FFC857]/30 flex items-center justify-between gap-3">
         <div class="flex items-center gap-3">
@@ -491,16 +517,17 @@
           </div>
         </div>
 
-        <!-- ALL-TIME DETAILED FINANCIAL PASSBOOK -->
+        <!-- ALL-TIME DETAILED FINANCIAL PASSBOOK (INCLUDES WINNINGS, DEPOSITS & WITHDRAWALS) -->
         <div class="lg:col-span-7 space-y-4">
           <div class="laser-card p-5 space-y-3.5">
-            <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2.5">
               <div>
                 <span class="text-[10px] font-bold text-[#FFC857] uppercase block">Lifetime Audit</span>
-                <h3 class="text-sm sm:text-base font-extrabold text-white">All-Time Passbook &amp; Transaction Ledger</h3>
+                <h3 class="text-sm sm:text-base font-extrabold text-white">All-Time Passbook (Winnings, Deposits &amp; Payouts)</h3>
               </div>
-              <div class="flex gap-1 text-[10px] font-bold">
+              <div class="flex flex-wrap gap-1 text-[10px] font-bold">
                 <button onclick="PlayerApp.switchHistoryView('all')" id="btnHistTabAll" class="px-2.5 py-1 bg-[#FF6B00] text-black rounded-lg cursor-pointer">ALL</button>
+                <button onclick="PlayerApp.switchHistoryView('winnings')" id="btnHistTabWinnings" class="px-2.5 py-1 bg-white/10 text-slate-300 rounded-lg cursor-pointer">WINNINGS 🏆</button>
                 <button onclick="PlayerApp.switchHistoryView('deposit')" id="btnHistTabDeposit" class="px-2.5 py-1 bg-white/10 text-slate-300 rounded-lg cursor-pointer">DEPOSITS</button>
                 <button onclick="PlayerApp.switchHistoryView('withdraw')" id="btnHistTabWithdraw" class="px-2.5 py-1 bg-white/10 text-slate-300 rounded-lg cursor-pointer">WITHDRAWALS</button>
               </div>
@@ -675,7 +702,7 @@
     </nav>
   </div>
 
-  <!-- ==================== ALL MODALS (COMPLETE & UNCUT) ==================== -->
+  <!-- ==================== ALL 12 MODALS (COMPLETE & UNCUT) ==================== -->
 
   <!-- MODAL 1: INSTAGRAM-STYLE LIVE SEARCH & FULL PROFILE EXPLORER -->
   <div id="addFriendsModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
@@ -766,7 +793,7 @@
     </div>
   </div>
 
-  <!-- MODAL 5: DUAL QR DEPOSIT -->
+  <!-- MODAL 5: DUAL QR DEPOSIT (WITH SCANNER 1 & 2 ACTIVE ORANGE SWITCH) -->
   <div id="depositModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-sm w-full p-5 text-center relative space-y-3.5">
       <button onclick="PlayerApp.closeModal('depositModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
@@ -775,8 +802,8 @@
         <h3 class="font-extrabold text-base text-white">Add Cash via UPI QR</h3>
       </div>
       <div class="grid grid-cols-2 gap-1.5 p-1 bg-black/60 rounded-xl text-xs font-bold">
-        <button id="btnScannerTab1" onclick="PlayerApp.selectDepositScanner(1)" class="py-2 rounded-lg text-black cursor-pointer" style="background: #FF6B00;">Scanner #1</button>
-        <button id="btnScannerTab2" onclick="PlayerApp.selectDepositScanner(2)" class="py-2 rounded-lg text-slate-400 cursor-pointer">Scanner #2</button>
+        <button id="btnScannerTab1" type="button" onclick="PlayerApp.selectDepositScanner(1)" class="py-2 rounded-lg text-black cursor-pointer transition" style="background: #FF6B00;">Scanner #1</button>
+        <button id="btnScannerTab2" type="button" onclick="PlayerApp.selectDepositScanner(2)" class="py-2 rounded-lg text-slate-400 cursor-pointer transition">Scanner #2</button>
       </div>
       <div class="p-3 bg-white rounded-2xl inline-block shadow-2xl">
         <img id="userDepositQrImg" src="https://i.ibb.co/vzB79fV/phonepe-qr.png" alt="QR Scanner" class="w-44 h-44 object-contain mx-auto">
@@ -862,31 +889,48 @@
     </div>
   </div>
 
-  <!-- MODAL 8: TOURNAMENT DETAILS -->
+  <!-- MODAL 8: TOURNAMENT DETAILS & COMPLETED BOOYAH WINNER STANDINGS -->
   <div id="tournamentDetailsModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
-    <div class="laser-card max-w-lg w-full p-5 relative max-h-[90vh] overflow-y-auto space-y-3">
-      <button onclick="PlayerApp.closeModal('tournamentDetailsModal')" class="absolute top-4 right-4 text-slate-300"><i class="fa-solid fa-xmark"></i></button>
-      <h3 class="font-extrabold text-base text-white" id="detailModalTitle">Tournament Standings</h3>
+    <div class="laser-card max-w-lg w-full p-5 relative max-h-[90vh] overflow-y-auto space-y-3.5">
+      <button onclick="PlayerApp.closeModal('tournamentDetailsModal')" class="absolute top-4 right-4 text-slate-300 cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+      <div>
+        <span class="text-[10px] font-bold text-[#FFC857] uppercase block" id="detailModalStatusBadge">Tournament Standings &amp; Results</span>
+        <h3 class="font-extrabold text-base sm:text-lg text-white" id="detailModalTitle">Tournament Standings</h3>
+      </div>
+
+      <!-- 1st Place Booyah Winner Highlight Banner (Shown when Completed) -->
+      <div id="detailModalWinnerBanner" class="hidden p-4 rounded-2xl bg-gradient-to-r from-[#FF6B00]/25 via-[#FFC857]/20 to-emerald-500/20 border border-[#FFC857]/50 text-center space-y-1"></div>
+
       <div class="overflow-x-auto bg-black/50 rounded-2xl border border-white/10">
         <table class="w-full text-left text-xs">
-          <thead><tr class="border-b border-white/10 text-slate-400"><th class="py-2 px-3">SLOT</th><th class="py-2 px-3">IGN</th><th class="py-2 px-3">KILLS</th><th class="py-2 px-3 text-right">PRIZE</th></tr></thead>
+          <thead>
+            <tr class="border-b border-white/10 text-slate-400 font-bold">
+              <th class="py-2.5 px-3">SLOT</th>
+              <th class="py-2.5 px-3">PLAYER / IGN</th>
+              <th class="py-2.5 px-3 text-center">KILLS</th>
+              <th class="py-2.5 px-3 text-right">TOTAL WON (₹)</th>
+            </tr>
+          </thead>
           <tbody id="detailModalPlayersTable" class="divide-y divide-white/10"></tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <!-- MODAL 9: PAID ROOM HOST CHAT -->
+  <!-- MODAL 9: PAID ROOM HOST CHAT (REAL-TIME AUTO SYNC) -->
   <div id="paidRoomChatModal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-lg w-full p-5 relative max-h-[90vh] flex flex-col justify-between space-y-3.5">
       <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
-        <h3 class="font-extrabold text-base text-white" id="chatModalTitle">Host Direct Chat</h3>
-        <button onclick="PlayerApp.closeModal('paidRoomChatModal')" class="text-slate-400"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <div>
+          <span class="text-[10px] text-emerald-400 font-bold block">● Live Synced Chat</span>
+          <h3 class="font-extrabold text-base text-white" id="chatModalTitle">Host Direct Chat</h3>
+        </div>
+        <button onclick="PlayerApp.closeModal('paidRoomChatModal')" class="text-slate-400 cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
       <div id="paidRoomChatMessagesBox" class="bg-black/50 p-3.5 rounded-2xl border border-white/10 h-72 overflow-y-auto space-y-2 text-xs"></div>
       <div class="flex gap-2">
-        <input type="text" id="paidRoomChatInput" onkeydown="if(event.key==='Enter') PlayerApp.sendPaidRoomMessage()" placeholder="Message Host..." class="flex-1 bg-white/5 border border-white/15 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none">
-        <button type="button" onclick="PlayerApp.sendPaidRoomMessage()" class="btn-hyper px-4 py-2 text-xs cursor-pointer">Send</button>
+        <input type="text" id="paidRoomChatInput" onkeydown="if(event.key==='Enter') PlayerApp.sendPaidRoomMessage()" placeholder="Message Host or Opponent..." class="flex-1 bg-white/5 border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none">
+        <button type="button" onclick="PlayerApp.sendPaidRoomMessage()" class="btn-hyper px-4 py-2.5 text-xs cursor-pointer">Send</button>
       </div>
     </div>
   </div>
@@ -894,13 +938,13 @@
   <!-- MODAL 10: NOTIFICATIONS -->
   <div id="notificationModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-md w-full p-5 space-y-3.5">
-      <div class="flex justify-between border-b border-white/10 pb-2"><h3 class="font-extrabold text-white">Notifications</h3><button onclick="PlayerApp.closeModal('notificationModal')"><i class="fa-solid fa-xmark"></i></button></div>
+      <div class="flex justify-between border-b border-white/10 pb-2"><h3 class="font-extrabold text-white">Official Broadcast Notifications</h3><button onclick="PlayerApp.closeModal('notificationModal')"><i class="fa-solid fa-xmark"></i></button></div>
       <div id="notificationsListBox" class="space-y-2 max-h-56 overflow-y-auto"></div>
-      <button onclick="PlayerApp.clearAllNotifications()" class="w-full py-2 bg-white/10 text-xs rounded-xl">Clear All</button>
+      <button onclick="PlayerApp.clearAllNotifications()" class="w-full py-2 bg-white/10 text-xs rounded-xl cursor-pointer">Clear All</button>
     </div>
   </div>
 
-  <!-- MODAL 11: POINT 4 — SUPPORT, FEEDBACK & REQUEST A CALLBACK CENTER -->
+  <!-- MODAL 11: SUPPORT, FEEDBACK & REQUEST A CALLBACK CENTER -->
   <div id="feedbackModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-md w-full p-5 space-y-4 relative">
       <button onclick="PlayerApp.closeModal('feedbackModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
@@ -909,7 +953,6 @@
         <h3 class="font-extrabold text-base text-white">Support, Feedback &amp; Callback</h3>
       </div>
 
-      <!-- 2-Tab Selector: Feedback vs Request a Callback -->
       <div class="grid grid-cols-2 gap-1.5 p-1 bg-black/60 rounded-xl text-xs font-bold">
         <button id="btnSupportTabFeedback" type="button" onclick="PlayerApp.switchSupportTab('feedback')" class="py-2 rounded-lg text-black cursor-pointer" style="background: #FF6B00;">
           Write Feedback / Help
@@ -919,7 +962,6 @@
         </button>
       </div>
 
-      <!-- Tab A: Feedback / Issue Form -->
       <div id="supportFeedbackForm" class="space-y-3 text-xs">
         <div>
           <label class="font-semibold text-slate-300 block mb-1">Issue Category</label>
@@ -939,7 +981,6 @@
         </button>
       </div>
 
-      <!-- Tab B: Request a Callback Form -->
       <div id="supportCallbackForm" class="space-y-3 text-xs hidden">
         <div>
           <label class="font-semibold text-slate-300 block mb-1">Your Active Phone / WhatsApp Number</label>
