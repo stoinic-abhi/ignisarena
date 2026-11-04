@@ -17,14 +17,14 @@
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
   <link rel="canonical" href="https://ignisarena.vercel.app/">
 
-  <!-- DIRECT ROOT FAVICON FOR GOOGLE SEARCH BOT -->
+  <!-- DIRECT FAVICONS (GOOGLE SEARCH BOT FAVICON PROTOCOL) -->
   <link rel="icon" type="image/png" sizes="192x192" href="https://ignisarena.vercel.app/logo.png">
   <link rel="icon" type="image/png" sizes="96x96" href="https://ignisarena.vercel.app/logo.png">
   <link rel="icon" type="image/png" sizes="48x48" href="https://ignisarena.vercel.app/logo.png">
-  <link rel="shortcut icon" type="image/png" href="https://ignisarena.vercel.app/logo.png">
+  <link rel="shortcut icon" href="https://ignisarena.vercel.app/logo.png">
   <link rel="apple-touch-icon" sizes="180x180" href="https://ignisarena.vercel.app/logo.png">
 
-  <!-- SOCIAL PREVIEW / OPEN GRAPH -->
+  <!-- SOCIAL PREVIEWS -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://ignisarena.vercel.app/">
   <meta property="og:site_name" content="Ignis Arena">
@@ -42,60 +42,26 @@
   <link rel="stylesheet" href="css/style.css">
 
   <style>
-    /* 120Hz ULTRA-SMOOTH NATIVE TOUCH SCROLL ENGINE */
-    * {
-      -webkit-tap-highlight-color: transparent;
-      outline: none;
-    }
-    html {
+    * { -webkit-tap-highlight-color: transparent; outline: none; }
+    html, body {
       background-color: #06070A;
       overflow-x: hidden;
-      overflow-y: scroll;
+      overflow-y: auto !important;
       -webkit-overflow-scrolling: touch;
-      touch-action: pan-y;
+      touch-action: auto !important;
       scroll-behavior: smooth;
     }
-    body {
-      background-color: #06070A;
-      overflow-x: hidden;
-      overflow-y: visible;
-      touch-action: pan-y;
-      -webkit-overflow-scrolling: touch;
-      min-height: 100vh;
-      position: relative;
-    }
-    .apk-safe-bottom { padding-bottom: 7.5rem; }
-
-    /* Touch acceleration without layout-locking */
-    .laser-card, .ios-floating-dock {
-      transform: translateZ(0);
-      will-change: transform, opacity;
-    }
-
-    button, select, input, a {
-      touch-action: manipulation;
-    }
-    button:active, a:active {
-      transform: scale(0.97);
-    }
-
-    .full-apk-splash {
-      position: fixed;
-      inset: 0;
-      width: 100vw;
-      height: 100dvh;
-      z-index: 9999;
-      background: #06070A;
-      overflow: hidden;
-      pointer-events: auto;
-    }
-
+    .apk-safe-bottom { padding-bottom: 7rem; }
+    
     @keyframes pulseGlow {
-      0%, 100% { box-shadow: 0 0 14px rgba(255, 107, 0, 0.45); }
-      50% { box-shadow: 0 0 28px rgba(255, 107, 0, 0.85); }
+      0%, 100% { box-shadow: 0 0 20px rgba(255, 107, 0, 0.45); }
+      50% { box-shadow: 0 0 40px rgba(255, 107, 0, 0.85); }
     }
-    .neon-download-btn {
+    .neon-pulse-btn {
       animation: pulseGlow 2.2s infinite ease-in-out;
+    }
+    .hero-glow-bg {
+      background: radial-gradient(circle at 50% 30%, rgba(255, 107, 0, 0.22) 0%, rgba(18, 8, 36, 0) 70%);
     }
   </style>
 </head>
@@ -104,36 +70,59 @@
   <canvas id="emberCanvas" class="fixed inset-0 pointer-events-none z-0 opacity-25"></canvas>
   <div id="toastContainer" class="fixed top-4 right-3 left-3 sm:left-auto sm:right-5 z-[100] flex flex-col gap-2 sm:max-w-sm pointer-events-none"></div>
 
-  <!-- TOP DOWNLOAD APK STRIP (EASY CLOSE & AUTO-HIDE ON DOWNLOAD) -->
-  <div id="globalApkDownloadBanner" style="display: none;" class="sticky top-0 z-40 bg-gradient-to-r from-[#180d04] via-[#241306] to-[#0f0a04] border-b border-[#FF6B00]/40 px-3 py-2 backdrop-blur-xl">
-    <div class="max-w-5xl mx-auto flex items-center justify-between gap-2.5">
-      <div class="flex items-center gap-2.5 min-w-0">
-        <img src="logo.png" class="w-9 h-9 rounded-xl object-cover border border-[#FF6B00]/50 shrink-0" alt="Ignis Logo">
-        <div class="min-w-0">
-          <strong class="font-bold text-xs text-white block truncate">Install Official Android APK (v1.0)</strong>
-          <span class="text-[10px] text-slate-300 font-medium">120Hz smooth engine, zero lag &amp; room ID alerts</span>
-        </div>
-      </div>
-      <div class="flex items-center gap-2 shrink-0">
-        <a href="https://github.com/stoinic-abhi/ignisarena/releases/download/v1.0/app-release.apk"
-           onclick="PlayerApp.handlePermanentApkDownload()"
-           class="neon-download-btn bg-gradient-to-r from-[#FF6B00] to-[#FFC857] text-black font-extrabold text-[11px] px-3.5 py-1.5 rounded-xl uppercase flex items-center gap-1.5 cursor-pointer active:scale-95 transition">
-          <i class="fa-brands fa-android text-sm"></i>
-          <span>Download</span>
-        </a>
-        <button type="button" onclick="PlayerApp.dismissApkBannerTemporarily()" class="text-slate-400 hover:text-white px-2 py-1 text-sm cursor-pointer">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
+  <!-- ==================== ANIMATED ENTRY GATEWAY (DOWNLOAD APK vs OPEN WEB ARENA) ==================== -->
+  <div id="ignisGatewayScreen" class="fixed inset-0 z-[80] bg-[#06070A] hero-glow-bg flex flex-col items-center justify-between p-6 overflow-y-auto">
+    <!-- Top Branding Tag -->
+    <div class="pt-4 text-center">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold tracking-wide">
+        <i class="fa-solid fa-shield-halved"></i>
+        <span>Official Esports Platform • Safe &amp; Verified</span>
       </div>
     </div>
+
+    <!-- Center Hero Card -->
+    <div class="w-full max-w-sm text-center flex flex-col items-center my-auto py-6">
+      <div class="relative mb-5">
+        <div class="absolute -inset-2 bg-gradient-to-r from-[#FF6B00] via-[#FFC857] to-[#FF6B00] rounded-3xl blur-lg opacity-70 animate-pulse"></div>
+        <img src="logo.png" alt="Ignis Arena Logo" class="relative w-28 h-28 rounded-2xl object-cover bg-black border-2 border-white/20 shadow-2xl">
+      </div>
+
+      <h1 class="text-3xl font-black italic tracking-wider text-white">
+        IGNIS <span class="text-[#FF6B00]">ARENA</span>
+      </h1>
+      <p class="text-xs text-slate-300 mt-1 font-semibold uppercase tracking-widest">
+        Free Fire Daily Paid Custom Matches
+      </p>
+
+      <div class="w-full space-y-3 mt-7">
+        <!-- Button 1: Download APK -->
+        <a href="https://github.com/stoinic-abhi/ignisarena/releases/download/v1.0/app-release.apk"
+           onclick="PlayerApp.handleGatewayDownloadClick()"
+           class="neon-pulse-btn w-full py-4 px-6 bg-gradient-to-r from-[#FF6B00] to-[#FFC857] text-black font-black text-sm uppercase tracking-wider rounded-2xl flex items-center justify-center gap-3 cursor-pointer active:scale-95 transition">
+          <i class="fa-brands fa-android text-2xl"></i>
+          <span>Download Android APK (120FPS)</span>
+        </a>
+
+        <!-- Button 2: Open Web Client -->
+        <button type="button"
+                onclick="PlayerApp.enterWebArena()"
+                class="w-full py-3.5 px-6 bg-white/10 hover:bg-white/15 border border-white/20 text-white font-bold text-xs uppercase tracking-wider rounded-2xl flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition">
+          <i class="ph-bold ph-globe text-base text-[#FFC857]"></i>
+          <span>Open Web Arena Directly</span>
+        </button>
+      </div>
+
+      <p class="text-[11px] text-slate-400 mt-4 leading-relaxed">
+        ⚡ Instant UPI withdrawals • Verified anti-cheat • Room ID auto-sync
+      </p>
+    </div>
+
+    <footer class="text-[11px] text-slate-500 pb-2 text-center">
+      © 2026 Ignis Arena Esports. All rights reserved.
+    </footer>
   </div>
 
-  <!-- CLEAN FULL-SCREEN OPENING POSTER -->
-  <div id="ignisSplashScreen" class="full-apk-splash transition-opacity duration-500">
-    <img id="customSplashPosterImg" src="assets/splash.png" alt="Ignis Arena" class="w-full h-full object-cover object-center">
-  </div>
-
-  <!-- CLEAN AUTH GATEWAY -->
+  <!-- AUTH GATEWAY -->
   <div id="playerAuthGate" class="fixed inset-0 z-50 bg-[#06070A]/95 backdrop-blur-2xl flex items-center justify-center p-4 overflow-y-auto hidden">
     <div class="laser-card max-w-md w-full p-6 sm:p-7 space-y-5 relative overflow-hidden my-auto">
       <div class="text-center space-y-1">
@@ -144,7 +133,6 @@
         <p class="text-xs text-slate-400 font-medium">Sign In or Create Your Athlete Account</p>
       </div>
 
-      <!-- 2-TAB SWITCHER -->
       <div class="grid grid-cols-2 gap-1.5 p-1 bg-black/70 rounded-2xl border border-white/10 text-xs font-extrabold">
         <button id="tabAuthSignInBtn" type="button" onclick="PlayerApp.switchAuthMode('signin')" class="py-2.5 clip-esports-sm text-black cursor-pointer transition" style="background: #FF6B00;">
           SIGN IN (LOGIN)
@@ -154,7 +142,7 @@
         </button>
       </div>
 
-      <!-- FORM 1: SIGN IN -->
+      <!-- SIGN IN FORM -->
       <div id="playerSignInForm" class="space-y-3 text-xs">
         <div>
           <label class="font-semibold text-slate-300 block mb-1 text-[11px]">@Username / WhatsApp Number / App ID</label>
@@ -173,7 +161,7 @@
         </p>
       </div>
 
-      <!-- FORM 2: REGISTER -->
+      <!-- REGISTER FORM -->
       <div id="playerRegisterForm" class="hidden space-y-3 text-xs">
         <div>
           <label class="font-semibold text-slate-300 block mb-1 text-[11px]">Your Full Name</label>
@@ -246,13 +234,13 @@
           </div>
           <div>
             <label class="font-semibold text-slate-300 block mb-1 text-[11px]">In-Game Level</label>
-            <input type="text" id="compLevelInput" value="Level 70" class="w-full bg-white/5 border border-white/15 rounded-xl px-3.5 py-2.5 text-white font-semibold focus:outline-none">
+            <input type="text" id="compLevelInput" value="Level 70" class="w-full bg-white/5 border border-white/15 focus:border-[#FF6B00] rounded-xl px-3.5 py-2.5 text-white font-semibold focus:outline-none">
           </div>
         </div>
 
         <div>
           <label class="font-semibold text-slate-300 block mb-1 text-[11px]">Official Gmail Address *</label>
-          <input type="email" id="compEmailInput" placeholder="player@gmail.com" class="w-full bg-white/5 border border-white/15 rounded-xl px-3.5 py-2.5 text-white focus:outline-none">
+          <input type="email" id="compEmailInput" placeholder="player@gmail.com" class="w-full bg-white/5 border border-white/15 focus:border-[#FF6B00] rounded-xl px-3.5 py-2.5 text-white focus:outline-none">
         </div>
 
         <div id="compProfileErrorBox" class="hidden p-2.5 rounded-xl bg-red-950/60 border border-red-500/40 text-red-300 text-[11px] font-semibold text-center"></div>
@@ -761,7 +749,7 @@
     </nav>
   </div>
 
-  <!-- ALL 12 MODALS -->
+  <!-- ALL MODALS -->
   <div id="addFriendsModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-md w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto relative">
       <button onclick="PlayerApp.closeModal('addFriendsModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
@@ -910,7 +898,7 @@
             <option value="CS 1v1" class="bg-[#06070A]">CS 1v1</option>
             <option value="CS 2v2" class="bg-[#06070A]">CS 2v2</option>
             <option value="CS 3v3" class="bg-[#06070A]">CS 3v3</option>
-            <option value="CS 4v4" class="bg-[#06070A]">CS 4v4</option>
+            <option value="CS 4v4" class="bg-[#06070A]" selected>CS 4v4</option>
           </select>
           <select id="editPaidRoomAmmo" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2.5 text-white font-bold">
             <option value="Unlimited" class="bg-[#06070A]">Unlimited</option>
@@ -1079,29 +1067,37 @@
   <script src="js/supabaseClient.js"></script>
   <script src="js/playerApp.js"></script>
 
-  <!-- BANNER ENGINE & AUTO-DISMISS -->
+  <!-- GATEWAY INTERACTION & REMEMBER LOGIC -->
   <script>
     (function () {
-      const banner = document.getElementById('globalApkDownloadBanner');
-      if (!banner) return;
+      const gateway = document.getElementById('ignisGatewayScreen');
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+      const isMedian = navigator.userAgent.toLowerCase().includes('gonative') || navigator.userAgent.toLowerCase().includes('median');
 
-      const isStandalonePWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-      const isMedianApp = navigator.userAgent.toLowerCase().includes('gonative') || navigator.userAgent.toLowerCase().includes('median');
-      const isAlreadyInstalled = localStorage.getItem('ignis_apk_downloaded_permanent') === 'true';
-
-      if (!isStandalonePWA && !isMedianApp && !isAlreadyInstalled) {
-        banner.style.display = 'block';
-      } else {
-        banner.style.display = 'none';
+      // Agar user already APK/installed app ke andar hai toh gateway bypass hoga
+      if (isStandalone || isMedian) {
+        if (gateway) gateway.style.display = 'none';
       }
 
       window.PlayerApp = window.PlayerApp || {};
-      window.PlayerApp.handlePermanentApkDownload = function () {
-        localStorage.setItem('ignis_apk_downloaded_permanent', 'true');
-        banner.style.display = 'none';
+
+      window.PlayerApp.enterWebArena = function () {
+        if (gateway) {
+          gateway.style.opacity = '0';
+          gateway.style.transition = 'opacity 0.25s ease';
+          setTimeout(() => { gateway.style.display = 'none'; }, 250);
+        }
       };
-      window.PlayerApp.dismissApkBannerTemporarily = function () {
-        banner.style.display = 'none';
+
+      window.PlayerApp.handleGatewayDownloadClick = function () {
+        // Download start hone ke 1.2 sec baad web arena khulega
+        setTimeout(() => {
+          if (gateway) {
+            gateway.style.opacity = '0';
+            gateway.style.transition = 'opacity 0.3s ease';
+            setTimeout(() => { gateway.style.display = 'none'; }, 300);
+          }
+        }, 1200);
       };
     })();
   </script>
