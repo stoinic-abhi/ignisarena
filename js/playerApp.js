@@ -1,4 +1,4 @@
-// js/playerApp.js — 100% Complete Uncut Player Engine (1-Click Instant Auth, Profile-Only Setup, Custom Logo & Clean Splash)
+// js/playerApp.js — 100% Complete Uncut Player Engine (1-Click Instant Auth, Paid Room ID/Pass Privacy Lock, Real-Time Hosts + Random, Admin Withdrawal Queue Sync, Full Kill Payout Breakdown & SW Background Notifications)
 
 const PlayerApp = {
   BASE_FF_WALLPAPER: 'https://images2.alphacoders.com/112/1126388.jpg',
@@ -8,6 +8,7 @@ const PlayerApp = {
   _lastChatMsgCount: 0,
   _lastSeenNotifId: localStorage.getItem('ignis_last_seen_notif_id') || '',
   _chatPollTimer: null,
+  _swReg: null,
 
   // Fallback 4K Crown SVG (Used ONLY if assets/app-icon.png or logo.png is not uploaded yet)
   FALLBACK_CROWN_LOGO_SVG_URI: 'data:image/svg+xml;utf8,' + encodeURIComponent(`
@@ -76,6 +77,143 @@ const PlayerApp = {
     }
   },
 
+  /* ==================== STARTUP NOTIFICATION PERMISSION & SERVICE WORKER (BUG 4 FIX) ==================== */
+  async initServiceWorkerAndPermission() {
+    if ('serviceWorker' in navigator) {
+      try {
+        this._swReg = await navigator.serviceWorker.register('./sw.js');
+      } catch (e) {
+        console.warn('SW register warning:', e);
+      }
+    }
+
+    // Request Notification Permission right on startup
+    if ('Notification' in window) {
+      if (Notification.permission === 'default') {
+        try {
+          const perm = await Notification.requestPermission();
+          if (perm === 'granted') {
+            this.fireSystemNotification('🔥 Ignis Arena Ready!', 'Match Room ID/Pass & Broadcast alerts enabled on this device.', 'ignis-welcome');
+          } else {
+            this.mountStartupNotificationPromptBanner();
+          }
+        } catch (e) {
+          this.mountStartupNotificationPromptBanner();
+        }
+      }
+      // Also request on first user interaction if browser blocked auto-prompt before gesture
+      const requestOnFirstTap = async () => {
+        if ('Notification' in window && Notification.permission === 'default') {
+          try {
+            const p = await Notification.requestPermission();
+            if (p === 'granted') {
+              document.getElementById('ignisNotifPermBanner')?.remove();
+              this.fireSystemNotification('🔥 Ignis Arena Connected!', 'You will now receive instant Room ID & Broadcast alerts.', 'ignis-welcome');
+            }
+          } catch (err) {}
+        }
+        window.removeEventListener('click', requestOnFirstTap);
+      };
+      window.addEventListener('click', requestOnFirstTap, { once: true });
+    }
+  },
+
+  mountStartupNotificationPromptBanner() {
+    if (!('Notification' in window) || Notification.permission === 'granted') return;
+    if (document.getElementById('ignisNotifPermBanner')) return;
+    const banner = document.createElement('div');
+    banner.id = 'ignisNotifPermBanner';
+    banner.className = 'fixed top-3 left-3 right-3 z-[250] max-w-md mx-auto laser-card p-3.5 border border-[#FF6B00] shadow-2xl flex items-center justify-between gap-3';
+    banner.innerHTML = `
+      <div class="flex items-center gap-2.5 text-xs">
+        <div class="w-9 h-9 rounded-xl bg-[#FF6B00]/20 border border-[#FF6B00]/40 flex items-center justify-center text-[#FFC857] text-base shrink-0">
+          <i class="fa-solid fa-bell animate-bounce"></i>
+        </div>
+        <div>
+          <strong class="text-white font-russo block text-[11px]">ENABLE ROOM ID &amp; MATCH ALERTS</strong>
+          <span class="text-[10px] text-slate-300">App band hone par bhi Room ID aur Broadcast notification pane ke liye Allow karein.</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-1.5 shrink-0">
+        <button type="button" onclick="PlayerApp.requestPermissionManual()" class="btn-hyper px-3 py-1.5 rounded-xl font-russo text-[10px] cursor-pointer">ALLOW</button>
+        <button type="button" onclick="document.getElementById('ignisNotifPermBanner')?.remove()" class="text-slate-400 hover:text-white px-1.5 py-1 text-xs cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+    `;
+    document.body.appendChild(banner);
+  },
+
+  async requestPermissionManual() {
+    if (!('Notification' in window)) return;
+    const perm = await Notification.requestPermission();
+    document.getElementById('ignisNotifPermBanner')?.remove();
+    if (perm === 'granted') {
+      this.fireSystemNotification('🔥 Notifications Enabled!', 'Room ID, Password & Broadcast alerts will appear in your notification panel.', 'ignis-enabled');
+      this.showToast('Notifications Enabled!');
+    } else {
+      this.showToast('Please allow notifications from browser settings.');
+    }
+  },
+
+  fireSystemNotification(title, body, tag = '') {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const notifTag = tag || 'ignis-notif-' + Date.now();
+    if (this._swReg && this._swReg.active) {
+      this._swReg.active.postMessage({
+        type: 'SHOW_SYSTEM_NOTIFICATION',
+        payload: { title, body, tag: notifTag, url: window.location.href }
+      });
+    } else if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'SHOW_SYSTEM_NOTIFICATION',
+        payload: { title, body, tag: notifTag, url: window.location.href }
+      });
+    } else {
+      try {
+        new Notification(title, { body, icon: 'assets/app-icon.png', badge: 'assets/app-icon.png', tag: notifTag });
+      } catch (e) {}
+    }
+  },
+
+  checkAndFireRoomIdPushNotifications() {
+    if (!this.state.user) return;
+    const myAppId = String(this.state.user.appId || '').toUpperCase();
+
+    // 1. Check Joined Tournaments for newly pushed Room ID/Pass
+    this.syncJoinedMatchesFromSlots();
+    this.state.joinedMatches.forEach(jm => {
+      const m = this.state.tournaments.find(t => t.id === jm.id);
+      if (m && m.room_id) {
+        const key = `ignis_idp_alert_${m.id}_${m.room_id}_${m.room_password || ''}`;
+        if (!localStorage.getItem(key)) {
+          localStorage.setItem(key, '1');
+          this.fireSystemNotification(
+            `🔑 Room ID Out: ${m.title}`,
+            `Room ID: ${m.room_id} | Pass: ${m.room_password || 'Check App'}${m.host_message ? ' • ' + m.host_message : ''}`,
+            key
+          );
+        }
+      }
+    });
+
+    // 2. Check Joined Paid Custom Rooms (Side A or Side B ONLY) for newly pushed Room ID/Pass
+    this.state.customPaidRooms.forEach(r => {
+      const isParticipant =
+        String(r.team_a_app_id || '').toUpperCase() === myAppId ||
+        String(r.team_b_app_id || '').toUpperCase() === myAppId;
+      if (isParticipant && r.room_id) {
+        const key = `ignis_wager_idp_alert_${r.id}_${r.room_id}_${r.room_password || ''}`;
+        if (!localStorage.getItem(key)) {
+          localStorage.setItem(key, '1');
+          this.fireSystemNotification(
+            `⚔️ Paid Room ID Live: ${r.title}`,
+            `Room ID: ${r.room_id} | Pass: ${r.room_password || '---'} (Host: ${r.assigned_operator})`,
+            key
+          );
+        }
+      }
+    });
+  },
+
   stabilizeSupabaseBridge() {
     if (typeof SupabaseService === 'undefined') return;
     SupabaseService.mountCloudStatusBadge = function () {
@@ -88,7 +226,7 @@ const PlayerApp = {
 
   buildIgnisBrandedPosterHTML(m, eco) {
     const statusBadge = eco.isCompleted
-      ? `<span class="bg-[#FFC857] text-black font-extrabold text-[9px] px-2.5 py-0.5 rounded-full shadow">COMPLETED • VIEW WINNER</span>`
+      ? `<span class="bg-[#FFC857] text-black font-extrabold text-[9px] px-2.5 py-0.5 rounded-full shadow">COMPLETED • VIEW STANDINGS</span>`
       : eco.isLive
       ? `<span class="bg-red-600 text-white font-extrabold text-[9px] px-2.5 py-0.5 rounded-full shadow">LOCKED / LIVE</span>`
       : `<span class="bg-emerald-500 text-black font-extrabold text-[9px] px-2.5 py-0.5 rounded-full shadow">OPEN</span>`;
@@ -112,7 +250,7 @@ const PlayerApp = {
         <div class="absolute inset-0 flex flex-col items-center justify-center text-center px-2 pointer-events-none z-10 pt-2">
           <div class="font-extrabold text-sm sm:text-base tracking-tight text-white drop-shadow">IGNIS <span class="text-[#FFC857]">ARENA</span></div>
           <span class="font-bold text-[9px] tracking-widest text-[#FF6B00] uppercase">× FREE FIRE INDIA</span>
-          ${eco.isCompleted && m.winner_ign ? `<span class="mt-1 bg-[#FFC857]/20 border border-[#FFC857]/50 text-[#FFC857] text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">🏆 Winner: ${m.winner_ign} (₹${m.winner_prize || 0})</span>` : ''}
+          ${eco.isCompleted && m.winner_ign ? `<span class="mt-1 bg-[#FFC857]/20 border border-[#FFC857]/50 text-[#FFC857] text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">🏆 Booyah: ${m.winner_ign} • Tap for All Kills &amp; Prizes</span>` : ''}
         </div>
         <div class="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between text-[10px] font-semibold z-10">
           <span class="text-white bg-black/75 px-2 py-0.5 rounded-lg border border-white/10"><i class="ph-bold ph-clock mr-1 text-[#FF6B00]"></i>${m.match_time}</span>
@@ -126,6 +264,7 @@ const PlayerApp = {
     this.stabilizeSupabaseBridge();
     this.setupCustomLogoAndSplash();
     this.initAtmosphericCanvas();
+    this.initServiceWorkerAndPermission();
 
     const splashEl = document.getElementById('ignisSplashScreen');
     const alreadyShown = sessionStorage.getItem('ignis_splash_done');
@@ -136,6 +275,7 @@ const PlayerApp = {
     this.state.tournaments = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
     this.state.customPaidRooms = SupabaseService.getLocal(SupabaseService.STORAGE_CUSTOM_KEY, []);
     this.syncJoinedMatchesFromSlots();
+    this.populatePaidRoomOperatorsDropdown();
     this.loadNotifications(false);
     this.setupRealtimeSync();
     this.startLiveChatAndNotifPoller();
@@ -147,6 +287,7 @@ const PlayerApp = {
     if (SupabaseService.isCloudConnected) {
       SupabaseService.pullAllFromCloud(true).then(() => {
         this.loadPlatformConfig();
+        this.populatePaidRoomOperatorsDropdown();
         this.fetchMatches(true);
         this.fetchCustomPaidRooms(true);
       });
@@ -208,7 +349,7 @@ const PlayerApp = {
     this.state.platformSettings = data;
   },
 
-  /* ==================== 1-CLICK INSTANT AUTH (NO DELAY, NO AUTO POPUP ON HOME) ==================== */
+  /* ==================== 1-CLICK INSTANT AUTH ==================== */
   switchAuthMode(mode) {
     this.state.authMode = mode;
     const isSignIn = mode === 'signin';
@@ -255,6 +396,7 @@ const PlayerApp = {
         document.getElementById('mainPlayerPortal')?.classList.remove('hidden');
         this.syncJoinedMatchesFromSlots();
         this.populateOpponentFriendsDropdown();
+        this.populatePaidRoomOperatorsDropdown();
         this.updateUI();
         return;
       } catch (e) {}
@@ -308,6 +450,7 @@ const PlayerApp = {
       document.getElementById('mainPlayerPortal')?.classList.remove('hidden');
       this.syncJoinedMatchesFromSlots();
       this.populateOpponentFriendsDropdown();
+      this.populatePaidRoomOperatorsDropdown();
       this.updateUI();
       this.switchTab('tournaments');
       this.showToast(`Welcome back, ${this.state.user.username}!`);
@@ -316,7 +459,6 @@ const PlayerApp = {
     }
   },
 
-  // 1-CLICK INSTANT ACCOUNT CREATION (0ms local save + background cloud sync, NO immediate popup)
   completePlayerAuth() {
     const fullName = (document.getElementById('authFullNameInput')?.value || '').trim();
     const usernameRaw = (document.getElementById('authUsernameInput')?.value || '').trim().toLowerCase().replace(/\s+/g, '_');
@@ -365,17 +507,16 @@ const PlayerApp = {
       friendRequests: []
     };
 
-    // Save locally & transition to Tournaments immediately on 1st click!
     this.state.user = newUser;
     localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
 
     document.getElementById('playerAuthGate')?.classList.add('hidden');
     document.getElementById('mainPlayerPortal')?.classList.remove('hidden');
+    this.populatePaidRoomOperatorsDropdown();
     this.updateUI();
     this.switchTab('tournaments');
     this.showToast(`Welcome ${username} (${appId})!`);
 
-    // Sync to Supabase Cloud in the background without blocking UI
     SupabaseService.upsertPlayerProfile(newUser);
   },
 
@@ -736,7 +877,7 @@ const PlayerApp = {
         <div class="p-3.5 pt-0">
           ${eco.isCompleted ? `
             <button onclick="PlayerApp.openTournamentDetailsModal('${m.id}')" class="w-full bg-[#FFC857]/20 border border-[#FFC857]/50 text-[#FFC857] font-extrabold text-xs py-2.5 rounded-xl cursor-pointer">
-              🏆 View Winner &amp; Kill Standings
+              🏆 View All Players Kills &amp; Prize Breakdown
             </button>
           ` : hasJoined ? `
             <button onclick="PlayerApp.switchTab('roomidp')" class="w-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-xs py-2.5 rounded-xl cursor-pointer">
@@ -826,14 +967,33 @@ const PlayerApp = {
 
           ${m.match_status === 'COMPLETED' ? `
             <button onclick="PlayerApp.openTournamentDetailsModal('${m.id}')" class="w-full bg-[#FFC857]/20 border border-[#FFC857]/40 text-[#FFC857] font-bold text-xs py-2 rounded-xl cursor-pointer">
-              🏆 View Match Winner &amp; Kill Standings
+              🏆 View Match Winner &amp; All Players Kill Money
             </button>
           ` : ''}
         </div>
       `).join('');
   },
 
-  /* ==================== TAB 3: PAID ROOMS ==================== */
+  /* ==================== TAB 3: PAID ROOMS (REAL-TIME HOSTS + RANDOM & ID/PASS PRIVACY LOCK) ==================== */
+  populatePaidRoomOperatorsDropdown() {
+    const sel = document.getElementById('customRoomOperator');
+    if (!sel) return;
+    const rawHosts = SupabaseService.getLocal('ignis_hosts_db', []);
+    const activeHosts = Array.isArray(rawHosts) ? rawHosts.filter(h => (h.status || 'ACTIVE') !== 'DISABLED') : [];
+
+    const prevVal = sel.value;
+    let html = `<option value="RANDOM" class="bg-[#06070A]">🎲 Random Available Host (${activeHosts.length} Active in Panel)</option>`;
+    activeHosts.forEach(h => {
+      const hid = h.host_id || h.id;
+      const hname = h.host_name || h.name || hid;
+      html += `<option value="${hid}" class="bg-[#06070A]">🎙️ ${hname} (${hid})</option>`;
+    });
+    sel.innerHTML = html;
+    if (prevVal && (prevVal === 'RANDOM' || activeHosts.some(h => (h.host_id || h.id) === prevVal))) {
+      sel.value = prevVal;
+    }
+  },
+
   populateOpponentFriendsDropdown() {
     const sel = document.getElementById('customRoomOpponentSelect');
     if (!sel) return;
@@ -863,8 +1023,19 @@ const PlayerApp = {
     const ammoMode = document.getElementById('customAmmoMode')?.value || 'Unlimited';
     const hsMode = document.getElementById('customAimRule')?.value || 'YES';
     const bet = parseFloat(document.getElementById('customRoomBet')?.value) || 200;
-    const operator = document.getElementById('customRoomOperator')?.value || 'ANY_HOST';
+    const rawOperatorChoice = document.getElementById('customRoomOperator')?.value || 'RANDOM';
     const invitedFriendRaw = document.getElementById('customRoomOpponentSelect')?.value || '';
+
+    // Resolve RANDOM host from real-time active panel hosts
+    const rawHosts = SupabaseService.getLocal('ignis_hosts_db', []);
+    const activeHosts = Array.isArray(rawHosts) ? rawHosts : [];
+    let operator = rawOperatorChoice;
+    if ((operator === 'RANDOM' || operator === 'ANY_HOST') && activeHosts.length > 0) {
+      const picked = activeHosts[Math.floor(Math.random() * activeHosts.length)];
+      operator = picked.host_id || picked.id;
+    } else if (operator === 'RANDOM') {
+      operator = 'host_01';
+    }
 
     if (bet < 50 || bet > this.getTotalBalance()) {
       this.showToast('Check balance or minimum entry fee of ₹50!');
@@ -927,11 +1098,13 @@ const PlayerApp = {
     this.showToast(`🔗 Paid Room Link Copied! Share with your opponent.`);
   },
 
+  // BUG 1 FIX: PAID ROOM ID & PASSWORD ONLY VISIBLE TO SIDE A AND SIDE B JOINED PLAYERS
   renderCustomPaidRooms(forceRender = false) {
     const container = document.getElementById('customPaidRoomsContainer');
     if (!container) return;
 
-    const currentHash = JSON.stringify(this.state.customPaidRooms);
+    const myAppId = this.state.user ? String(this.state.user.appId || '').toUpperCase() : '';
+    const currentHash = JSON.stringify({ rooms: this.state.customPaidRooms, me: myAppId });
     if (!forceRender && this._lastCustomRoomRenderHash === currentHash) return;
     this._lastCustomRoomRenderHash = currentHash;
 
@@ -941,11 +1114,40 @@ const PlayerApp = {
     }
 
     container.innerHTML = this.state.customPaidRooms.map(r => {
-      const isMyRoom = this.state.user && r.team_a_app_id === this.state.user.appId;
+      const isSideA = myAppId && String(r.team_a_app_id || '').toUpperCase() === myAppId;
+      const isSideB = myAppId && String(r.team_b_app_id || '').toUpperCase() === myAppId;
+      const isJoinedParticipant = isSideA || isSideB;
+
       const isCompleted = r.room_status === 'COMPLETED';
       const isLocked = r.room_status === 'LOCKED';
-      const canJoinSideB = !r.team_b_app_id && !isMyRoom && !isCompleted && !isLocked &&
-        (!r.invited_opponent_app_id || r.invited_opponent_app_id === this.state.user?.appId);
+      const canJoinSideB = !r.team_b_app_id && !isSideA && !isCompleted && !isLocked &&
+        (!r.invited_opponent_app_id || String(r.invited_opponent_app_id).toUpperCase() === myAppId);
+
+      // Credential Box: ONLY visible if isJoinedParticipant is true
+      let credentialsHtml = '';
+      if (r.room_id) {
+        if (isJoinedParticipant) {
+          credentialsHtml = `
+            <div class="grid grid-cols-2 gap-2 bg-emerald-950/40 border border-emerald-500/40 p-2.5 rounded-xl text-xs font-mono">
+              <div class="flex items-center justify-between">
+                <span>ID: <strong class="text-[#FFC857]">${r.room_id}</strong></span>
+                <button onclick="PlayerApp.copy('${r.room_id}', 'Room ID')" class="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-white cursor-pointer">Copy</button>
+              </div>
+              <div class="flex items-center justify-between">
+                <span>PASS: <strong class="text-emerald-400">${r.room_password || '---'}</strong></span>
+                ${r.room_password ? `<button onclick="PlayerApp.copy('${r.room_password}', 'Password')" class="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-white cursor-pointer">Copy</button>` : ''}
+              </div>
+            </div>
+          `;
+        } else {
+          credentialsHtml = `
+            <div class="p-2.5 rounded-xl bg-red-950/30 border border-red-500/30 flex items-center justify-between text-xs">
+              <span class="text-red-300 font-bold text-[11px]"><i class="fa-solid fa-lock mr-1.5 text-red-400"></i>Room ID &amp; Pass Locked (Joined Players Only)</span>
+              <span class="text-[9px] font-mono bg-red-500/20 text-red-300 px-2 py-0.5 rounded">PRIVATE</span>
+            </div>
+          `;
+        }
+      }
 
       return `
         <div id="paid-room-card-${r.id}" class="laser-card p-4 space-y-3 transition">
@@ -969,12 +1171,7 @@ const PlayerApp = {
             <div>Side B: <strong class="text-emerald-400">${r.team_b_ign}</strong></div>
           </div>
 
-          ${r.room_id ? `
-            <div class="grid grid-cols-2 gap-2 bg-emerald-950/30 border border-emerald-500/30 p-2 rounded-xl text-xs font-mono">
-              <div>ROOM ID: <strong class="text-[#FFC857]">${r.room_id}</strong></div>
-              <div>PASS: <strong class="text-emerald-400">${r.room_password || '---'}</strong></div>
-            </div>
-          ` : ''}
+          ${credentialsHtml}
 
           ${isCompleted && r.winner_ign ? `
             <div class="p-3 rounded-xl bg-gradient-to-r from-[#FF6B00]/20 to-emerald-500/20 border border-[#FFC857]/50 text-center">
@@ -993,9 +1190,15 @@ const PlayerApp = {
             ${canJoinSideB ? `
               <button onclick="PlayerApp.acceptPaidChallengeAsTeamB('${r.id}')" class="flex-1 btn-hyper py-2 text-xs cursor-pointer">Accept &amp; Join (₹${r.bet_amount})</button>
             ` : ''}
-            <button onclick="PlayerApp.openPaidRoomChat('${r.id}')" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 py-2 rounded-xl text-xs text-slate-200 font-bold cursor-pointer">
-              💬 Live Host Chat (${(r.chat_messages || []).length})
-            </button>
+            ${isJoinedParticipant ? `
+              <button onclick="PlayerApp.openPaidRoomChat('${r.id}')" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 py-2 rounded-xl text-xs text-slate-200 font-bold cursor-pointer">
+                💬 Live Host Chat (${(r.chat_messages || []).length})
+              </button>
+            ` : `
+              <button disabled class="flex-1 bg-white/5 border border-white/5 py-2 rounded-xl text-[11px] text-slate-500 font-semibold cursor-not-allowed">
+                🔒 Chat &amp; IDP for Joined Players Only
+              </button>
+            `}
           </div>
         </div>
       `;
@@ -1027,7 +1230,7 @@ const PlayerApp = {
     this._lastCustomRoomRenderHash = '';
     await this.fetchCustomPaidRooms(true);
     this.updateUI();
-    this.showToast('Joined Side B! Open Host Chat for updates.');
+    this.showToast('Joined Side B! Room ID/Pass & Host Chat unlocked for you.');
   },
 
   startLiveChatAndNotifPoller() {
@@ -1036,19 +1239,32 @@ const PlayerApp = {
       if (SupabaseService.isCloudConnected) {
         await SupabaseService.pullAllFromCloud(false);
       }
+      this.state.tournaments = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
       this.state.customPaidRooms = SupabaseService.getLocal(SupabaseService.STORAGE_CUSTOM_KEY, []);
+      this.populatePaidRoomOperatorsDropdown();
       if (this.state.activeChatRoomId) {
         this.renderChatMessages(this.state.activeChatRoomId);
       }
       this.loadNotifications(true);
+      this.checkAndFireRoomIdPushNotifications();
     }, 2200);
   },
 
   openPaidRoomChat(roomId) {
+    const room = this.state.customPaidRooms.find(r => r.id === roomId);
+    if (!room || !this.state.user) return;
+    const myAppId = String(this.state.user.appId || '').toUpperCase();
+    const isParticipant =
+      String(room.team_a_app_id || '').toUpperCase() === myAppId ||
+      String(room.team_b_app_id || '').toUpperCase() === myAppId;
+
+    if (!isParticipant) {
+      this.showToast('Only joined Side A & Side B players can open room chat!');
+      return;
+    }
+
     this.state.activeChatRoomId = roomId;
     this._lastChatMsgCount = -1;
-    const room = this.state.customPaidRooms.find(r => r.id === roomId);
-    if (!room) return;
     document.getElementById('chatModalTitle').innerText = `${room.title} (${room.id})`;
     this.renderChatMessages(roomId);
     this.openModal('paidRoomChatModal');
@@ -1082,7 +1298,7 @@ const PlayerApp = {
     this.renderChatMessages(this.state.activeChatRoomId);
   },
 
-  /* ==================== TAB 4: WALLET, ORANGE SCANNER SWITCH & PASSBOOK ==================== */
+  /* ==================== TAB 4: WALLET, ORANGE SCANNER SWITCH & WITHDRAWAL SYNC TO ADMIN ==================== */
   async openDepositQrModal() {
     await this.loadPlatformConfig();
     this.selectDepositScanner(1);
@@ -1130,6 +1346,7 @@ const PlayerApp = {
     this.showToast('Deposit UTR Submitted for Approval!');
   },
 
+  // BUG 2 FIX: SAVES WITHDRAWAL TO BOTH PASSBOOK LEDGER AND ADMIN PANEL WITHDRAWAL QUEUE
   async submitWithdrawal() {
     const upi = (document.getElementById('withdrawUpiId')?.value || '').trim();
     const amt = parseFloat(document.getElementById('withdrawAmountInput')?.value) || 0;
@@ -1139,23 +1356,52 @@ const PlayerApp = {
     }
     this.state.user.winningsBal -= amt;
     localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
-    SupabaseService.upsertPlayerProfile(this.state.user);
+    await SupabaseService.upsertPlayerProfile(this.state.user);
 
+    const wthId = 'WTH-' + Math.floor(100000 + Math.random() * 900000);
+    const nowStr = new Date().toLocaleString();
+
+    // 1. Add to Player Passbook Ledger
     const ledger = SupabaseService.getLocal('ignis_all_time_transactions', []);
     ledger.unshift({
-      id: 'WTH-' + Math.floor(1000 + Math.random() * 9000),
+      id: wthId,
       app_id: this.state.user.appId,
+      player_ign: this.state.user.ign,
+      upi_id: upi,
       type: 'WITHDRAWAL',
       amount: amt,
       note: `Bank Cashout to ${upi}`,
-      status: 'PROCESSING',
-      timestamp: new Date().toLocaleString()
+      status: 'PENDING',
+      timestamp: nowStr
     });
     SupabaseService.setLocal('ignis_all_time_transactions', ledger);
+
+    // 2. Add to Super Admin Withdrawal Approval Queue ('ignis_player_withdrawals_db')
+    const adminWthQueue = SupabaseService.getLocal('ignis_player_withdrawals_db', []);
+    adminWthQueue.unshift({
+      id: wthId,
+      app_id: this.state.user.appId,
+      player_ign: this.state.user.ign,
+      phone: this.state.user.phone || '',
+      upi_id: upi,
+      amount: amt,
+      status: 'PENDING',
+      timestamp: nowStr,
+      created_at: new Date().toISOString()
+    });
+    SupabaseService.setLocal('ignis_player_withdrawals_db', adminWthQueue);
+
+    if (SupabaseService.isCloudConnected && typeof SupabaseService.pushKeyToCloud === 'function') {
+      try {
+        await SupabaseService.pushKeyToCloud('ignis_all_time_transactions', ledger);
+        await SupabaseService.pushKeyToCloud('ignis_player_withdrawals_db', adminWthQueue);
+      } catch (e) {}
+    }
+
     document.getElementById('withdrawAmountInput').value = '';
     await this.loadAllTimeTransactions();
     this.updateUI();
-    this.showToast(`₹${amt} withdrawal initiated!`);
+    this.showToast(`₹${amt} Withdrawal Request Sent to Admin!`);
   },
 
   switchVaultAction(action) {
@@ -1227,7 +1473,7 @@ const PlayerApp = {
       }).join('');
   },
 
-  /* ==================== SQUAD CO-PAY & TOURNAMENT WINNER STANDINGS MODAL ==================== */
+  /* ==================== SQUAD CO-PAY & FULL KILL BREAKDOWN MODAL (BUG 3 FIX) ==================== */
   openJoinModal(matchId) {
     if (!this.state.user) return;
     if (!this.isProfileComplete(this.state.user)) {
@@ -1325,44 +1571,101 @@ const PlayerApp = {
     this.showToast(`Slot #${this.state.selectedSlotNumber} Locked!`);
   },
 
+  // BUG 3 FIX: SHOWS EVERY PLAYER'S KILLS, KILL PRIZE (KILLS x PER_KILL) & BOOYAH PRIZE CLEARLY
   async openTournamentDetailsModal(matchId) {
     const match = this.state.tournaments.find(m => m.id === matchId);
     if (!match) return;
     document.getElementById('detailModalTitle').innerText = match.title;
 
+    const perKillRate = Number(match.per_kill || 0);
+    const { data: realSlots } = await SupabaseService.getJoinedPlayers(matchId);
+    const rawParticipants = (Array.isArray(match.settled_results) && match.settled_results.length > 0)
+      ? match.settled_results
+      : (realSlots || []);
+
+    // Normalize and sort participants so winner & top kill earners show with full breakdown
+    const participants = rawParticipants.map(p => {
+      const isWinner = Boolean(p.is_winner) || (match.winner_app_id && String(p.leader_app_id).toUpperCase() === String(match.winner_app_id).toUpperCase());
+      const kills = Number(p.kills || 0);
+      const killPrize = (p.kill_prize !== undefined) ? Number(p.kill_prize) : (kills * perKillRate);
+      const booyahPrize = (p.booyah_prize !== undefined) ? Number(p.booyah_prize) : (isWinner ? Number(match.winner_prize || 0) : 0);
+      const totalWon = (p.prize_won !== undefined) ? Number(p.prize_won) : (killPrize + booyahPrize);
+      return {
+        ...p,
+        isWinner,
+        kills,
+        killPrize,
+        booyahPrize,
+        totalWon
+      };
+    });
+
+    if (match.match_status === 'COMPLETED') {
+      participants.sort((a, b) => {
+        if (a.isWinner !== b.isWinner) return a.isWinner ? -1 : 1;
+        if (b.totalWon !== a.totalWon) return b.totalWon - a.totalWon;
+        return b.kills - a.kills;
+      });
+    }
+
+    const totalKillsPayoutSum = participants.reduce((acc, x) => acc + x.killPrize, 0);
+
     const winnerBanner = document.getElementById('detailModalWinnerBanner');
     if (winnerBanner) {
       if (match.match_status === 'COMPLETED' && match.winner_ign) {
+        const winEntry = participants.find(x => x.isWinner);
+        const winKills = winEntry ? winEntry.kills : 0;
+        const winKillMoney = winEntry ? winEntry.killPrize : 0;
+        const winBooyahMoney = Number(match.winner_prize || 0);
         winnerBanner.classList.remove('hidden');
         winnerBanner.innerHTML = `
-          <div class="text-[10px] font-mono text-[#FFC857] uppercase font-bold">🏆 1st Place Booyah Champion</div>
-          <div class="text-lg font-extrabold text-white">${match.winner_ign} <span class="text-xs text-[#FFC857] font-mono">(${match.winner_app_id || ''})</span></div>
-          <div class="text-xs font-bold text-emerald-400">1st Rank Winning Prize: ₹${match.winner_prize || 0}</div>
+          <div class="text-[10px] font-mono text-[#FFC857] uppercase font-bold">🏆 1st Place Booyah Champion &amp; Match Settlement Summary</div>
+          <div class="text-lg font-extrabold text-white mt-0.5">${match.winner_ign} <span class="text-xs text-[#FFC857] font-mono">(${match.winner_app_id || ''})</span></div>
+          <div class="text-xs font-bold text-emerald-400 mt-0.5">
+            Booyah Prize: ₹${winBooyahMoney} ${winKills > 0 ? `+ ${winKills} Kills (₹${winKillMoney}) = Total ₹${winBooyahMoney + winKillMoney}` : ''}
+          </div>
+          <div class="text-[11px] text-cyan-300 font-mono mt-1 pt-1 border-t border-white/10">
+            🎯 Total Kill Bounties Paid Across All Players: <strong>₹${totalKillsPayoutSum}</strong> (₹${perKillRate}/Kill)
+          </div>
         `;
       } else {
         winnerBanner.classList.add('hidden');
       }
     }
 
-    const { data: realSlots } = await SupabaseService.getJoinedPlayers(matchId);
-    const participants = (Array.isArray(match.settled_results) && match.settled_results.length > 0)
-      ? match.settled_results
-      : (realSlots || []);
-
     const tbody = document.getElementById('detailModalPlayersTable');
     if (tbody) {
       tbody.innerHTML = participants.length === 0
         ? `<tr><td colspan="4" class="py-6 text-center text-slate-500">No players registered in this room yet.</td></tr>`
         : participants.map(p => {
-          const isWinner = match.winner_app_id && String(p.leader_app_id).toUpperCase() === String(match.winner_app_id).toUpperCase();
+          const breakdownBadges = [];
+          if (p.kills > 0) {
+            breakdownBadges.push(`<span class="text-cyan-300">${p.kills} Kills × ₹${perKillRate} = ₹${p.killPrize}</span>`);
+          } else {
+            breakdownBadges.push(`<span class="text-slate-500">0 Kills (₹0)</span>`);
+          }
+          if (p.isWinner && p.booyahPrize > 0) {
+            breakdownBadges.push(`<span class="text-[#FFC857]">+ Booyah ₹${p.booyahPrize}</span>`);
+          }
+
           return `
-            <tr class="${isWinner ? 'bg-[#FFC857]/10' : ''}">
+            <tr class="${p.isWinner ? 'bg-[#FFC857]/10 border-l-2 border-[#FFC857]' : 'border-b border-white/5'}">
               <td class="py-2.5 px-3 text-[#FFC857] font-bold">#${p.slot_number}</td>
               <td class="py-2.5 px-3 text-white font-semibold">
-                ${p.leader_ign} ${isWinner ? '<span class="ml-1 bg-[#FFC857] text-black text-[9px] font-extrabold px-1.5 py-0.5 rounded">🏆 1ST</span>' : ''}
+                <div>
+                  ${p.leader_ign}
+                  ${p.isWinner ? '<span class="ml-1 bg-[#FFC857] text-black text-[9px] font-extrabold px-1.5 py-0.5 rounded">🏆 BOOYAH</span>' : ''}
+                </div>
+                <div class="text-[10px] font-mono text-slate-400">${p.leader_app_id || ''}</div>
               </td>
-              <td class="py-2.5 px-3 text-center text-cyan-400 font-mono font-bold">${p.kills || 0} Kills</td>
-              <td class="py-2.5 px-3 text-right text-emerald-400 font-mono font-extrabold">₹${p.prize_won || 0}</td>
+              <td class="py-2.5 px-3 text-center font-mono">
+                <div class="text-cyan-400 font-bold text-xs">${p.kills} Kills</div>
+                <div class="text-[10px] text-emerald-300">Kill Money: ₹${p.killPrize}</div>
+              </td>
+              <td class="py-2.5 px-3 text-right font-mono">
+                <div class="text-emerald-400 font-extrabold text-sm">₹${p.totalWon}</div>
+                <div class="text-[9px] leading-tight">${breakdownBadges.join(' ')}</div>
+              </td>
             </tr>
           `;
         }).join('');
@@ -1438,17 +1741,21 @@ const PlayerApp = {
     this.showToast('Match Proof Sent!');
   },
 
+  // FIRES SYSTEM TRAY NOTIFICATION VIA SERVICE WORKER ON NEW ADMIN BROADCAST
   loadNotifications(showToastOnNew = false) {
     this.state.notifications = SupabaseService.getLocal('ignis_player_notifications', []);
     const badge = document.getElementById('notifBadgeCount');
     if (badge) badge.innerText = this.state.notifications.length;
 
-    if (showToastOnNew && this.state.notifications.length > 0) {
+    if (this.state.notifications.length > 0) {
       const newest = this.state.notifications[0];
       if (newest.id && newest.id !== this._lastSeenNotifId) {
         this._lastSeenNotifId = newest.id;
         localStorage.setItem('ignis_last_seen_notif_id', newest.id);
-        this.showToast(`📢 ${newest.title}: ${newest.msg}`);
+        this.fireSystemNotification(`📢 ${newest.title}`, newest.msg, newest.id);
+        if (showToastOnNew) {
+          this.showToast(`📢 ${newest.title}: ${newest.msg}`);
+        }
       }
     }
   },
@@ -1538,7 +1845,7 @@ const PlayerApp = {
     this.showToast(`Callback Requested on ${phone}!`);
   },
 
-  /* ==================== 5-TAB ROUTER (COMPLETE PROFILE OPENS ONLY IN PROFILE TAB) ==================== */
+  /* ==================== 5-TAB ROUTER ==================== */
   switchTab(tabId) {
     this.state.currentTab = tabId;
     ['tournaments', 'roomidp', 'paidmatches', 'wallet', 'profile'].forEach(t => {
@@ -1554,10 +1861,13 @@ const PlayerApp = {
     });
 
     if (tabId === 'roomidp') this.renderMyBattles();
-    if (tabId === 'paidmatches') this.populateOpponentFriendsDropdown();
+    if (tabId === 'paidmatches') {
+      this.populateOpponentFriendsDropdown();
+      this.populatePaidRoomOperatorsDropdown();
+      this.renderCustomPaidRooms(true);
+    }
     if (tabId === 'wallet') this.loadAllTimeTransactions();
 
-    // Open Complete Profile Modal ONLY when user visits the Profile section
     if (tabId === 'profile' && this.state.user && !this.isProfileComplete(this.state.user)) {
       this.openCompleteProfileModal();
     }
@@ -1600,9 +1910,11 @@ const PlayerApp = {
       }
       this.state.tournaments = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
       this.state.customPaidRooms = SupabaseService.getLocal(SupabaseService.STORAGE_CUSTOM_KEY, []);
+      this.populatePaidRoomOperatorsDropdown();
       if (this.state.activeChatRoomId) this.renderChatMessages(this.state.activeChatRoomId);
       await this.loadAllTimeTransactions();
       this.loadNotifications(true);
+      this.checkAndFireRoomIdPushNotifications();
       this.updateUI();
     });
   },
