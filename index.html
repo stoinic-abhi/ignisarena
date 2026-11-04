@@ -17,7 +17,7 @@
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
   <link rel="canonical" href="https://ignisarena.vercel.app/">
 
-  <!-- DIRECT ROOT FAVICON FOR GOOGLE SEARCH BOT (48x48+ SQUARE MAPPING) -->
+  <!-- DIRECT ROOT FAVICON FOR GOOGLE SEARCH BOT -->
   <link rel="icon" type="image/png" sizes="192x192" href="https://ignisarena.vercel.app/logo.png">
   <link rel="icon" type="image/png" sizes="96x96" href="https://ignisarena.vercel.app/logo.png">
   <link rel="icon" type="image/png" sizes="48x48" href="https://ignisarena.vercel.app/logo.png">
@@ -42,51 +42,41 @@
   <link rel="stylesheet" href="css/style.css">
 
   <style>
-    /* 120Hz & 120FPS GPU HARDWARE ACCELERATION ENGINE */
+    /* 120Hz ULTRA-SMOOTH NATIVE TOUCH SCROLL ENGINE */
     * {
       -webkit-tap-highlight-color: transparent;
       outline: none;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
     }
-    html, body {
+    html {
       background-color: #06070A;
-      scroll-behavior: smooth;
+      overflow-x: hidden;
+      overflow-y: scroll;
       -webkit-overflow-scrolling: touch;
-      overscroll-behavior-y: none;
+      touch-action: pan-y;
+      scroll-behavior: smooth;
     }
-    .apk-safe-bottom { padding-bottom: 6.5rem; }
-    
-    /* Hardware Layer Compositing */
-    .laser-card, .ios-floating-dock, button, select, input {
+    body {
+      background-color: #06070A;
+      overflow-x: hidden;
+      overflow-y: visible;
+      touch-action: pan-y;
+      -webkit-overflow-scrolling: touch;
+      min-height: 100vh;
+      position: relative;
+    }
+    .apk-safe-bottom { padding-bottom: 7.5rem; }
+
+    /* Touch acceleration without layout-locking */
+    .laser-card, .ios-floating-dock {
       transform: translateZ(0);
-      backface-visibility: hidden;
-      perspective: 1000px;
-      will-change: transform;
+      will-change: transform, opacity;
     }
 
-    /* 60-120FPS Natural Touch Elastic Response */
-    button, .cursor-pointer {
-      transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s ease, filter 0.15s ease;
+    button, select, input, a {
+      touch-action: manipulation;
     }
-    button:active, .cursor-pointer:active {
-      transform: scale(0.965) translateZ(0);
-    }
-
-    /* Smooth Modal Transitions */
-    .modal-backdrop-smooth {
-      animation: modalFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-    .modal-content-smooth {
-      animation: modalSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-    @keyframes modalFadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    @keyframes modalSlideUp {
-      from { opacity: 0; transform: scale(0.95) translateY(12px) translateZ(0); }
-      to { opacity: 1; transform: scale(1) translateY(0) translateZ(0); }
+    button:active, a:active {
+      transform: scale(0.97);
     }
 
     .full-apk-splash {
@@ -97,16 +87,15 @@
       z-index: 9999;
       background: #06070A;
       overflow: hidden;
-      transform: translateZ(0);
+      pointer-events: auto;
     }
 
     @keyframes pulseGlow {
-      0%, 100% { box-shadow: 0 0 16px rgba(255, 107, 0, 0.45); }
-      50% { box-shadow: 0 0 32px rgba(255, 107, 0, 0.85); }
+      0%, 100% { box-shadow: 0 0 14px rgba(255, 107, 0, 0.45); }
+      50% { box-shadow: 0 0 28px rgba(255, 107, 0, 0.85); }
     }
     .neon-download-btn {
       animation: pulseGlow 2.2s infinite ease-in-out;
-      transform: translateZ(0);
     }
   </style>
 </head>
@@ -115,14 +104,14 @@
   <canvas id="emberCanvas" class="fixed inset-0 pointer-events-none z-0 opacity-25"></canvas>
   <div id="toastContainer" class="fixed top-4 right-3 left-3 sm:left-auto sm:right-5 z-[100] flex flex-col gap-2 sm:max-w-sm pointer-events-none"></div>
 
-  <!-- TOP DOWNLOAD APK STRIP (AUTO-HIDES ONCE DOWNLOADED) -->
-  <div id="globalApkDownloadBanner" class="hidden sticky top-0 z-[120] bg-gradient-to-r from-[#180d04] via-[#241306] to-[#0f0a04] border-b border-[#FF6B00]/40 px-3 py-2 backdrop-blur-xl">
+  <!-- TOP DOWNLOAD APK STRIP (EASY CLOSE & AUTO-HIDE ON DOWNLOAD) -->
+  <div id="globalApkDownloadBanner" style="display: none;" class="sticky top-0 z-40 bg-gradient-to-r from-[#180d04] via-[#241306] to-[#0f0a04] border-b border-[#FF6B00]/40 px-3 py-2 backdrop-blur-xl">
     <div class="max-w-5xl mx-auto flex items-center justify-between gap-2.5">
       <div class="flex items-center gap-2.5 min-w-0">
-        <img src="logo.png" class="w-9 h-9 rounded-xl object-cover border border-[#FF6B00]/50 shrink-0" alt="Ignis Arena Logo">
+        <img src="logo.png" class="w-9 h-9 rounded-xl object-cover border border-[#FF6B00]/50 shrink-0" alt="Ignis Logo">
         <div class="min-w-0">
           <strong class="font-bold text-xs text-white block truncate">Install Official Android APK (v1.0)</strong>
-          <span class="text-[10px] text-slate-300 font-medium">120Hz smooth engine, zero lag &amp; instant room ID alerts</span>
+          <span class="text-[10px] text-slate-300 font-medium">120Hz smooth engine, zero lag &amp; room ID alerts</span>
         </div>
       </div>
       <div class="flex items-center gap-2 shrink-0">
@@ -132,7 +121,7 @@
           <i class="fa-brands fa-android text-sm"></i>
           <span>Download</span>
         </a>
-        <button type="button" onclick="PlayerApp.dismissApkBannerTemporarily()" class="text-slate-400 hover:text-white px-1.5 py-1 text-xs cursor-pointer">
+        <button type="button" onclick="PlayerApp.dismissApkBannerTemporarily()" class="text-slate-400 hover:text-white px-2 py-1 text-sm cursor-pointer">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
@@ -145,8 +134,8 @@
   </div>
 
   <!-- CLEAN AUTH GATEWAY -->
-  <div id="playerAuthGate" class="fixed inset-0 z-50 bg-[#06070A]/95 backdrop-blur-2xl flex items-center justify-center p-4 overflow-y-auto hidden modal-backdrop-smooth">
-    <div class="laser-card max-w-md w-full p-6 sm:p-7 space-y-5 relative overflow-hidden my-auto modal-content-smooth">
+  <div id="playerAuthGate" class="fixed inset-0 z-50 bg-[#06070A]/95 backdrop-blur-2xl flex items-center justify-center p-4 overflow-y-auto hidden">
+    <div class="laser-card max-w-md w-full p-6 sm:p-7 space-y-5 relative overflow-hidden my-auto">
       <div class="text-center space-y-1">
         <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl mx-auto shadow-2xl text-black overflow-hidden border border-[#FF6B00]/50" style="background: linear-gradient(135deg, #FF6B00, #FFC857);">
           <img id="authGateBrandLogo" src="logo.png" alt="Logo" class="w-full h-full object-cover">
@@ -219,8 +208,8 @@
   </div>
 
   <!-- PROFILE SETUP MODAL -->
-  <div id="completeProfileModal" class="fixed inset-0 z-[60] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-4 hidden modal-backdrop-smooth">
-    <div class="laser-card max-w-md w-full p-6 space-y-4 relative border border-[#FF6B00]/50 modal-content-smooth">
+  <div id="completeProfileModal" class="fixed inset-0 z-[60] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-4 hidden">
+    <div class="laser-card max-w-md w-full p-6 space-y-4 relative border border-[#FF6B00]/50">
       <button type="button" onclick="PlayerApp.closeModal('completeProfileModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer">
         <i class="fa-solid fa-xmark text-lg"></i>
       </button>
@@ -257,13 +246,13 @@
           </div>
           <div>
             <label class="font-semibold text-slate-300 block mb-1 text-[11px]">In-Game Level</label>
-            <input type="text" id="compLevelInput" value="Level 70" class="w-full bg-white/5 border border-white/15 focus:border-[#FF6B00] rounded-xl px-3.5 py-2.5 text-white font-semibold focus:outline-none">
+            <input type="text" id="compLevelInput" value="Level 70" class="w-full bg-white/5 border border-white/15 rounded-xl px-3.5 py-2.5 text-white font-semibold focus:outline-none">
           </div>
         </div>
 
         <div>
           <label class="font-semibold text-slate-300 block mb-1 text-[11px]">Official Gmail Address *</label>
-          <input type="email" id="compEmailInput" placeholder="player@gmail.com" class="w-full bg-white/5 border border-white/15 focus:border-[#FF6B00] rounded-xl px-3.5 py-2.5 text-white focus:outline-none">
+          <input type="email" id="compEmailInput" placeholder="player@gmail.com" class="w-full bg-white/5 border border-white/15 rounded-xl px-3.5 py-2.5 text-white focus:outline-none">
         </div>
 
         <div id="compProfileErrorBox" class="hidden p-2.5 rounded-xl bg-red-950/60 border border-red-500/40 text-red-300 text-[11px] font-semibold text-center"></div>
@@ -773,8 +762,8 @@
   </div>
 
   <!-- ALL 12 MODALS -->
-  <div id="addFriendsModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden modal-backdrop-smooth">
-    <div class="laser-card max-w-md w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto relative modal-content-smooth">
+  <div id="addFriendsModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-md w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto relative">
       <button onclick="PlayerApp.closeModal('addFriendsModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
       <div>
         <span class="text-[10px] font-bold text-cyan-400 uppercase block">Instagram-Style Athlete Explorer</span>
@@ -795,8 +784,8 @@
     </div>
   </div>
 
-  <div id="friendsListModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden modal-backdrop-smooth">
-    <div class="laser-card max-w-md w-full p-5 space-y-4 max-h-[85vh] overflow-y-auto relative modal-content-smooth">
+  <div id="friendsListModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-md w-full p-5 space-y-4 max-h-[85vh] overflow-y-auto relative">
       <button onclick="PlayerApp.closeModal('friendsListModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
       <div id="pendingRequestsContainer" class="space-y-2 border-b border-white/10 pb-3"></div>
       <h3 class="font-extrabold text-base text-white">Accepted Teammates &amp; Friends</h3>
@@ -804,8 +793,8 @@
     </div>
   </div>
 
-  <div id="xpPerksModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden modal-backdrop-smooth">
-    <div class="laser-card max-w-md w-full p-5 space-y-4 relative modal-content-smooth">
+  <div id="xpPerksModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-md w-full p-5 space-y-4 relative">
       <button onclick="PlayerApp.closeModal('xpPerksModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
       <div>
         <span class="text-[10px] font-bold text-[#FF6B00] uppercase block">Progression Roadmap</span>
@@ -831,8 +820,8 @@
     </div>
   </div>
 
-  <div id="editProfileModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden modal-backdrop-smooth">
-    <div class="laser-card max-w-md w-full p-5 relative space-y-3 max-h-[90vh] overflow-y-auto modal-content-smooth">
+  <div id="editProfileModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-md w-full p-5 relative space-y-3 max-h-[90vh] overflow-y-auto">
       <button onclick="PlayerApp.closeModal('editProfileModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
       <h3 class="font-extrabold text-base text-white">Account Settings &amp; Unique Identity</h3>
       <div class="space-y-2.5 text-xs">
@@ -855,8 +844,8 @@
     </div>
   </div>
 
-  <div id="depositModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden modal-backdrop-smooth">
-    <div class="laser-card max-w-sm w-full p-5 text-center relative space-y-3.5 modal-content-smooth">
+  <div id="depositModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-sm w-full p-5 text-center relative space-y-3.5">
       <button onclick="PlayerApp.closeModal('depositModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
       <div>
         <span class="text-[10px] font-bold text-[#FFC857] uppercase block">+20% Extra on 1st Deposit</span>
@@ -881,8 +870,8 @@
     </div>
   </div>
 
-  <div id="joinModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden modal-backdrop-smooth">
-    <div class="laser-card max-w-md w-full p-5 relative max-h-[90vh] overflow-y-auto space-y-3.5 modal-content-smooth">
+  <div id="joinModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-md w-full p-5 relative max-h-[90vh] overflow-y-auto space-y-3.5">
       <button onclick="PlayerApp.closeModal('joinModal')" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-slate-300 cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
       <div>
         <h3 class="font-extrabold text-base text-white">Select Lobby Slot &amp; Squad</h3>
@@ -909,8 +898,8 @@
     </div>
   </div>
 
-  <div id="editPaidRoomModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden modal-backdrop-smooth">
-    <div class="laser-card max-w-md w-full p-5 space-y-3.5 relative modal-content-smooth">
+  <div id="editPaidRoomModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-md w-full p-5 space-y-3.5 relative">
       <button onclick="PlayerApp.closeModal('editPaidRoomModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
       <h3 class="font-extrabold text-base text-white">Edit Paid Room / Change Entry Fee</h3>
       <input type="hidden" id="editPaidRoomIdInput">
@@ -931,7 +920,7 @@
         <div class="grid grid-cols-2 gap-2.5">
           <select id="editPaidRoomHs" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2.5 text-[#FFC857] font-bold">
             <option value="YES" class="bg-[#06070A]">HS: YES</option>
-            <option value="NO" class="bg-[#06070A]">HS: NO</option>
+            <option value="NO" class="bg-[#06070A]">NO (All Guns)</option>
           </select>
           <input type="number" id="editPaidRoomBet" min="50" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2.5 text-emerald-400 font-bold">
         </div>
@@ -944,8 +933,8 @@
   </div>
 
   <!-- TOURNAMENT DETAILS & ALL PLAYERS KILL BREAKDOWN -->
-  <div id="tournamentDetailsModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden modal-backdrop-smooth">
-    <div class="laser-card max-w-lg w-full p-5 relative max-h-[90vh] overflow-y-auto space-y-3.5 modal-content-smooth">
+  <div id="tournamentDetailsModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-lg w-full p-5 relative max-h-[90vh] overflow-y-auto space-y-3.5">
       <button onclick="PlayerApp.closeModal('tournamentDetailsModal')" class="absolute top-4 right-4 text-slate-300 cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
       <div>
         <span class="text-[10px] font-bold text-[#FFC857] uppercase block" id="detailModalStatusBadge">Tournament Standings &amp; Kill Breakdown</span>
@@ -970,8 +959,8 @@
     </div>
   </div>
 
-  <div id="paidRoomChatModal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center p-3.5 hidden modal-backdrop-smooth">
-    <div class="laser-card max-w-lg w-full p-5 relative max-h-[90vh] flex flex-col justify-between space-y-3.5 modal-content-smooth">
+  <div id="paidRoomChatModal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-lg w-full p-5 relative max-h-[90vh] flex flex-col justify-between space-y-3.5">
       <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
         <div>
           <span class="text-[10px] text-emerald-400 font-bold block">● Live Synced Chat</span>
@@ -987,16 +976,16 @@
     </div>
   </div>
 
-  <div id="notificationModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden modal-backdrop-smooth">
-    <div class="laser-card max-w-md w-full p-5 space-y-3.5 modal-content-smooth">
+  <div id="notificationModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-md w-full p-5 space-y-3.5">
       <div class="flex justify-between border-b border-white/10 pb-2"><h3 class="font-extrabold text-white">Official Broadcast Notifications</h3><button onclick="PlayerApp.closeModal('notificationModal')"><i class="fa-solid fa-xmark"></i></button></div>
       <div id="notificationsListBox" class="space-y-2 max-h-56 overflow-y-auto"></div>
       <button onclick="PlayerApp.clearAllNotifications()" class="w-full py-2 bg-white/10 text-xs rounded-xl cursor-pointer">Clear All</button>
     </div>
   </div>
 
-  <div id="feedbackModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden modal-backdrop-smooth">
-    <div class="laser-card max-w-md w-full p-5 space-y-4 relative modal-content-smooth">
+  <div id="feedbackModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-md w-full p-5 space-y-4 relative">
       <button onclick="PlayerApp.closeModal('feedbackModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
       <div>
         <span class="text-[10px] font-bold text-[#FFC857] uppercase block">24×7 Athlete Helpdesk</span>
@@ -1063,8 +1052,8 @@
     </div>
   </div>
 
-  <div id="proofUploadModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden modal-backdrop-smooth">
-    <div class="laser-card max-w-sm w-full p-5 space-y-3.5 relative modal-content-smooth">
+  <div id="proofUploadModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-sm w-full p-5 space-y-3.5 relative">
       <button onclick="PlayerApp.closeModal('proofUploadModal')" class="absolute top-4 right-4 text-slate-400"><i class="fa-solid fa-xmark text-lg"></i></button>
       <h3 class="font-extrabold text-base text-white">Upload Scoreboard Screenshot</h3>
       <div class="space-y-2.5 text-xs">
@@ -1090,29 +1079,29 @@
   <script src="js/supabaseClient.js"></script>
   <script src="js/playerApp.js"></script>
 
-  <!-- LOGIC TO SHOW / PERMANENTLY HIDE TOP DOWNLOAD BANNER -->
+  <!-- BANNER ENGINE & AUTO-DISMISS -->
   <script>
     (function () {
       const banner = document.getElementById('globalApkDownloadBanner');
       if (!banner) return;
 
       const isStandalonePWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-      const isMedianApp = navigator.userAgent.includes('gonative') || navigator.userAgent.includes('median');
+      const isMedianApp = navigator.userAgent.toLowerCase().includes('gonative') || navigator.userAgent.toLowerCase().includes('median');
       const isAlreadyInstalled = localStorage.getItem('ignis_apk_downloaded_permanent') === 'true';
 
       if (!isStandalonePWA && !isMedianApp && !isAlreadyInstalled) {
-        banner.classList.remove('hidden');
+        banner.style.display = 'block';
+      } else {
+        banner.style.display = 'none';
       }
 
       window.PlayerApp = window.PlayerApp || {};
       window.PlayerApp.handlePermanentApkDownload = function () {
         localStorage.setItem('ignis_apk_downloaded_permanent', 'true');
-        setTimeout(() => {
-          banner.classList.add('hidden');
-        }, 800);
+        banner.style.display = 'none';
       };
       window.PlayerApp.dismissApkBannerTemporarily = function () {
-        banner.classList.add('hidden');
+        banner.style.display = 'none';
       };
     })();
   </script>
