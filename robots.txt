@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Allow: /download.html
+Allow: /index.html
+
+Sitemap: https://ignisarena.vercel.app/sitemap.xml
