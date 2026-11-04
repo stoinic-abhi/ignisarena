@@ -20,23 +20,26 @@
   <meta name="googlebot" content="index, follow">
   <link rel="canonical" href="https://ignisarena.vercel.app/download.html">
 
+  <!-- DIRECT ROOT FAVICON FOR GOOGLE SEARCH BOT (48x48+ SQUARE MAPPING) -->
+  <link rel="icon" type="image/png" sizes="192x192" href="https://ignisarena.vercel.app/logo.png">
+  <link rel="icon" type="image/png" sizes="96x96" href="https://ignisarena.vercel.app/logo.png">
+  <link rel="icon" type="image/png" sizes="48x48" href="https://ignisarena.vercel.app/logo.png">
+  <link rel="shortcut icon" type="image/png" href="https://ignisarena.vercel.app/logo.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="https://ignisarena.vercel.app/logo.png">
+
   <!-- OPEN GRAPH / SOCIAL / WHATSAPP PREVIEW CARDS -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://ignisarena.vercel.app/download.html">
   <meta property="og:site_name" content="Ignis Arena Esports">
   <meta property="og:title" content="Download Ignis Arena APK — Free Fire Daily Tournaments &amp; Paid Rooms">
   <meta property="og:description" content="Official client download for Free Fire tournament scrims, per-kill cash &amp; instant payouts. 100% verified clean build.">
-  <meta property="og:image" content="https://ignisarena.vercel.app/assets/app-icon.png">
+  <meta property="og:image" content="https://ignisarena.vercel.app/logo.png">
 
   <!-- TWITTER CARDS -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Ignis Arena APK — Free Fire Tournament App">
   <meta name="twitter:description" content="Download official Ignis Arena client for Free Fire tournaments and custom rooms.">
-  <meta name="twitter:image" content="https://ignisarena.vercel.app/assets/app-icon.png">
-
-  <!-- APP ICON LINKS -->
-  <link rel="icon" type="image/png" href="assets/app-icon.png">
-  <link rel="apple-touch-icon" href="assets/app-icon.png">
+  <meta name="twitter:image" content="https://ignisarena.vercel.app/logo.png">
 
   <!-- GOOGLE SOFTWARE APPLICATION & APK SCHEMA -->
   <script type="application/ld+json">
@@ -76,13 +79,32 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
   <style>
-    * { -webkit-tap-highlight-color: transparent; }
+    * {
+      -webkit-tap-highlight-color: transparent;
+      outline: none;
+      -webkit-font-smoothing: antialiased;
+    }
+    html, body {
+      background-color: #07080c;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: none;
+    }
+    button, a {
+      transform: translateZ(0);
+      will-change: transform;
+      transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s ease;
+    }
+    button:active, a:active {
+      transform: scale(0.97) translateZ(0);
+    }
     @keyframes pulse-glow {
-      0%, 100% { box-shadow: 0 0 25px rgba(249, 115, 22, 0.45); }
-      50% { box-shadow: 0 0 45px rgba(249, 115, 22, 0.8); }
+      0%, 100% { box-shadow: 0 0 22px rgba(249, 115, 22, 0.45); }
+      50% { box-shadow: 0 0 42px rgba(249, 115, 22, 0.85); }
     }
     .btn-glow {
-      animation: pulse-glow 2.4s infinite ease-in-out;
+      animation: pulse-glow 2.2s infinite ease-in-out;
+      transform: translateZ(0);
     }
   </style>
 </head>
@@ -100,16 +122,15 @@
 
   <!-- Header & Brand Hero -->
   <header class="relative z-10 w-full max-w-md mx-auto pt-4 flex flex-col items-center text-center">
-    <!-- VirusTotal Verified Pill -->
     <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold tracking-wide backdrop-blur-md mb-6 shadow-lg">
       <i class="fa-solid fa-shield-check text-emerald-400"></i>
       <span>Verified Clean Build • 0/66 VirusTotal</span>
     </div>
 
-    <!-- App Icon With Glowing Border -->
+    <!-- App Icon With Direct Root Logo -->
     <div class="relative group mb-4">
       <div class="absolute -inset-1.5 bg-gradient-to-r from-orange-600 via-amber-500 to-orange-500 rounded-3xl blur-md opacity-75 group-hover:opacity-100 transition duration-300"></div>
-      <img src="assets/app-icon.png" onerror="this.src='logo.png'" alt="Ignis Arena Logo" class="relative w-28 h-28 rounded-2xl object-cover bg-neutral-900 border border-white/10 shadow-2xl">
+      <img src="logo.png" alt="Ignis Arena Logo" class="relative w-28 h-28 rounded-2xl object-cover bg-neutral-900 border border-white/10 shadow-2xl">
     </div>
 
     <h1 class="text-3xl sm:text-4xl font-black italic tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-orange-400 via-amber-300 to-orange-500 drop-shadow-sm">
@@ -122,7 +143,7 @@
   <main class="relative z-10 w-full max-w-md mx-auto my-6">
     <div class="bg-neutral-900/60 border border-neutral-800/90 rounded-3xl p-5 sm:p-6 backdrop-blur-xl shadow-2xl text-center">
       
-      <!-- Android Download Section (Default) -->
+      <!-- Android Download Section -->
       <div id="android-section">
         <a href="https://github.com/stoinic-abhi/ignisarena/releases/download/v1.0/app-release.apk" 
            class="btn-glow w-full py-4 px-6 bg-gradient-to-r from-orange-600 via-amber-500 to-orange-500 hover:from-orange-500 hover:to-amber-400 text-white font-black text-base uppercase tracking-wider rounded-2xl flex items-center justify-center gap-3 active:scale-[0.98] transition-all">
@@ -130,13 +151,13 @@
           <span>Download Android APK</span>
         </a>
 
-        <!-- Build Specs & Badges -->
+        <!-- Build Specs -->
         <div class="flex items-center justify-center gap-4 mt-3.5 text-[11px] text-neutral-400 font-medium">
           <span><i class="fa-brands fa-android text-emerald-400 mr-1"></i> Android 7.0+</span>
           <span>•</span>
-          <span><i class="fa-solid fa-file-zipper text-amber-400 mr-1"></i> 10.3 MB</span>
+          <span><i class="fa-solid fa-bolt text-amber-400 mr-1"></i> 120Hz Ultra Smooth</span>
           <span>•</span>
-          <span><i class="fa-solid fa-certificate text-blue-400 mr-1"></i> v1.0.0</span>
+          <span><i class="fa-solid fa-file-zipper text-blue-400 mr-1"></i> 10.3 MB</span>
         </div>
 
         <button onclick="showIosGuide()" class="mt-4 text-xs text-neutral-400 hover:text-white underline underline-offset-4 flex items-center justify-center gap-1.5 mx-auto">
@@ -145,7 +166,7 @@
         </button>
       </div>
 
-      <!-- iOS Section (Displayed on Safari / Apple devices) -->
+      <!-- iOS Section -->
       <div id="ios-section" class="hidden">
         <button onclick="showIosGuide()" 
            class="btn-glow w-full py-4 px-6 bg-gradient-to-r from-neutral-800 to-neutral-700 hover:from-neutral-700 hover:to-neutral-600 text-white font-black text-base uppercase tracking-wider rounded-2xl flex items-center justify-center gap-3 active:scale-[0.98] transition-all border border-white/20">
@@ -167,7 +188,7 @@
         </button>
       </div>
 
-      <!-- Play Protect Notice Box -->
+      <!-- Play Protect Notice -->
       <div class="mt-5 p-3.5 bg-neutral-950/70 border border-neutral-800 rounded-2xl text-left flex items-start gap-3">
         <div class="w-8 h-8 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400 shrink-0 mt-0.5">
           <i class="fa-solid fa-circle-info text-sm"></i>
@@ -242,29 +263,19 @@
     </div>
   </div>
 
-  <!-- Footer -->
   <footer class="relative z-10 w-full max-w-md mx-auto text-center pb-2 text-[11px] text-neutral-500">
     <p>© 2026 Ignis Arena Esports. All rights reserved.</p>
     <p class="mt-1">Free Fire &amp; Free Fire MAX Competitive Scrims Hub</p>
   </footer>
 
   <script>
-    // Auto-detect iOS device
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-
     if (isIOS) {
       document.getElementById('android-section')?.classList.add('hidden');
       document.getElementById('ios-section')?.classList.remove('hidden');
     }
-
-    function showIosGuide() {
-      document.getElementById('ios-modal')?.classList.remove('hidden');
-    }
-
-    function closeIosGuide() {
-      document.getElementById('ios-modal')?.classList.add('hidden');
-    }
-
+    function showIosGuide() { document.getElementById('ios-modal')?.classList.remove('hidden'); }
+    function closeIosGuide() { document.getElementById('ios-modal')?.classList.add('hidden'); }
     function showAndroidSection() {
       document.getElementById('ios-section')?.classList.add('hidden');
       document.getElementById('android-section')?.classList.remove('hidden');
