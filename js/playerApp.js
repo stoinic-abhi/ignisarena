@@ -1,4 +1,4 @@
-// js/playerApp.js — 100% Complete Uncut Player Engine (1-Click Instant Auth, Paid Room ID/Pass Privacy Lock, Real-Time Hosts + Random, Admin Withdrawal Queue Sync, Full Kill Payout Breakdown & SW Background Notifications)
+// js/playerApp.js — 100% Complete Uncut Player Engine (1-Click Instant Auth, Permanent Notification Clear, Registration Time Filter, Native System Tray Push Alerts, Paid Room ID/Pass Privacy Lock)
 
 const PlayerApp = {
   BASE_FF_WALLPAPER: 'https://images2.alphacoders.com/112/1126388.jpg',
@@ -10,7 +10,6 @@ const PlayerApp = {
   _chatPollTimer: null,
   _swReg: null,
 
-  // Fallback 4K Crown SVG (Used ONLY if assets/app-icon.png or logo.png is not uploaded yet)
   FALLBACK_CROWN_LOGO_SVG_URI: 'data:image/svg+xml;utf8,' + encodeURIComponent(`
     <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect width="120" height="120" rx="28" fill="#120824"/>
@@ -44,8 +43,7 @@ const PlayerApp = {
   },
 
   setupCustomLogoAndSplash() {
-    // 1. Setup Header & Auth Logo: Checks assets/app-icon.png -> logo.png -> assets/logo.png -> Fallback SVG
-    const logoPaths = ['assets/app-icon.png', 'logo.png', 'assets/logo.png', 'assets/app-icon.jpg', this.FALLBACK_CROWN_LOGO_SVG_URI];
+    const logoPaths = ['logo.png', 'assets/app-icon.png', 'assets/logo.png', this.FALLBACK_CROWN_LOGO_SVG_URI];
     ['headerBrandLogo', 'authGateBrandLogo'].forEach(imgId => {
       const imgEl = document.getElementById(imgId);
       if (!imgEl) return;
@@ -57,15 +55,12 @@ const PlayerApp = {
       imgEl.src = logoPaths[0];
     });
 
-    // 2. Setup Clean Full-Screen Opening Poster: Checks assets/splash.png -> splash.png -> assets/splash.jpg
     const splashImg = document.getElementById('customSplashPosterImg');
     if (splashImg) {
       const splashPaths = [
         'assets/splash.png',
         'splash.png',
         'assets/splash.jpg',
-        'splash.jpg',
-        'assets/splash.jpeg',
         'https://images2.alphacoders.com/112/1126388.jpg'
       ];
       let sIdx = 0;
@@ -77,108 +72,79 @@ const PlayerApp = {
     }
   },
 
-  /* ==================== STARTUP NOTIFICATION PERMISSION & SERVICE WORKER (BUG 4 FIX) ==================== */
+  /* ==================== SYSTEM TRAY NOTIFICATION & SERVICE WORKER ENGINE ==================== */
   async initServiceWorkerAndPermission() {
     if ('serviceWorker' in navigator) {
       try {
         this._swReg = await navigator.serviceWorker.register('./sw.js');
       } catch (e) {
-        console.warn('SW register warning:', e);
+        console.warn('SW registration:', e);
       }
     }
 
-    // Request Notification Permission right on startup
     if ('Notification' in window) {
       if (Notification.permission === 'default') {
         try {
           const perm = await Notification.requestPermission();
           if (perm === 'granted') {
-            this.fireSystemNotification('🔥 Ignis Arena Ready!', 'Match Room ID/Pass & Broadcast alerts enabled on this device.', 'ignis-welcome');
-          } else {
-            this.mountStartupNotificationPromptBanner();
+            this.fireSystemNotification('🔥 Ignis Arena Armed!', 'Match credentials & official broadcast alerts are active.', 'ignis-welcome');
           }
-        } catch (e) {
-          this.mountStartupNotificationPromptBanner();
-        }
+        } catch (e) {}
       }
-      // Also request on first user interaction if browser blocked auto-prompt before gesture
-      const requestOnFirstTap = async () => {
+
+      const requestOnTap = async () => {
         if ('Notification' in window && Notification.permission === 'default') {
           try {
-            const p = await Notification.requestPermission();
-            if (p === 'granted') {
-              document.getElementById('ignisNotifPermBanner')?.remove();
-              this.fireSystemNotification('🔥 Ignis Arena Connected!', 'You will now receive instant Room ID & Broadcast alerts.', 'ignis-welcome');
-            }
+            await Notification.requestPermission();
           } catch (err) {}
         }
-        window.removeEventListener('click', requestOnFirstTap);
+        window.removeEventListener('click', requestOnTap);
       };
-      window.addEventListener('click', requestOnFirstTap, { once: true });
-    }
-  },
-
-  mountStartupNotificationPromptBanner() {
-    if (!('Notification' in window) || Notification.permission === 'granted') return;
-    if (document.getElementById('ignisNotifPermBanner')) return;
-    const banner = document.createElement('div');
-    banner.id = 'ignisNotifPermBanner';
-    banner.className = 'fixed top-3 left-3 right-3 z-[250] max-w-md mx-auto laser-card p-3.5 border border-[#FF6B00] shadow-2xl flex items-center justify-between gap-3';
-    banner.innerHTML = `
-      <div class="flex items-center gap-2.5 text-xs">
-        <div class="w-9 h-9 rounded-xl bg-[#FF6B00]/20 border border-[#FF6B00]/40 flex items-center justify-center text-[#FFC857] text-base shrink-0">
-          <i class="fa-solid fa-bell animate-bounce"></i>
-        </div>
-        <div>
-          <strong class="text-white font-russo block text-[11px]">ENABLE ROOM ID &amp; MATCH ALERTS</strong>
-          <span class="text-[10px] text-slate-300">App band hone par bhi Room ID aur Broadcast notification pane ke liye Allow karein.</span>
-        </div>
-      </div>
-      <div class="flex items-center gap-1.5 shrink-0">
-        <button type="button" onclick="PlayerApp.requestPermissionManual()" class="btn-hyper px-3 py-1.5 rounded-xl font-russo text-[10px] cursor-pointer">ALLOW</button>
-        <button type="button" onclick="document.getElementById('ignisNotifPermBanner')?.remove()" class="text-slate-400 hover:text-white px-1.5 py-1 text-xs cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-    `;
-    document.body.appendChild(banner);
-  },
-
-  async requestPermissionManual() {
-    if (!('Notification' in window)) return;
-    const perm = await Notification.requestPermission();
-    document.getElementById('ignisNotifPermBanner')?.remove();
-    if (perm === 'granted') {
-      this.fireSystemNotification('🔥 Notifications Enabled!', 'Room ID, Password & Broadcast alerts will appear in your notification panel.', 'ignis-enabled');
-      this.showToast('Notifications Enabled!');
-    } else {
-      this.showToast('Please allow notifications from browser settings.');
+      window.addEventListener('click', requestOnTap, { once: true });
     }
   },
 
   fireSystemNotification(title, body, tag = '') {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     const notifTag = tag || 'ignis-notif-' + Date.now();
-    if (this._swReg && this._swReg.active) {
-      this._swReg.active.postMessage({
-        type: 'SHOW_SYSTEM_NOTIFICATION',
-        payload: { title, body, tag: notifTag, url: window.location.href }
+    
+    // Prioritize active Service Worker registration for device tray presentation
+    if (this._swReg && typeof this._swReg.showNotification === 'function') {
+      this._swReg.showNotification(title, {
+        body: body,
+        icon: 'logo.png',
+        badge: 'logo.png',
+        tag: notifTag,
+        vibrate: [200, 100, 200],
+        requireInteraction: true,
+        data: { url: window.location.href }
       });
-    } else if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      return;
+    }
+
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({
         type: 'SHOW_SYSTEM_NOTIFICATION',
         payload: { title, body, tag: notifTag, url: window.location.href }
       });
-    } else {
-      try {
-        new Notification(title, { body, icon: 'assets/app-icon.png', badge: 'assets/app-icon.png', tag: notifTag });
-      } catch (e) {}
+      return;
     }
+
+    try {
+      new Notification(title, {
+        body: body,
+        icon: 'logo.png',
+        badge: 'logo.png',
+        tag: notifTag
+      });
+    } catch (e) {}
   },
 
   checkAndFireRoomIdPushNotifications() {
     if (!this.state.user) return;
     const myAppId = String(this.state.user.appId || '').toUpperCase();
 
-    // 1. Check Joined Tournaments for newly pushed Room ID/Pass
+    // Check Joined Tournaments for newly pushed ID/Pass
     this.syncJoinedMatchesFromSlots();
     this.state.joinedMatches.forEach(jm => {
       const m = this.state.tournaments.find(t => t.id === jm.id);
@@ -187,15 +153,15 @@ const PlayerApp = {
         if (!localStorage.getItem(key)) {
           localStorage.setItem(key, '1');
           this.fireSystemNotification(
-            `🔑 Room ID Out: ${m.title}`,
-            `Room ID: ${m.room_id} | Pass: ${m.room_password || 'Check App'}${m.host_message ? ' • ' + m.host_message : ''}`,
+            `🔑 Room ID Live: ${m.title}`,
+            `Room ID: ${m.room_id} | Pass: ${m.room_password || 'Pending'}${m.host_message ? ' • ' + m.host_message : ''}`,
             key
           );
         }
       }
     });
 
-    // 2. Check Joined Paid Custom Rooms (Side A or Side B ONLY) for newly pushed Room ID/Pass
+    // Check Joined Paid Custom Rooms (Only for Side A & Side B)
     this.state.customPaidRooms.forEach(r => {
       const isParticipant =
         String(r.team_a_app_id || '').toUpperCase() === myAppId ||
@@ -205,7 +171,7 @@ const PlayerApp = {
         if (!localStorage.getItem(key)) {
           localStorage.setItem(key, '1');
           this.fireSystemNotification(
-            `⚔️ Paid Room ID Live: ${r.title}`,
+            `⚔️ Paid Room ID Ready: ${r.title}`,
             `Room ID: ${r.room_id} | Pass: ${r.room_password || '---'} (Host: ${r.assigned_operator})`,
             key
           );
@@ -250,7 +216,7 @@ const PlayerApp = {
         <div class="absolute inset-0 flex flex-col items-center justify-center text-center px-2 pointer-events-none z-10 pt-2">
           <div class="font-extrabold text-sm sm:text-base tracking-tight text-white drop-shadow">IGNIS <span class="text-[#FFC857]">ARENA</span></div>
           <span class="font-bold text-[9px] tracking-widest text-[#FF6B00] uppercase">× FREE FIRE INDIA</span>
-          ${eco.isCompleted && m.winner_ign ? `<span class="mt-1 bg-[#FFC857]/20 border border-[#FFC857]/50 text-[#FFC857] text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">🏆 Booyah: ${m.winner_ign} • Tap for All Kills &amp; Prizes</span>` : ''}
+          ${eco.isCompleted && m.winner_ign ? `<span class="mt-1 bg-[#FFC857]/20 border border-[#FFC857]/50 text-[#FFC857] text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">🏆 Booyah: ${m.winner_ign} • View Kill Standings</span>` : ''}
         </div>
         <div class="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between text-[10px] font-semibold z-10">
           <span class="text-white bg-black/75 px-2 py-0.5 rounded-lg border border-white/10"><i class="ph-bold ph-clock mr-1 text-[#FF6B00]"></i>${m.match_time}</span>
@@ -268,9 +234,8 @@ const PlayerApp = {
 
     const splashEl = document.getElementById('ignisSplashScreen');
     const alreadyShown = sessionStorage.getItem('ignis_splash_done');
-    const splashDelay = alreadyShown ? 250 : 2000;
+    const splashDelay = alreadyShown ? 250 : 1800;
 
-    // Immediately load from local mirror so app never hangs on startup
     this.checkSavedSession();
     this.state.tournaments = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
     this.state.customPaidRooms = SupabaseService.getLocal(SupabaseService.STORAGE_CUSTOM_KEY, []);
@@ -283,7 +248,6 @@ const PlayerApp = {
     this.renderTournaments(true);
     this.renderCustomPaidRooms(true);
 
-    // Pull latest cloud data in background without blocking splash screen
     if (SupabaseService.isCloudConnected) {
       SupabaseService.pullAllFromCloud(true).then(() => {
         this.loadPlatformConfig();
@@ -349,7 +313,7 @@ const PlayerApp = {
     this.state.platformSettings = data;
   },
 
-  /* ==================== 1-CLICK INSTANT AUTH ==================== */
+  /* ==================== 1-CLICK AUTH ==================== */
   switchAuthMode(mode) {
     this.state.authMode = mode;
     const isSignIn = mode === 'signin';
@@ -386,6 +350,7 @@ const PlayerApp = {
         if (dbMatch) {
           const mapped = SupabaseService.mapDbRecordToUser(dbMatch);
           mapped.profileCompleted = sessionUser.profileCompleted || this.isProfileComplete(mapped);
+          mapped.created_at = dbMatch.created_at || sessionUser.created_at;
           this.state.user = mapped;
           localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
         } else {
@@ -483,6 +448,8 @@ const PlayerApp = {
       appId = 'IGNIS-' + Math.floor(1000 + Math.random() * 9000);
     }
 
+    const registrationTimestamp = new Date().toISOString();
+
     const newUser = {
       appId,
       fullName,
@@ -504,7 +471,8 @@ const PlayerApp = {
       depositBal: 0,
       winningsBal: 0,
       friendsList: [],
-      friendRequests: []
+      friendRequests: [],
+      created_at: registrationTimestamp
     };
 
     this.state.user = newUser;
@@ -894,7 +862,7 @@ const PlayerApp = {
     });
   },
 
-  /* ==================== TAB 2: ROOM IDP WITH 3 TABS ==================== */
+  /* ==================== TAB 2: ROOM IDP ==================== */
   switchRoomIdpFilter(tabStatus) {
     this.state.idpTabFilter = tabStatus;
     ['UPCOMING', 'LIVE', 'COMPLETED'].forEach(st => {
@@ -950,11 +918,11 @@ const PlayerApp = {
           <div class="grid grid-cols-2 gap-2 bg-black/80 p-2.5 rounded-xl text-xs font-mono">
             <div class="flex items-center justify-between">
               <span>ID: <strong class="text-[#FFC857]">${m.room_id || 'Waiting Host'}</strong></span>
-              ${m.room_id ? `<button onclick="PlayerApp.copy('${m.room_id}', 'Room ID')" class="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-white">Copy</button>` : ''}
+              ${m.room_id ? `<button onclick="PlayerApp.copy('${m.room_id}', 'Room ID')" class="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-white cursor-pointer">Copy</button>` : ''}
             </div>
             <div class="flex items-center justify-between">
               <span>PASS: <strong class="text-emerald-400">${m.room_password || 'Pending'}</strong></span>
-              ${m.room_password ? `<button onclick="PlayerApp.copy('${m.room_password}', 'Password')" class="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-white">Copy</button>` : ''}
+              ${m.room_password ? `<button onclick="PlayerApp.copy('${m.room_password}', 'Password')" class="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-white cursor-pointer">Copy</button>` : ''}
             </div>
           </div>
 
@@ -974,7 +942,7 @@ const PlayerApp = {
       `).join('');
   },
 
-  /* ==================== TAB 3: PAID ROOMS (REAL-TIME HOSTS + RANDOM & ID/PASS PRIVACY LOCK) ==================== */
+  /* ==================== TAB 3: PAID ROOMS ==================== */
   populatePaidRoomOperatorsDropdown() {
     const sel = document.getElementById('customRoomOperator');
     if (!sel) return;
@@ -1026,7 +994,6 @@ const PlayerApp = {
     const rawOperatorChoice = document.getElementById('customRoomOperator')?.value || 'RANDOM';
     const invitedFriendRaw = document.getElementById('customRoomOpponentSelect')?.value || '';
 
-    // Resolve RANDOM host from real-time active panel hosts
     const rawHosts = SupabaseService.getLocal('ignis_hosts_db', []);
     const activeHosts = Array.isArray(rawHosts) ? rawHosts : [];
     let operator = rawOperatorChoice;
@@ -1098,7 +1065,6 @@ const PlayerApp = {
     this.showToast(`🔗 Paid Room Link Copied! Share with your opponent.`);
   },
 
-  // BUG 1 FIX: PAID ROOM ID & PASSWORD ONLY VISIBLE TO SIDE A AND SIDE B JOINED PLAYERS
   renderCustomPaidRooms(forceRender = false) {
     const container = document.getElementById('customPaidRoomsContainer');
     if (!container) return;
@@ -1123,7 +1089,6 @@ const PlayerApp = {
       const canJoinSideB = !r.team_b_app_id && !isSideA && !isCompleted && !isLocked &&
         (!r.invited_opponent_app_id || String(r.invited_opponent_app_id).toUpperCase() === myAppId);
 
-      // Credential Box: ONLY visible if isJoinedParticipant is true
       let credentialsHtml = '';
       if (r.room_id) {
         if (isJoinedParticipant) {
@@ -1298,7 +1263,7 @@ const PlayerApp = {
     this.renderChatMessages(this.state.activeChatRoomId);
   },
 
-  /* ==================== TAB 4: WALLET, ORANGE SCANNER SWITCH & WITHDRAWAL SYNC TO ADMIN ==================== */
+  /* ==================== TAB 4: WALLET & WITHDRAWALS ==================== */
   async openDepositQrModal() {
     await this.loadPlatformConfig();
     this.selectDepositScanner(1);
@@ -1346,7 +1311,6 @@ const PlayerApp = {
     this.showToast('Deposit UTR Submitted for Approval!');
   },
 
-  // BUG 2 FIX: SAVES WITHDRAWAL TO BOTH PASSBOOK LEDGER AND ADMIN PANEL WITHDRAWAL QUEUE
   async submitWithdrawal() {
     const upi = (document.getElementById('withdrawUpiId')?.value || '').trim();
     const amt = parseFloat(document.getElementById('withdrawAmountInput')?.value) || 0;
@@ -1361,7 +1325,6 @@ const PlayerApp = {
     const wthId = 'WTH-' + Math.floor(100000 + Math.random() * 900000);
     const nowStr = new Date().toLocaleString();
 
-    // 1. Add to Player Passbook Ledger
     const ledger = SupabaseService.getLocal('ignis_all_time_transactions', []);
     ledger.unshift({
       id: wthId,
@@ -1376,7 +1339,6 @@ const PlayerApp = {
     });
     SupabaseService.setLocal('ignis_all_time_transactions', ledger);
 
-    // 2. Add to Super Admin Withdrawal Approval Queue ('ignis_player_withdrawals_db')
     const adminWthQueue = SupabaseService.getLocal('ignis_player_withdrawals_db', []);
     adminWthQueue.unshift({
       id: wthId,
@@ -1473,7 +1435,7 @@ const PlayerApp = {
       }).join('');
   },
 
-  /* ==================== SQUAD CO-PAY & FULL KILL BREAKDOWN MODAL (BUG 3 FIX) ==================== */
+  /* ==================== SQUAD CO-PAY & TOURNAMENT DETAILS ==================== */
   openJoinModal(matchId) {
     if (!this.state.user) return;
     if (!this.isProfileComplete(this.state.user)) {
@@ -1571,7 +1533,6 @@ const PlayerApp = {
     this.showToast(`Slot #${this.state.selectedSlotNumber} Locked!`);
   },
 
-  // BUG 3 FIX: SHOWS EVERY PLAYER'S KILLS, KILL PRIZE (KILLS x PER_KILL) & BOOYAH PRIZE CLEARLY
   async openTournamentDetailsModal(matchId) {
     const match = this.state.tournaments.find(m => m.id === matchId);
     if (!match) return;
@@ -1583,21 +1544,13 @@ const PlayerApp = {
       ? match.settled_results
       : (realSlots || []);
 
-    // Normalize and sort participants so winner & top kill earners show with full breakdown
     const participants = rawParticipants.map(p => {
       const isWinner = Boolean(p.is_winner) || (match.winner_app_id && String(p.leader_app_id).toUpperCase() === String(match.winner_app_id).toUpperCase());
       const kills = Number(p.kills || 0);
       const killPrize = (p.kill_prize !== undefined) ? Number(p.kill_prize) : (kills * perKillRate);
       const booyahPrize = (p.booyah_prize !== undefined) ? Number(p.booyah_prize) : (isWinner ? Number(match.winner_prize || 0) : 0);
       const totalWon = (p.prize_won !== undefined) ? Number(p.prize_won) : (killPrize + booyahPrize);
-      return {
-        ...p,
-        isWinner,
-        kills,
-        killPrize,
-        booyahPrize,
-        totalWon
-      };
+      return { ...p, isWinner, kills, killPrize, booyahPrize, totalWon };
     });
 
     if (match.match_status === 'COMPLETED') {
@@ -1673,77 +1626,37 @@ const PlayerApp = {
     this.openModal('tournamentDetailsModal');
   },
 
-  /* ==================== PROFILE SETTINGS, PROOF & CROSS-DEVICE NOTIFICATIONS ==================== */
-  openEditProfileModal() {
-    if (!this.state.user) return;
-    document.getElementById('editProfName').value = this.state.user.fullName || '';
-    document.getElementById('editProfUsername').value = this.state.user.username || '';
-    document.getElementById('editProfBio').value = this.state.user.bio || '';
-    document.getElementById('editProfIgn').value = this.state.user.ign || '';
-    document.getElementById('editProfUid').value = this.state.user.uid || '';
-    document.getElementById('editProfPhone').value = this.state.user.phone || '';
-    document.getElementById('editProfEmail').value = this.state.user.email || '';
-    this.openModal('editProfileModal');
-  },
-
-  async saveEditedProfile() {
-    if (!this.state.user) return;
-    const newName = document.getElementById('editProfName')?.value.trim() || this.state.user.fullName;
-    let newUname = (document.getElementById('editProfUsername')?.value.trim() || this.state.user.username).toLowerCase().replace(/\s+/g, '_');
-    if (!newUname.startsWith('@')) newUname = '@' + newUname;
-    const newBio = document.getElementById('editProfBio')?.value.trim() || this.state.user.bio;
-    const newIgn = document.getElementById('editProfIgn')?.value.trim() || this.state.user.ign;
-    const newUid = document.getElementById('editProfUid')?.value.trim() || this.state.user.uid;
-    const newPhone = document.getElementById('editProfPhone')?.value.trim() || this.state.user.phone;
-    const newEmail = document.getElementById('editProfEmail')?.value.trim() || this.state.user.email;
-
-    const conflict = SupabaseService.checkIdentityConflict({ username: newUname, uid: newUid, ign: newIgn, phone: newPhone }, this.state.user.appId);
-    if (conflict.hasConflict) { alert(conflict.message); return; }
-
-    Object.assign(this.state.user, { fullName: newName, username: newUname, bio: newBio, ign: newIgn, uid: newUid, phone: newPhone, email: newEmail });
-    this.state.user.profileCompleted = this.isProfileComplete(this.state.user);
-    const pass = document.getElementById('editProfPassword')?.value.trim();
-    if (pass) this.state.user.password = pass;
-
-    localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
-    SupabaseService.upsertPlayerProfile(this.state.user);
-    this.closeModal('editProfileModal');
-    this.updateUI();
-    this.showToast('Profile Settings Saved!');
-  },
-
-  handleProofImageSelect(e) {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      this.state.tempProofBase64 = ev.target.result;
-      document.getElementById('proofPreviewImg').src = ev.target.result;
-      document.getElementById('proofPreviewImg').classList.remove('hidden');
-    };
-    reader.readAsDataURL(file);
-  },
-
-  async submitMatchProofToAdmin() {
-    if (!this.state.tempProofBase64 || !this.state.user) { this.showToast('Attach screenshot first!'); return; }
-    await SupabaseService.submitMatchProof({
-      id: 'PRF-' + Math.floor(1000 + Math.random() * 9000),
-      app_id: this.state.user.appId,
-      player_ign: this.state.user.ign,
-      match_title: document.getElementById('proofMatchTitleInput')?.value || 'Match Proof',
-      position: document.getElementById('proofPositionInput')?.value || '1st Place',
-      kills: parseInt(document.getElementById('proofKillsInput')?.value, 10) || 0,
-      screenshot: this.state.tempProofBase64,
-      status: 'PENDING',
-      created_at: new Date().toISOString()
-    });
-    this.closeModal('proofUploadModal');
-    this.showToast('Match Proof Sent!');
-  },
-
-  // FIRES SYSTEM TRAY NOTIFICATION VIA SERVICE WORKER ON NEW ADMIN BROADCAST
+  /* ==================== NOTIFICATIONS ENGINE: PERMANENT CLEAR & REGISTRATION FILTER ==================== */
   loadNotifications(showToastOnNew = false) {
-    this.state.notifications = SupabaseService.getLocal('ignis_player_notifications', []);
+    const rawNotifs = SupabaseService.getLocal('ignis_player_notifications', []);
+    const clearedIds = JSON.parse(localStorage.getItem('ignis_cleared_notif_ids') || '[]');
+    
+    // User registration timestamp (ISO string parsed to milliseconds)
+    const userJoinedTime = (this.state.user && this.state.user.created_at)
+      ? new Date(this.state.user.created_at).getTime()
+      : 0;
+
+    // Filter out:
+    // 1. Cleared notifications on this device
+    // 2. Old broadcast messages that occurred BEFORE this user registered
+    this.state.notifications = rawNotifs.filter(n => {
+      if (clearedIds.includes(n.id)) return false;
+
+      // Extract broadcast generation time from notification timestamp or ID (notif-1730000000)
+      let notifTime = 0;
+      if (n.created_at) {
+        notifTime = new Date(n.created_at).getTime();
+      } else if (n.id && String(n.id).startsWith('notif-')) {
+        notifTime = parseInt(String(n.id).replace('notif-', ''), 10) || 0;
+      }
+
+      // If user registered after this broadcast was pushed, suppress it for this new user
+      if (userJoinedTime > 0 && notifTime > 0 && notifTime < userJoinedTime - 30000) {
+        return false;
+      }
+      return true;
+    });
+
     const badge = document.getElementById('notifBadgeCount');
     if (badge) badge.innerText = this.state.notifications.length;
 
@@ -1752,6 +1665,8 @@ const PlayerApp = {
       if (newest.id && newest.id !== this._lastSeenNotifId) {
         this._lastSeenNotifId = newest.id;
         localStorage.setItem('ignis_last_seen_notif_id', newest.id);
+        
+        // Push alert straight to mobile system notification bar
         this.fireSystemNotification(`📢 ${newest.title}`, newest.msg, newest.id);
         if (showToastOnNew) {
           this.showToast(`📢 ${newest.title}: ${newest.msg}`);
@@ -1775,10 +1690,24 @@ const PlayerApp = {
     this.openModal('notificationModal');
   },
 
+  // PERMANENT CLEAR (NEVER RETURNS ON NEXT POLL)
   clearAllNotifications() {
+    const currentList = this.state.notifications || [];
+    const clearedIds = JSON.parse(localStorage.getItem('ignis_cleared_notif_ids') || '[]');
+
+    currentList.forEach(n => {
+      if (n.id && !clearedIds.includes(n.id)) {
+        clearedIds.push(n.id);
+      }
+    });
+
+    localStorage.setItem('ignis_cleared_notif_ids', JSON.stringify(clearedIds));
     this.state.notifications = [];
-    document.getElementById('notifBadgeCount').innerText = '0';
+
+    const badge = document.getElementById('notifBadgeCount');
+    if (badge) badge.innerText = '0';
     this.openNotificationModal();
+    this.showToast('All notifications cleared permanently');
   },
 
   openSupportCenterModal(tab = 'feedback') {
@@ -1904,6 +1833,7 @@ const PlayerApp = {
         if (fresh) {
           const mapped = SupabaseService.mapDbRecordToUser(fresh);
           mapped.profileCompleted = this.state.user.profileCompleted || this.isProfileComplete(mapped);
+          mapped.created_at = fresh.created_at || this.state.user.created_at;
           this.state.user = mapped;
           localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
         }
