@@ -1,4 +1,6 @@
-const CACHE_NAME = 'ignis-arena-v2';
+// sw.js — Ignis Arena Background Service Worker (Native Mobile Status Bar Alert & Vibration Dispatcher)
+
+const CACHE_NAME = 'ignis-cache-v1';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -8,52 +10,34 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-self.addEventListener('push', (event) => {
-  let data = { title: '🔥 IGNIS ARENA', body: 'New tournament update available!', url: './' };
-  if (event.data) {
-    try {
-      data = Object.assign(data, event.data.json());
-    } catch (e) {
-      data.body = event.data.text();
-    }
-  }
-  const options = {
-    body: data.body,
-    icon: 'logo.png',
-    badge: 'logo.png',
-    vibrate: [250, 100, 250, 100, 300],
-    tag: data.tag || 'ignis-broadcast-' + Date.now(),
-    renotify: true,
-    requireInteraction: true,
-    data: { url: data.url || './' }
-  };
-  event.waitUntil(self.registration.showNotification(data.title, options));
-});
-
+// Listener for In-App and Background System Notifications
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SHOW_SYSTEM_NOTIFICATION') {
-    const { title, body, tag, url } = event.data.payload;
+    const payload = event.data.payload || {};
+    const title = payload.title || 'Ignis Arena Esports';
     const options = {
-      body: body || '',
+      body: payload.body || 'New match update available.',
       icon: 'logo.png',
       badge: 'logo.png',
-      vibrate: [250, 100, 250, 100, 300],
-      tag: tag || 'ignis-alert-' + Date.now(),
-      renotify: true,
+      tag: payload.tag || 'ignis-tag-' + Date.now(),
+      vibrate: [250, 100, 250],
       requireInteraction: true,
-      data: { url: url || './' }
+      data: {
+        url: payload.url || './'
+      }
     };
-    event.waitUntil(self.registration.showNotification(title || '🔥 IGNIS ARENA', options));
+    event.waitUntil(self.registration.showNotification(title, options));
   }
 });
 
+// Notification Click Handler: Opens/Focuses the App
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const targetUrl = (event.notification.data && event.notification.data.url) ? event.notification.data.url : './';
+
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      for (let i = 0; i < windowClients.length; i++) {
-        const client = windowClients[i];
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
         if ('focus' in client) {
           return client.focus();
         }
