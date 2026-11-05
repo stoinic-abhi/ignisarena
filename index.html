@@ -9,13 +9,11 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ignis Arena">
   
-  <!-- GOOGLE MASTER SEO -->
   <meta name="google-site-verification" content="7BIR1_x4BY5HAVXxUvnEyRaZtXpicMiYO6SK2-I7u70" />
-  <title>IGNIS ARENA — Official Esports APK &amp; Free Fire Tournaments</title>
-  <meta name="description" content="Join daily Free Fire paid custom matches, esports scrims and tournaments with instant UPI cashouts on Ignis Arena. Download official app.">
+  <title>IGNIS ARENA — Official Esports Platform & Custom Battles</title>
+  <meta name="description" content="Join daily Free Fire paid custom matches, esports scrims and tournaments with instant UPI cashouts on Ignis Arena.">
   <link rel="canonical" href="https://ignisarena.vercel.app/">
 
-  <!-- ICONS & FAVICONS -->
   <link rel="icon" type="image/png" sizes="192x192" href="logo.png">
   <link rel="shortcut icon" href="logo.png">
   <link rel="apple-touch-icon" sizes="180x180" href="logo.png">
@@ -57,7 +55,6 @@
   </style>
 
   <script>
-    // Global Safe Gateway Controller (No External Scope Dependency)
     function enterWebArena() {
       const gw = document.getElementById('ignisGatewayScreen');
       if (gw) {
@@ -102,7 +99,6 @@
 
   <!-- ==================== ANIMATED HIGH-TECH ESPORTS GATEWAY ==================== -->
   <div id="ignisGatewayScreen" class="fixed inset-0 z-[80] bg-[#06070A] hero-glow-bg flex flex-col items-center justify-between p-5 sm:p-7 overflow-y-auto">
-    <!-- Top Verified Badge -->
     <div class="pt-3 text-center">
       <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold tracking-wide shadow-lg">
         <i class="fa-solid fa-shield-halved text-emerald-400"></i>
@@ -110,7 +106,6 @@
       </div>
     </div>
 
-    <!-- Center Hero Identity -->
     <div class="w-full max-w-sm text-center flex flex-col items-center my-auto py-4">
       <div class="relative mb-4">
         <div class="absolute -inset-2 bg-gradient-to-r from-[#FF6B00] via-[#FFC857] to-[#FF6B00] rounded-3xl blur-xl opacity-75 animate-pulse"></div>
@@ -124,7 +119,6 @@
         India's Dedicated Free Fire Custom Battles
       </p>
 
-      <!-- Key Value Points -->
       <div class="grid grid-cols-3 gap-2 w-full mt-5 mb-5 text-center">
         <div class="p-2 rounded-xl bg-white/5 border border-white/10">
           <strong class="text-[#FFC857] block font-mono text-sm">80%</strong>
@@ -140,9 +134,7 @@
         </div>
       </div>
 
-      <!-- Action Buttons -->
       <div class="w-full space-y-3">
-        <!-- Button 1: Smart OS Aware Button (Android APK vs iOS Home Screen) -->
         <button type="button"
                 id="smartInstallBtn"
                 onclick="handleSmartPlatformDownload()"
@@ -151,7 +143,6 @@
           <span id="smartInstallText">Download Android APK (120FPS)</span>
         </button>
 
-        <!-- Button 2: Direct Open Web Arena -->
         <button type="button"
                 onclick="enterWebArena()"
                 class="w-full py-3.5 px-6 bg-white/10 hover:bg-white/15 border border-white/20 text-white font-bold text-xs uppercase tracking-wider rounded-2xl flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition">
@@ -170,7 +161,7 @@
     </footer>
   </div>
 
-  <!-- ==================== iOS INSTALLATION WALKTHROUGH MODAL ==================== -->
+  <!-- iOS INSTALLATION WALKTHROUGH MODAL -->
   <div id="iosInstructionsModal" class="fixed inset-0 z-[90] bg-black/90 backdrop-blur-xl flex items-end sm:items-center justify-center p-4 hidden">
     <div class="laser-card max-w-sm w-full p-5 sm:p-6 text-center relative border border-[#FF6B00]/40 space-y-4">
       <button onclick="closeIosInstallModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer text-lg">
@@ -187,7 +178,6 @@
       </div>
 
       <div class="space-y-2.5 text-left text-xs">
-        <!-- Step 1 -->
         <div class="ios-step-card p-3 rounded-2xl flex items-center gap-3">
           <div class="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center shrink-0 text-sm">
             <i class="fa-solid fa-arrow-up-from-bracket"></i>
@@ -197,7 +187,6 @@
           </div>
         </div>
 
-        <!-- Step 2 -->
         <div class="ios-step-card p-3 rounded-2xl flex items-center gap-3">
           <div class="w-8 h-8 rounded-xl bg-[#FF6B00]/20 text-[#FFC857] border border-[#FF6B00]/30 flex items-center justify-center shrink-0 text-sm">
             <i class="fa-regular fa-square-plus"></i>
@@ -247,12 +236,9 @@
           <input type="password" id="loginPasswordInput" onkeydown="if(event.key==='Enter') PlayerApp.loginExistingPlayer()" placeholder="••••••••" class="w-full bg-white/5 border border-white/10 focus:border-[#FF6B00] clip-esports-sm px-3.5 py-3 text-white focus:outline-none">
         </div>
         <button id="btnSignInSubmit" type="button" onclick="PlayerApp.loginExistingPlayer()" class="w-full py-3.5 btn-hyper clip-esports-sm text-xs flex items-center justify-center gap-2 cursor-pointer">
-          <span>Sign In &amp; Open Arena</span>
+          <span>Sign In & Open Arena</span>
           <i class="ph-bold ph-sign-in"></i>
         </button>
-        <p class="text-[11px] text-center text-slate-400 pt-1">
-          Pehli baar aaye ho? <strong onclick="PlayerApp.switchAuthMode('register')" class="text-[#FFC857] underline cursor-pointer">CREATE ACCOUNT</strong> par tap karein.
-        </p>
       </div>
 
       <!-- REGISTER FORM -->
@@ -282,7 +268,7 @@
         <div id="registerConflictErrorBox" class="hidden p-2.5 rounded-xl bg-red-950/60 border border-red-500/40 text-red-300 text-[11px] font-semibold text-center"></div>
 
         <button id="btnRegisterSubmit" type="button" onclick="PlayerApp.completePlayerAuth()" class="w-full py-3.5 btn-hyper clip-esports-sm text-xs flex items-center justify-center gap-2 cursor-pointer mt-1">
-          <span>Create Account &amp; Enter Arena</span>
+          <span>Create Account & Enter Arena</span>
           <i class="ph-bold ph-arrow-right"></i>
         </button>
       </div>
@@ -305,25 +291,15 @@
         </div>
       </div>
 
-      <p class="text-xs text-slate-300 leading-relaxed">
-        Apni <strong>Free Fire UID, Exact IGN aur Gmail</strong> ek baar save karein. Yeh details entry aur cash prize verification ke liye zaroori hain.
-      </p>
-
       <div class="space-y-3 text-xs">
         <div>
-          <div class="flex items-center justify-between mb-1">
-            <label class="font-semibold text-slate-300 text-[11px]">Free Fire Numeric UID *</label>
-            <span id="compUidBadge" class="text-[9px] font-bold"></span>
-          </div>
+          <label class="font-semibold text-slate-300 text-[11px] block mb-1">Free Fire Numeric UID *</label>
           <input type="text" id="compUidInput" oninput="PlayerApp.checkCompleteProfileConflicts()" placeholder="e.g. 2498104421" class="w-full bg-white/5 border border-white/15 focus:border-[#FF6B00] rounded-xl px-3.5 py-2.5 text-[#FFC857] font-mono font-bold focus:outline-none">
         </div>
 
         <div class="grid grid-cols-2 gap-2.5">
           <div>
-            <div class="flex items-center justify-between mb-1">
-              <label class="font-semibold text-slate-300 text-[11px]">Exact Free Fire IGN *</label>
-              <span id="compIgnBadge" class="text-[9px] font-bold"></span>
-            </div>
+            <label class="font-semibold text-slate-300 text-[11px] block mb-1">Exact Free Fire IGN *</label>
             <input type="text" id="compIgnInput" oninput="PlayerApp.checkCompleteProfileConflicts()" placeholder="e.g. IND_ViperX" class="w-full bg-white/5 border border-white/15 focus:border-[#FF6B00] rounded-xl px-3.5 py-2.5 text-white font-bold focus:outline-none">
           </div>
           <div>
@@ -368,7 +344,6 @@
         </div>
       </div>
 
-      <!-- Desktop Tabs -->
       <nav class="hidden lg:flex items-center bg-black/40 p-1 rounded-2xl border border-white/10 gap-1 text-xs font-semibold">
         <button onclick="PlayerApp.switchTab('tournaments')" id="nav-btn-tournaments" class="px-3.5 py-1.5 clip-esports-sm text-black flex items-center gap-1.5 cursor-pointer" style="background: #FF6B00;">
           <i class="ph-bold ph-trophy"></i><span>Tournament</span>
@@ -388,7 +363,6 @@
         </button>
       </nav>
 
-      <!-- Right Header Actions -->
       <div class="flex items-center gap-1.5 flex-shrink-0">
         <button onclick="PlayerApp.openAddFriendsModal()" class="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-cyan-400 cursor-pointer" title="Search Players">
           <i class="ph-bold ph-magnifying-glass text-base"></i>
@@ -422,7 +396,7 @@
             Battle Royale • Clash Squad • Lone Wolf
           </h1>
           <p class="text-xs text-slate-400">
-            Tap any match card to view complete tournament standings, per-player kills and cash breakdowns!
+            Tap any match card to view complete standings, kills and cash breakdowns!
           </p>
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
@@ -435,7 +409,6 @@
         </div>
       </div>
 
-      <!-- Category Filter -->
       <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar p-1 laser-card text-xs font-bold">
         <button onclick="PlayerApp.setCategoryFilter('ALL')" id="cat-tab-ALL" class="flex-1 py-2 px-3 clip-esports-sm text-black cursor-pointer whitespace-nowrap transition" style="background: #FF6B00;">All Modes</button>
         <button onclick="PlayerApp.setCategoryFilter('BR')" id="cat-tab-BR" class="flex-1 py-2 px-3 clip-esports-sm text-slate-300 hover:text-white cursor-pointer whitespace-nowrap transition">Battle Royale</button>
@@ -443,7 +416,6 @@
         <button onclick="PlayerApp.setCategoryFilter('LW')" id="cat-tab-LW" class="flex-1 py-2 px-3 clip-esports-sm text-slate-300 hover:text-white cursor-pointer whitespace-nowrap transition">Lone Wolf</button>
       </div>
 
-      <!-- Advanced Filters -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
         <select id="filterSubModeSelect" onchange="PlayerApp.applyAdvancedTourneyFilters()" class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white font-semibold focus:outline-none">
           <option value="ALL" class="bg-[#06070A]">Format: All</option>
@@ -479,7 +451,7 @@
       <div class="laser-card p-5 space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
           <div>
-            <span class="text-[10px] font-bold text-[#FFC857] uppercase block">Registered Match Credentials &amp; Host Notes</span>
+            <span class="text-[10px] font-bold text-[#FFC857] uppercase block">Registered Match Credentials</span>
             <h2 class="text-base sm:text-xl font-extrabold text-white flex items-center gap-2">
               <i class="ph-fill ph-key text-[#FF6B00]"></i>
               <span>My Registered Tournaments (Room IDP)</span>
@@ -512,7 +484,7 @@
         <div class="flex items-center justify-between gap-2 border-b border-white/10 pb-3">
           <div>
             <span class="text-[10px] font-bold text-[#FF6B00] uppercase block">Custom Wager Lobby • 80% Winner Payout • Private ID/Pass</span>
-            <h2 class="text-base sm:text-lg font-extrabold text-white">Create Paid Room, Select Real Host &amp; Share Link</h2>
+            <h2 class="text-base sm:text-lg font-extrabold text-white">Create Paid Room & Share Link</h2>
           </div>
           <button type="button" onclick="PlayerApp.openAddFriendsModal()" class="bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-bold text-[11px] px-3 py-1.5 rounded-xl cursor-pointer">
             + Add Friend First
@@ -559,7 +531,7 @@
           </div>
 
           <div class="col-span-2 sm:col-span-3">
-            <label class="font-semibold text-cyan-400 block mb-1 text-[11px]">Add / Challenge Opponent from Friends Roster</label>
+            <label class="font-semibold text-cyan-400 block mb-1 text-[11px]">Add Opponent from Friends</label>
             <select id="customRoomOpponentSelect" class="w-full bg-white/5 border border-cyan-500/30 rounded-xl px-3 py-2.5 text-white font-semibold focus:outline-none">
               <option value="" class="bg-[#06070A]">-- Open for Anyone / Challenge via Share Link --</option>
             </select>
@@ -586,7 +558,7 @@
         </div>
 
         <button id="btnPublishPaidRoom" type="button" onclick="PlayerApp.createPaidCustomChallenge()" class="w-full btn-hyper py-3 text-xs flex items-center justify-center gap-2 cursor-pointer">
-          <i class="ph-bold ph-plus-circle"></i><span>Create Paid Room &amp; Generate Share Link</span>
+          <i class="ph-bold ph-plus-circle"></i><span>Create Paid Room & Generate Share Link</span>
         </button>
       </div>
 
@@ -626,7 +598,7 @@
           </div>
 
           <div class="grid grid-cols-2 gap-1.5 p-1 bg-black/50 rounded-xl text-xs font-bold">
-            <button id="btnVaultTabDeposit" type="button" onclick="PlayerApp.switchVaultAction('deposit')" class="py-2.5 text-black clip-esports-sm cursor-pointer" style="background: #FF6B00;">Add Cash (2 QR)</button>
+            <button id="btnVaultTabDeposit" type="button" onclick="PlayerApp.switchVaultAction('deposit')" class="py-2.5 text-black clip-esports-sm cursor-pointer" style="background: #FF6B00;">Add Cash (Dynamic QR)</button>
             <button id="btnVaultTabWithdraw" type="button" onclick="PlayerApp.switchVaultAction('withdraw')" class="py-2.5 text-slate-400 hover:text-white clip-esports-sm cursor-pointer">Withdraw UPI</button>
           </div>
 
@@ -639,7 +611,7 @@
             </div>
             <input type="number" id="depositInputAmt" value="200" class="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-2.5 font-bold text-base text-white focus:outline-none">
             <button onclick="PlayerApp.openDepositQrModal()" class="w-full btn-hyper py-3.5 text-xs flex items-center justify-center gap-2 cursor-pointer">
-              <i class="ph-bold ph-qr-code"></i><span>Scan Official UPI QR</span>
+              <i class="ph-bold ph-qr-code"></i><span>Generate 5-Min Dynamic QR</span>
             </button>
           </div>
 
@@ -658,7 +630,7 @@
             <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2.5">
               <div>
                 <span class="text-[10px] font-bold text-[#FFC857] uppercase block">Lifetime Audit</span>
-                <h3 class="text-sm sm:text-base font-extrabold text-white">All-Time Passbook (Winnings, Deposits &amp; Payouts)</h3>
+                <h3 class="text-sm sm:text-base font-extrabold text-white">All-Time Passbook</h3>
               </div>
               <div class="flex flex-wrap gap-1 text-[10px] font-bold">
                 <button onclick="PlayerApp.switchHistoryView('all')" id="btnHistTabAll" class="px-2.5 py-1 bg-[#FF6B00] text-black rounded-lg cursor-pointer">ALL</button>
@@ -678,7 +650,7 @@
       <div id="incompleteProfileBanner" onclick="PlayerApp.openCompleteProfileModal()" class="hidden p-3.5 rounded-2xl bg-[#FF6B00]/15 border border-[#FF6B00]/50 flex items-center justify-between gap-2 cursor-pointer">
         <div class="flex items-center gap-2.5 text-xs">
           <i class="ph-fill ph-warning-circle text-[#FFC857] text-lg"></i>
-          <span class="text-white font-semibold">Complete your Free Fire UID, IGN &amp; Gmail setup here.</span>
+          <span class="text-white font-semibold">Complete your Free Fire UID, IGN & Gmail setup here.</span>
         </div>
         <span class="bg-[#FF6B00] text-black font-extrabold text-[10px] px-3 py-1.5 rounded-lg whitespace-nowrap">COMPLETE PROFILE</span>
       </div>
@@ -757,13 +729,12 @@
           <div class="w-full h-2 bg-white/10 rounded-full overflow-hidden">
             <div id="levelXpProgressBar" class="h-full rounded-full transition-all duration-500" style="width: 0%; background: linear-gradient(90deg, #FF6B00, #FFC857);"></div>
           </div>
-          <p class="text-[10px] text-slate-400">Play matches (+50 XP) or win Booyahs (+150 XP) to rank up your Ignis Tier.</p>
         </div>
 
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
           <button onclick="PlayerApp.openAddFriendsModal()" class="laser-card p-3.5 flex flex-col items-center justify-center gap-1.5 text-cyan-400 hover:border-cyan-500 cursor-pointer">
             <i class="ph-bold ph-magnifying-glass text-xl"></i>
-            <span class="font-bold text-xs text-white">Search / Add Friends</span>
+            <span class="font-bold text-xs text-white">Search Friends</span>
           </button>
           
           <button onclick="PlayerApp.openFriendsListModal()" class="laser-card p-3.5 flex flex-col items-center justify-center gap-1.5 text-[#FFC857] hover:border-[#FFC857] cursor-pointer relative">
@@ -806,7 +777,7 @@
 
       <div class="grid grid-cols-2 gap-2.5 text-xs font-bold">
         <button onclick="PlayerApp.openSupportCenterModal('feedback')" class="laser-card p-3.5 flex items-center justify-center gap-2 text-[#FFC857] cursor-pointer">
-          <i class="ph-bold ph-headset text-base"></i><span>Support &amp; Callback</span>
+          <i class="ph-bold ph-headset text-base"></i><span>Support & Callback</span>
         </button>
         <button onclick="PlayerApp.logoutPlayer()" class="laser-card p-3.5 flex items-center justify-center gap-2 text-red-400 cursor-pointer">
           <i class="ph-bold ph-sign-out text-base"></i><span>Switch / Log Out</span>
@@ -843,7 +814,66 @@
     </nav>
   </div>
 
-  <!-- ALL MODALS -->
+  <!-- ==================== NEW DYNAMIC UPI QR & 5-MIN COUNTDOWN MODAL ==================== -->
+  <div id="depositModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-sm w-full p-5 text-center relative space-y-4 border border-[#FF6B00]/40">
+      <button onclick="PlayerApp.closeModal('depositModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer text-lg">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div>
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold tracking-wide uppercase mb-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+          <span>Dynamic UPI Order Active</span>
+        </div>
+        <h3 class="font-extrabold text-lg text-white">Scan & Pay to Add Cash</h3>
+        <p class="text-xs text-slate-400">Amount lock hai. Kisi bhi UPI App (GPay, PhonePe, Paytm) se scan karein.</p>
+      </div>
+
+      <!-- Live 5-Minute Countdown Timer Widget -->
+      <div class="p-2.5 rounded-xl bg-black/60 border border-white/10 flex items-center justify-between text-xs">
+        <span class="text-slate-400 font-semibold flex items-center gap-1.5">
+          <i class="fa-regular fa-clock text-[#FFC857]"></i> QR Expiry Timer:
+        </span>
+        <strong id="qrExpiryCountdownText" class="font-mono text-sm text-[#FFC857] font-extrabold">05:00</strong>
+      </div>
+
+      <!-- High-Res Dynamic QR Container (Pure Vector / Non-ImgBB) -->
+      <div class="relative p-3 bg-white rounded-2xl inline-block shadow-2xl mx-auto">
+        <img id="userDynamicDepositQrImg" src="" alt="Dynamic UPI QR" class="w-48 h-48 object-contain mx-auto">
+      </div>
+
+      <!-- Merchant Details & Amount Locked Badge -->
+      <div class="bg-black/60 p-3 rounded-xl border border-white/10 space-y-1 text-xs">
+        <div class="flex items-center justify-between">
+          <span class="text-slate-400">Payee:</span>
+          <strong class="text-white">IGNIS ARENA ESPORTS</strong>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-400">Locked Amount:</span>
+          <strong id="modalLockedAmountText" class="text-emerald-400 font-mono text-base font-extrabold">₹200</strong>
+        </div>
+        <div class="flex items-center justify-between pt-1 border-t border-white/10 text-[11px]">
+          <span class="text-slate-400">UPI ID:</span>
+          <span class="text-[#FFC857] font-mono font-bold">huerush33@ybl</span>
+        </div>
+      </div>
+
+      <!-- Automatic Status Listener & Manual UTR Fallback -->
+      <div class="space-y-2 text-left">
+        <div class="flex items-center justify-between text-[11px]">
+          <label class="font-semibold text-slate-300">Payment karne ke baad 12-Digit UTR confirm karein:</label>
+        </div>
+        <input type="text" id="depositUtrNumberInput" maxlength="12" placeholder="e.g. 431209845123" class="w-full bg-white/5 border border-white/15 rounded-xl px-3.5 py-2.5 text-sm text-[#FFC857] font-mono font-bold focus:outline-none">
+      </div>
+
+      <button id="btnConfirmDynamicDeposit" onclick="PlayerApp.submitDepositWithUtr()" class="w-full btn-hyper py-3.5 text-xs font-bold uppercase rounded-xl cursor-pointer">
+        Confirm Payment & Credit Wallet
+      </button>
+    </div>
+  </div>
+
+  <!-- OTHER MODALS -->
   <div id="addFriendsModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-md w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto relative">
       <button onclick="PlayerApp.closeModal('addFriendsModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
@@ -870,7 +900,7 @@
     <div class="laser-card max-w-md w-full p-5 space-y-4 max-h-[85vh] overflow-y-auto relative">
       <button onclick="PlayerApp.closeModal('friendsListModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
       <div id="pendingRequestsContainer" class="space-y-2 border-b border-white/10 pb-3"></div>
-      <h3 class="font-extrabold text-base text-white">Accepted Teammates &amp; Friends</h3>
+      <h3 class="font-extrabold text-base text-white">Accepted Teammates & Friends</h3>
       <div id="friendsRosterContainer" class="space-y-2"></div>
     </div>
   </div>
@@ -880,7 +910,7 @@
       <button onclick="PlayerApp.closeModal('xpPerksModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
       <div>
         <span class="text-[10px] font-bold text-[#FF6B00] uppercase block">Progression Roadmap</span>
-        <h3 class="font-extrabold text-base text-white">Ignis Level XP Perks &amp; Rewards</h3>
+        <h3 class="font-extrabold text-base text-white">Ignis Level XP Perks & Rewards</h3>
       </div>
       <div class="space-y-2.5 text-xs text-slate-300">
         <div class="p-3 bg-white/5 rounded-xl border border-white/10 flex items-center justify-between">
@@ -892,12 +922,9 @@
           <span class="text-slate-500 font-bold">500 XP</span>
         </div>
         <div class="p-3 bg-white/5 rounded-xl border border-white/10 flex items-center justify-between">
-          <div><strong class="text-white block">Level 16+ (Grandmaster Pro)</strong><span class="text-[10px] text-slate-400">Gold Verified badge &amp; priority custom room host assignment</span></div>
+          <div><strong class="text-white block">Level 16+ (Grandmaster Pro)</strong><span class="text-[10px] text-slate-400">Gold Verified badge</span></div>
           <span class="text-slate-500 font-bold">1500 XP</span>
         </div>
-      </div>
-      <div class="bg-black/40 p-3 rounded-xl border border-white/10 text-[11px] text-slate-400">
-        💡 Earn <strong>+50 XP</strong> for every match played, <strong>+150 XP</strong> for every Booyah won, and <strong>+25 XP</strong> for every friend added!
       </div>
     </div>
   </div>
@@ -905,7 +932,7 @@
   <div id="editProfileModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-md w-full p-5 relative space-y-3 max-h-[90vh] overflow-y-auto">
       <button onclick="PlayerApp.closeModal('editProfileModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
-      <h3 class="font-extrabold text-base text-white">Account Settings &amp; Unique Identity</h3>
+      <h3 class="font-extrabold text-base text-white">Account Settings & Unique Identity</h3>
       <div class="space-y-2.5 text-xs">
         <div class="grid grid-cols-2 gap-2.5">
           <input type="text" id="editProfName" placeholder="Full Name" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white">
@@ -926,37 +953,11 @@
     </div>
   </div>
 
-  <div id="depositModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
-    <div class="laser-card max-w-sm w-full p-5 text-center relative space-y-3.5">
-      <button onclick="PlayerApp.closeModal('depositModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
-      <div>
-        <span class="text-[10px] font-bold text-[#FFC857] uppercase block">+20% Extra on 1st Deposit</span>
-        <h3 class="font-extrabold text-base text-white">Add Cash via UPI QR</h3>
-      </div>
-      <div class="grid grid-cols-2 gap-1.5 p-1 bg-black/60 rounded-xl text-xs font-bold">
-        <button id="btnScannerTab1" type="button" onclick="PlayerApp.selectDepositScanner(1)" class="py-2 rounded-lg text-black cursor-pointer transition" style="background: #FF6B00;">Scanner #1</button>
-        <button id="btnScannerTab2" type="button" onclick="PlayerApp.selectDepositScanner(2)" class="py-2 rounded-lg text-slate-400 cursor-pointer transition">Scanner #2</button>
-      </div>
-      <div class="p-3 bg-white rounded-2xl inline-block shadow-2xl">
-        <img id="userDepositQrImg" src="https://i.ibb.co/vzB79fV/phonepe-qr.png" alt="QR Scanner" class="w-44 h-44 object-contain mx-auto">
-      </div>
-      <div class="flex items-center justify-between bg-black/60 px-3.5 py-2.5 rounded-xl border border-white/10 text-xs">
-        <span class="truncate">UPI: <strong class="text-[#FFC857]" id="userDepositUpiText">ignisarena@ybl</strong></span>
-        <button onclick="PlayerApp.copy(document.getElementById('userDepositUpiText').innerText, 'UPI ID')" class="text-[10px] text-white bg-white/10 px-2.5 py-1 rounded-lg cursor-pointer ml-2">Copy</button>
-      </div>
-      <div class="text-left space-y-1">
-        <label class="text-[11px] font-semibold text-slate-300 block">Enter 12-Digit UTR Number:</label>
-        <input type="text" id="depositUtrNumberInput" maxlength="12" placeholder="e.g. 431209845123" class="w-full bg-white/5 border border-white/15 rounded-xl px-3.5 py-2.5 text-sm text-[#FFC857] font-bold focus:outline-none">
-      </div>
-      <button onclick="PlayerApp.submitDepositWithUtr()" class="w-full btn-hyper py-3.5 text-xs cursor-pointer">Verify UTR &amp; Add Cash</button>
-    </div>
-  </div>
-
   <div id="joinModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-md w-full p-5 relative max-h-[90vh] overflow-y-auto space-y-3.5">
       <button onclick="PlayerApp.closeModal('joinModal')" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-slate-300 cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
       <div>
-        <h3 class="font-extrabold text-base text-white">Select Lobby Slot &amp; Squad</h3>
+        <h3 class="font-extrabold text-base text-white">Select Lobby Slot & Squad</h3>
         <p class="text-xs text-slate-400" id="joinModalSubtitle">Bermuda Match</p>
       </div>
 
@@ -976,50 +977,15 @@
         <div class="flex justify-between"><span class="text-slate-400">Entry Fee:</span><span class="text-white font-bold" id="modalBaseFee">₹50</span></div>
         <div class="flex justify-between text-emerald-400"><span>80% Pool:</span><span class="font-bold" id="modalPoolContribution">+₹40</span></div>
       </div>
-      <button onclick="PlayerApp.confirmSlotBooking()" class="w-full btn-hyper py-3.5 text-xs cursor-pointer">Pay &amp; Confirm Slot</button>
+      <button onclick="PlayerApp.confirmSlotBooking()" class="w-full btn-hyper py-3.5 text-xs cursor-pointer">Pay & Confirm Slot</button>
     </div>
   </div>
 
-  <div id="editPaidRoomModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
-    <div class="laser-card max-w-md w-full p-5 space-y-3.5 relative">
-      <button onclick="PlayerApp.closeModal('editPaidRoomModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
-      <h3 class="font-extrabold text-base text-white">Edit Paid Room / Change Entry Fee</h3>
-      <input type="hidden" id="editPaidRoomIdInput">
-      <div class="space-y-3 text-xs">
-        <input type="text" id="editPaidRoomTitle" class="w-full bg-white/5 border border-white/15 rounded-xl px-3.5 py-2.5 text-white">
-        <div class="grid grid-cols-2 gap-2.5">
-          <select id="editPaidRoomSize" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2.5 text-white font-bold">
-            <option value="CS 1v1" class="bg-[#06070A]">CS 1v1</option>
-            <option value="CS 2v2" class="bg-[#06070A]">CS 2v2</option>
-            <option value="CS 3v3" class="bg-[#06070A]">CS 3v3</option>
-            <option value="CS 4v4" class="bg-[#06070A]">CS 4v4</option>
-          </select>
-          <select id="editPaidRoomAmmo" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2.5 text-white font-bold">
-            <option value="Unlimited" class="bg-[#06070A]">Unlimited</option>
-            <option value="Limited" class="bg-[#06070A]">Limited</option>
-          </select>
-        </div>
-        <div class="grid grid-cols-2 gap-2.5">
-          <select id="editPaidRoomHs" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2.5 text-[#FFC857] font-bold">
-            <option value="YES" class="bg-[#06070A]">HS: YES</option>
-            <option value="NO" class="bg-[#06070A]">NO (All Guns)</option>
-          </select>
-          <input type="number" id="editPaidRoomBet" min="50" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2.5 text-emerald-400 font-bold">
-        </div>
-        <select id="editPaidRoomHost" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2.5 text-white">
-          <option value="RANDOM" class="bg-[#06070A]">🎲 Random Available Host</option>
-        </select>
-      </div>
-      <button onclick="PlayerApp.saveEditedPaidRoom()" class="w-full btn-hyper py-3 text-xs cursor-pointer">Save Changes</button>
-    </div>
-  </div>
-
-  <!-- TOURNAMENT DETAILS & ALL PLAYERS KILL BREAKDOWN -->
   <div id="tournamentDetailsModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-lg w-full p-5 relative max-h-[90vh] overflow-y-auto space-y-3.5">
       <button onclick="PlayerApp.closeModal('tournamentDetailsModal')" class="absolute top-4 right-4 text-slate-300 cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
       <div>
-        <span class="text-[10px] font-bold text-[#FFC857] uppercase block" id="detailModalStatusBadge">Tournament Standings &amp; Kill Breakdown</span>
+        <span class="text-[10px] font-bold text-[#FFC857] uppercase block" id="detailModalStatusBadge">Tournament Standings & Kill Breakdown</span>
         <h3 class="font-extrabold text-base sm:text-lg text-white" id="detailModalTitle">Tournament Standings</h3>
       </div>
 
@@ -1031,7 +997,7 @@
             <tr class="border-b border-white/10 text-slate-400 font-bold text-[10px]">
               <th class="py-2.5 px-3">SLOT</th>
               <th class="py-2.5 px-3">PLAYER / IGN</th>
-              <th class="py-2.5 px-3 text-center">KILLS &amp; KILL MONEY</th>
+              <th class="py-2.5 px-3 text-center">KILLS & KILL MONEY</th>
               <th class="py-2.5 px-3 text-right">TOTAL WON (BREAKDOWN)</th>
             </tr>
           </thead>
@@ -1071,7 +1037,7 @@
       <button onclick="PlayerApp.closeModal('feedbackModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
       <div>
         <span class="text-[10px] font-bold text-[#FFC857] uppercase block">24×7 Athlete Helpdesk</span>
-        <h3 class="font-extrabold text-base text-white">Support, Feedback &amp; Callback</h3>
+        <h3 class="font-extrabold text-base text-white">Support, Feedback & Callback</h3>
       </div>
       <div class="grid grid-cols-2 gap-1.5 p-1 bg-black/60 rounded-xl text-xs font-bold">
         <button id="btnSupportTabFeedback" type="button" onclick="PlayerApp.switchSupportTab('feedback')" class="py-2 rounded-lg text-black cursor-pointer" style="background: #FF6B00;">
@@ -1093,7 +1059,7 @@
         </div>
         <div>
           <label class="font-semibold text-slate-300 block mb-1">Describe Your Problem or Feedback</label>
-          <textarea id="feedbackText" rows="3" placeholder="Explain your issue clearly so our team can resolve it..." class="w-full bg-white/5 border border-white/15 rounded-xl p-3 text-xs text-white focus:outline-none"></textarea>
+          <textarea id="feedbackText" rows="3" placeholder="Explain your issue clearly..." class="w-full bg-white/5 border border-white/15 rounded-xl p-3 text-xs text-white focus:outline-none"></textarea>
         </div>
         <button type="button" onclick="PlayerApp.submitFeedback()" class="w-full btn-hyper py-3 text-xs cursor-pointer">
           Submit Ticket to Support Team
@@ -1107,7 +1073,7 @@
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="font-semibold text-slate-300 block mb-1">Preferred Time</label>
-            <select id="callbackTimeSlot" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2.5 text-[#FFC857] font-bold focus:outline-none">
+            <select id="callbackTimeSlot" class="w-full bg-white/5 border border-white/15 rounded-xl px-3.5 py-2.5 text-[#FFC857] font-bold focus:outline-none">
               <option value="Urgent (Within 30 Mins)" class="bg-[#06070A]">Urgent (30 Mins)</option>
               <option value="Afternoon (12 PM - 4 PM)" class="bg-[#06070A]">12 PM - 4 PM</option>
               <option value="Evening (5 PM - 9 PM)" class="bg-[#06070A]">5 PM - 9 PM</option>
@@ -1115,7 +1081,7 @@
           </div>
           <div>
             <label class="font-semibold text-slate-300 block mb-1">Topic</label>
-            <select id="callbackTopicSelect" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2.5 text-white font-semibold focus:outline-none">
+            <select id="callbackTopicSelect" class="w-full bg-white/5 border border-white/15 rounded-xl px-3.5 py-2.5 text-white font-semibold focus:outline-none">
               <option value="Wallet / Deposit" class="bg-[#06070A]">Wallet / Deposit</option>
               <option value="Room / Match" class="bg-[#06070A]">Room / Match</option>
               <option value="Account Help" class="bg-[#06070A]">Account Help</option>
@@ -1124,7 +1090,7 @@
         </div>
         <div>
           <label class="font-semibold text-slate-300 block mb-1">Short Note for Support Agent</label>
-          <input type="text" id="callbackNoteInput" placeholder="e.g. Meri deposit UTR verify krwani hai..." class="w-full bg-white/5 border border-white/15 rounded-xl px-3.5 py-2.5 text-white focus:outline-none">
+          <input type="text" id="callbackNoteInput" placeholder="e.g. Deposit UTR issue..." class="w-full bg-white/5 border border-white/15 rounded-xl px-3.5 py-2.5 text-white focus:outline-none">
         </div>
         <button type="button" onclick="PlayerApp.submitCallbackRequest()" class="w-full bg-emerald-500 text-black font-extrabold uppercase py-3 rounded-xl text-xs cursor-pointer flex items-center justify-center gap-1.5">
           <i class="ph-bold ph-phone-call"></i>
@@ -1161,7 +1127,6 @@
   <script src="js/supabaseClient.js"></script>
   <script src="js/playerApp.js"></script>
 
-  <!-- PWA & MEDIAN BYPASS -->
   <script>
     (function () {
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
@@ -1170,7 +1135,6 @@
         enterWebArena();
       }
 
-      // Check if User is on iOS / iPhone to update the Gateway Button directly
       if (isAppleDevice()) {
         const btnText = document.getElementById('smartInstallText');
         const btnIcon = document.getElementById('smartInstallIcon');
