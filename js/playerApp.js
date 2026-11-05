@@ -1,4 +1,4 @@
-// js/playerApp.js — Guaranteed Deposit Submission, Instant Admin Sync, Fast Click & Native Push Notifications
+// js/playerApp.js — 100% Complete Uncut Ultra-Fast Player Engine (Auto-Logout on Account Delete, Guaranteed Deposit Queue, Zero-Delay Instant Touch, 120FPS Smooth Scroll, Native APK Notification Bridge & Privacy IDP Lock)
 
 const PlayerApp = {
   BASE_FF_WALLPAPER: 'https://images2.alphacoders.com/112/1126388.jpg',
@@ -142,7 +142,7 @@ const PlayerApp = {
 
     if ('Notification' in window && Notification.permission === 'granted') {
       try {
-        new Notification(title, { body: body, icon: 'logo.png', badge: 'logo.png', tag: notifTag });
+        new Notification(title, { body, icon: 'logo.png', badge: 'logo.png', tag: notifTag });
       } catch (e) {}
     }
   },
@@ -242,6 +242,8 @@ const PlayerApp = {
     const splashDelay = alreadyShown ? 150 : 1200;
 
     this.checkSavedSession();
+    this.verifyAccountExistence();
+
     this.state.tournaments = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
     this.state.customPaidRooms = SupabaseService.getLocal(SupabaseService.STORAGE_CUSTOM_KEY, []);
     this.syncJoinedMatchesFromSlots();
@@ -256,6 +258,7 @@ const PlayerApp = {
       this.startLiveChatAndNotifPoller();
       if (SupabaseService.isCloudConnected) {
         SupabaseService.pullAllFromCloud(true).then(() => {
+          this.verifyAccountExistence();
           this.loadPlatformConfig();
           this.populatePaidRoomOperatorsDropdown();
           this.fetchMatches(true);
@@ -273,6 +276,41 @@ const PlayerApp = {
       this.loadAllTimeTransactions();
       this.checkDeepLinkPaidRoom();
     }, splashDelay);
+  },
+
+  // GUARANTEED AUTOMATIC LOGOUT WHEN ACCOUNT IS DELETED IN ADMIN PANEL
+  verifyAccountExistence() {
+    if (!this.state.user) return;
+    const myAppId = String(this.state.user.appId || '').toUpperCase().trim();
+
+    // 1. Check if user is in deleted blacklist
+    try {
+      const blacklist = JSON.parse(localStorage.getItem('ignis_deleted_accounts_blacklist') || '[]');
+      if (blacklist.includes(myAppId)) {
+        this.forceImmediateAccountLogout();
+        return;
+      }
+    } catch (e) {}
+
+    // 2. Check if user exists in active players db
+    const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
+    if (allPlayers.length > 0) {
+      const exists = allPlayers.some(p => String(p.app_id || '').toUpperCase().trim() === myAppId);
+      if (!exists) {
+        this.forceImmediateAccountLogout();
+      }
+    }
+  },
+
+  forceImmediateAccountLogout() {
+    console.warn('Account terminated by Admin. Executing auto logout.');
+    localStorage.removeItem('ignis_player_session');
+    this.state.user = null;
+    this.state.joinedMatches = [];
+    document.getElementById('mainPlayerPortal')?.classList.add('hidden');
+    document.getElementById('playerAuthGate')?.classList.remove('hidden');
+    this.switchAuthMode('signin');
+    alert('⚠️ Aapka account terminate ya remove kar diya gaya hai. Kripya naya account banayein ya support se contact karein.');
   },
 
   checkDeepLinkPaidRoom() {
@@ -715,7 +753,7 @@ const PlayerApp = {
             </div>
             <div class="flex gap-1.5">
               <button onclick="PlayerApp.acceptFriendRequest(${idx})" class="btn-hyper px-2.5 py-1 text-[10px] cursor-pointer">Accept</button>
-              <button onclick="PlayerApp.declineFriendRequest(${idx})" class="bg-red-500/20 text-red-300 px-2.5 py-1 rounded-lg text-[10px] cursor-pointer">Decline</button>
+              <button onclick="PlayerApp.declineFriendRequest(${idx})" class="bg-red-500/20 text-red-300 px-2 py-1 rounded-lg text-[10px] cursor-pointer">Decline</button>
             </div>
           </div>
         `).join('');
@@ -1229,6 +1267,11 @@ const PlayerApp = {
         if (SupabaseService.isCloudConnected) {
           await SupabaseService.pullAllFromCloud(false);
         }
+
+        // Verify account existence in real-time
+        this.verifyAccountExistence();
+        if (!this.state.user) return;
+
         this.state.tournaments = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
         this.state.customPaidRooms = SupabaseService.getLocal(SupabaseService.STORAGE_CUSTOM_KEY, []);
         
@@ -1318,7 +1361,6 @@ const PlayerApp = {
       : (cfg.upi_id_2 || 'ignisvault@okaxis');
   },
 
-  // GUARANTEED DEPOSIT SUBMISSION TO ADMIN QUEUE & PASSBOOK
   async submitDepositWithUtr() {
     const amt = parseFloat(document.getElementById('depositInputAmt')?.value) || 200;
     const utr = (document.getElementById('depositUtrNumberInput')?.value || '').trim();
@@ -1346,7 +1388,7 @@ const PlayerApp = {
     adminDepQueue.unshift(newDepositEntry);
     SupabaseService.setLocal('ignis_deposit_requests_db', adminDepQueue);
 
-    // 2. Direct Save to Player All-Time Passbook Ledger
+    // 2. Direct Save to Player Passbook Ledger
     const ledger = SupabaseService.getLocal('ignis_all_time_transactions', []);
     ledger.unshift({
       id: 'TXN-' + Math.floor(1000 + Math.random() * 9000),
@@ -1360,13 +1402,13 @@ const PlayerApp = {
     });
     SupabaseService.setLocal('ignis_all_time_transactions', ledger);
 
-    // 3. Background Cloud Sync (Non-blocking)
+    // 3. Background Cloud Sync
     if (SupabaseService.isCloudConnected && typeof SupabaseService.pushKeyToCloud === 'function') {
       SupabaseService.pushKeyToCloud('ignis_deposit_requests_db', adminDepQueue).catch(() => {});
       SupabaseService.pushKeyToCloud('ignis_all_time_transactions', ledger).catch(() => {});
     }
 
-    // 4. Dispatch Cross-Window Storage Event so Admin Panel immediately refreshes
+    // 4. Trigger Cross-Window Event
     window.dispatchEvent(new Event('storage'));
 
     document.getElementById('depositUtrNumberInput').value = '';
@@ -1883,6 +1925,9 @@ const PlayerApp = {
   setupRealtimeSync() {
     SupabaseService.subscribeToTournaments(async () => {
       if (this.state.user) {
+        this.verifyAccountExistence();
+        if (!this.state.user) return;
+
         const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
         const fresh = allPlayers.find(p => (p.app_id || '').toUpperCase() === this.state.user.appId.toUpperCase());
         if (fresh) {
