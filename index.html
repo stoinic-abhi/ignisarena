@@ -7,32 +7,18 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Ignis Arena">
   
-  <!-- GOOGLE SEARCH CONSOLE VERIFICATION & MASTER SEO -->
+  <!-- GOOGLE MASTER SEO -->
   <meta name="google-site-verification" content="7BIR1_x4BY5HAVXxUvnEyRaZtXpicMiYO6SK2-I7u70" />
   <title>IGNIS ARENA — Official Esports APK &amp; Free Fire Tournaments</title>
-  <meta name="title" content="IGNIS ARENA — Official Esports APK &amp; Free Fire Tournaments">
   <meta name="description" content="Join daily Free Fire paid custom matches, esports scrims and tournaments with instant UPI cashouts on Ignis Arena. Download official app.">
-  <meta name="keywords" content="Ignis Arena, Free Fire Tournament App, Free Fire Custom Room, FF Paid Scrims, Ignis Arena APK">
-  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
   <link rel="canonical" href="https://ignisarena.vercel.app/">
 
-  <!-- DIRECT FAVICONS -->
-  <link rel="icon" type="image/png" sizes="192x192" href="https://ignisarena.vercel.app/logo.png">
-  <link rel="icon" type="image/png" sizes="96x96" href="https://ignisarena.vercel.app/logo.png">
-  <link rel="icon" type="image/png" sizes="48x48" href="https://ignisarena.vercel.app/logo.png">
-  <link rel="shortcut icon" href="https://ignisarena.vercel.app/logo.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="https://ignisarena.vercel.app/logo.png">
-
-  <!-- SOCIAL PREVIEWS -->
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://ignisarena.vercel.app/">
-  <meta property="og:site_name" content="Ignis Arena">
-  <meta property="og:title" content="IGNIS ARENA — Official Esports APK &amp; Free Fire Tournaments">
-  <meta property="og:description" content="Join daily Free Fire paid custom matches, esports scrims and tournaments with instant UPI cashouts on Ignis Arena.">
-  <meta property="og:image" content="https://ignisarena.vercel.app/logo.png">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:image" content="https://ignisarena.vercel.app/logo.png">
+  <!-- ICONS & FAVICONS -->
+  <link rel="icon" type="image/png" sizes="192x192" href="logo.png">
+  <link rel="shortcut icon" href="logo.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="logo.png">
 
   <link rel="manifest" href="manifest.json">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -61,12 +47,17 @@
       animation: pulseGlow 2.2s infinite ease-in-out;
     }
     .hero-glow-bg {
-      background: radial-gradient(circle at 50% 30%, rgba(255, 107, 0, 0.22) 0%, rgba(18, 8, 36, 0) 70%);
+      background: radial-gradient(circle at 50% 25%, rgba(255, 107, 0, 0.25) 0%, rgba(18, 8, 36, 0) 70%);
+    }
+    .ios-step-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(12px);
     }
   </style>
 
-  <!-- DIRECT FAIL-SAFE GATEWAY CONTROLLER -->
   <script>
+    // Global Safe Gateway Controller (No External Scope Dependency)
     function enterWebArena() {
       const gw = document.getElementById('ignisGatewayScreen');
       if (gw) {
@@ -80,10 +71,27 @@
       }
     }
 
-    function handleGatewayDownloadClick() {
-      setTimeout(function() {
-        enterWebArena();
-      }, 1200);
+    function isAppleDevice() {
+      return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }
+
+    function handleSmartPlatformDownload() {
+      if (isAppleDevice()) {
+        openIosInstallModal();
+      } else {
+        window.location.href = "https://github.com/stoinic-abhi/ignisarena/releases/download/v1.0/app-release.apk";
+        setTimeout(function() {
+          enterWebArena();
+        }, 1500);
+      }
+    }
+
+    function openIosInstallModal() {
+      document.getElementById('iosInstructionsModal')?.classList.remove('hidden');
+    }
+
+    function closeIosInstallModal() {
+      document.getElementById('iosInstructionsModal')?.classList.add('hidden');
     }
   </script>
 </head>
@@ -92,36 +100,56 @@
   <canvas id="emberCanvas" class="fixed inset-0 pointer-events-none z-0 opacity-25"></canvas>
   <div id="toastContainer" class="fixed top-4 right-3 left-3 sm:left-auto sm:right-5 z-[100] flex flex-col gap-2 sm:max-w-sm pointer-events-none"></div>
 
-  <!-- ANIMATED ENTRY GATEWAY (0-DEPENDENCY INSTANT CLICK) -->
-  <div id="ignisGatewayScreen" class="fixed inset-0 z-[80] bg-[#06070A] hero-glow-bg flex flex-col items-center justify-between p-6 overflow-y-auto">
-    <div class="pt-4 text-center">
-      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold tracking-wide">
-        <i class="fa-solid fa-shield-halved"></i>
-        <span>Official Esports Platform • Safe &amp; Verified</span>
+  <!-- ==================== ANIMATED HIGH-TECH ESPORTS GATEWAY ==================== -->
+  <div id="ignisGatewayScreen" class="fixed inset-0 z-[80] bg-[#06070A] hero-glow-bg flex flex-col items-center justify-between p-5 sm:p-7 overflow-y-auto">
+    <!-- Top Verified Badge -->
+    <div class="pt-3 text-center">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold tracking-wide shadow-lg">
+        <i class="fa-solid fa-shield-halved text-emerald-400"></i>
+        <span>Official Esports Platform • 100% Anti-Cheat Verified</span>
       </div>
     </div>
 
-    <div class="w-full max-w-sm text-center flex flex-col items-center my-auto py-6">
-      <div class="relative mb-5">
-        <div class="absolute -inset-2 bg-gradient-to-r from-[#FF6B00] via-[#FFC857] to-[#FF6B00] rounded-3xl blur-lg opacity-70 animate-pulse"></div>
+    <!-- Center Hero Identity -->
+    <div class="w-full max-w-sm text-center flex flex-col items-center my-auto py-4">
+      <div class="relative mb-4">
+        <div class="absolute -inset-2 bg-gradient-to-r from-[#FF6B00] via-[#FFC857] to-[#FF6B00] rounded-3xl blur-xl opacity-75 animate-pulse"></div>
         <img src="logo.png" alt="Ignis Arena Logo" class="relative w-28 h-28 rounded-2xl object-cover bg-black border-2 border-white/20 shadow-2xl">
       </div>
 
-      <h1 class="text-3xl font-black italic tracking-wider text-white">
+      <h1 class="text-3xl sm:text-4xl font-black italic tracking-wider text-white">
         IGNIS <span class="text-[#FF6B00]">ARENA</span>
       </h1>
-      <p class="text-xs text-slate-300 mt-1 font-semibold uppercase tracking-widest">
-        Free Fire Daily Paid Custom Matches
+      <p class="text-[11px] sm:text-xs text-slate-300 mt-1 font-semibold uppercase tracking-widest">
+        India's Dedicated Free Fire Custom Battles
       </p>
 
-      <div class="w-full space-y-3 mt-7">
-        <!-- Button 1: Download Android APK -->
-        <a href="https://github.com/stoinic-abhi/ignisarena/releases/download/v1.0/app-release.apk"
-           onclick="handleGatewayDownloadClick()"
-           class="neon-pulse-btn w-full py-4 px-6 bg-gradient-to-r from-[#FF6B00] to-[#FFC857] text-black font-black text-sm uppercase tracking-wider rounded-2xl flex items-center justify-center gap-3 cursor-pointer active:scale-95 transition">
-          <i class="fa-brands fa-android text-2xl"></i>
-          <span>Download Android APK (120FPS)</span>
-        </a>
+      <!-- Key Value Points -->
+      <div class="grid grid-cols-3 gap-2 w-full mt-5 mb-5 text-center">
+        <div class="p-2 rounded-xl bg-white/5 border border-white/10">
+          <strong class="text-[#FFC857] block font-mono text-sm">80%</strong>
+          <span class="text-[9px] text-slate-400 font-bold uppercase">Winner Pool</span>
+        </div>
+        <div class="p-2 rounded-xl bg-white/5 border border-white/10">
+          <strong class="text-emerald-400 block font-mono text-sm">Instant</strong>
+          <span class="text-[9px] text-slate-400 font-bold uppercase">UPI Cashout</span>
+        </div>
+        <div class="p-2 rounded-xl bg-white/5 border border-white/10">
+          <strong class="text-cyan-400 block font-mono text-sm">Zero Lag</strong>
+          <span class="text-[9px] text-slate-400 font-bold uppercase">120 FPS Pure</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="w-full space-y-3">
+        <!-- Button 1: Smart OS Aware Button (Android APK vs iOS Home Screen) -->
+        <button type="button"
+                id="smartInstallBtn"
+                onclick="handleSmartPlatformDownload()"
+                class="neon-pulse-btn w-full py-4 px-6 bg-gradient-to-r from-[#FF6B00] to-[#FFC857] text-black font-black text-xs sm:text-sm uppercase tracking-wider rounded-2xl flex items-center justify-center gap-3 cursor-pointer active:scale-95 transition">
+          <i id="smartInstallIcon" class="fa-brands fa-android text-2xl"></i>
+          <span id="smartInstallText">Download Android APK (120FPS)</span>
+        </button>
 
         <!-- Button 2: Direct Open Web Arena -->
         <button type="button"
@@ -132,14 +160,60 @@
         </button>
       </div>
 
-      <p class="text-[11px] text-slate-400 mt-4 leading-relaxed">
-        ⚡ Instant UPI withdrawals • Verified anti-cheat • Room ID auto-sync
+      <p class="text-[10px] text-slate-400 mt-4 leading-relaxed font-mono">
+        ⚡ Direct credentials distribution • Anti-cheat secured custom rooms
       </p>
     </div>
 
-    <footer class="text-[11px] text-slate-500 pb-2 text-center">
+    <footer class="text-[10px] text-slate-500 pb-2 text-center">
       © 2026 Ignis Arena Esports. All rights reserved.
     </footer>
+  </div>
+
+  <!-- ==================== iOS INSTALLATION WALKTHROUGH MODAL ==================== -->
+  <div id="iosInstructionsModal" class="fixed inset-0 z-[90] bg-black/90 backdrop-blur-xl flex items-end sm:items-center justify-center p-4 hidden">
+    <div class="laser-card max-w-sm w-full p-5 sm:p-6 text-center relative border border-[#FF6B00]/40 space-y-4">
+      <button onclick="closeIosInstallModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer text-lg">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="w-14 h-14 rounded-2xl bg-[#FF6B00]/15 border border-[#FF6B00]/30 text-[#FFC857] flex items-center justify-center mx-auto text-2xl">
+        <i class="fa-brands fa-apple"></i>
+      </div>
+
+      <div>
+        <h3 class="text-base sm:text-lg font-black text-white">Add Ignis Arena to iPhone</h3>
+        <p class="text-xs text-slate-400 mt-1">Sirf 2 simple steps mein full-screen app banayein (Safari Browser):</p>
+      </div>
+
+      <div class="space-y-2.5 text-left text-xs">
+        <!-- Step 1 -->
+        <div class="ios-step-card p-3 rounded-2xl flex items-center gap-3">
+          <div class="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center shrink-0 text-sm">
+            <i class="fa-solid fa-arrow-up-from-bracket"></i>
+          </div>
+          <div class="text-slate-300 text-[11px]">
+            Safari ke bottom toolbar par <strong class="text-white">'Share'</strong> icon par tap karein.
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="ios-step-card p-3 rounded-2xl flex items-center gap-3">
+          <div class="w-8 h-8 rounded-xl bg-[#FF6B00]/20 text-[#FFC857] border border-[#FF6B00]/30 flex items-center justify-center shrink-0 text-sm">
+            <i class="fa-regular fa-square-plus"></i>
+          </div>
+          <div class="text-slate-300 text-[11px]">
+            Scroll karke <strong class="text-[#FFC857]">'Add to Home Screen'</strong> chunein aur <strong class="text-white">'Add'</strong> dabayein.
+          </div>
+        </div>
+      </div>
+
+      <button type="button"
+              onclick="closeIosInstallModal(); enterWebArena();"
+              class="w-full btn-hyper py-3 text-xs font-bold uppercase rounded-xl cursor-pointer">
+        Open Web Client Now
+      </button>
+    </div>
   </div>
 
   <!-- AUTH GATEWAY -->
@@ -215,7 +289,7 @@
     </div>
   </div>
 
-  <!-- PROFILE SETUP MODAL -->
+  <!-- COMPLETE PROFILE SETUP MODAL -->
   <div id="completeProfileModal" class="fixed inset-0 z-[60] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-4 hidden">
     <div class="laser-card max-w-md w-full p-6 space-y-4 relative border border-[#FF6B00]/50">
       <button type="button" onclick="PlayerApp.closeModal('completeProfileModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer">
@@ -254,13 +328,13 @@
           </div>
           <div>
             <label class="font-semibold text-slate-300 block mb-1 text-[11px]">In-Game Level</label>
-            <input type="text" id="compLevelInput" value="Level 70" class="w-full bg-white/5 border border-white/15 rounded-xl px-3.5 py-2.5 text-white font-semibold focus:outline-none">
+            <input type="text" id="compLevelInput" value="Level 70" class="w-full bg-white/5 border border-white/15 focus:border-[#FF6B00] rounded-xl px-3.5 py-2.5 text-white font-semibold focus:outline-none">
           </div>
         </div>
 
         <div>
           <label class="font-semibold text-slate-300 block mb-1 text-[11px]">Official Gmail Address *</label>
-          <input type="email" id="compEmailInput" placeholder="player@gmail.com" class="w-full bg-white/5 border border-white/15 rounded-xl px-3.5 py-2.5 text-white focus:outline-none">
+          <input type="email" id="compEmailInput" placeholder="player@gmail.com" class="w-full bg-white/5 border border-white/15 focus:border-[#FF6B00] rounded-xl px-3.5 py-2.5 text-white focus:outline-none">
         </div>
 
         <div id="compProfileErrorBox" class="hidden p-2.5 rounded-xl bg-red-950/60 border border-red-500/40 text-red-300 text-[11px] font-semibold text-center"></div>
@@ -332,7 +406,7 @@
       </div>
     </header>
 
-    <!-- TAB 1: TOURNAMENT -->
+    <!-- TAB 1: TOURNAMENTS -->
     <main id="view-tournaments" class="space-y-3.5">
       <div class="laser-card p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div class="space-y-1">
@@ -348,7 +422,7 @@
             Battle Royale • Clash Squad • Lone Wolf
           </h1>
           <p class="text-xs text-slate-400">
-            Tap any Completed Tournament to view 1st Place Winner &amp; Every Player's Kills + Kill Money!
+            Tap any match card to view complete tournament standings, per-player kills and cash breakdowns!
           </p>
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
@@ -928,7 +1002,7 @@
         <div class="grid grid-cols-2 gap-2.5">
           <select id="editPaidRoomHs" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2.5 text-[#FFC857] font-bold">
             <option value="YES" class="bg-[#06070A]">HS: YES</option>
-            <option value="NO" class="bg-[#06070A]">HS: NO</option>
+            <option value="NO" class="bg-[#06070A]">NO (All Guns)</option>
           </select>
           <input type="number" id="editPaidRoomBet" min="50" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2.5 text-emerald-400 font-bold">
         </div>
@@ -1094,6 +1168,14 @@
       const isMedian = navigator.userAgent.toLowerCase().includes('gonative') || navigator.userAgent.toLowerCase().includes('median');
       if (isStandalone || isMedian) {
         enterWebArena();
+      }
+
+      // Check if User is on iOS / iPhone to update the Gateway Button directly
+      if (isAppleDevice()) {
+        const btnText = document.getElementById('smartInstallText');
+        const btnIcon = document.getElementById('smartInstallIcon');
+        if (btnText) btnText.innerText = "Install Web App (iOS Shortcut)";
+        if (btnIcon) btnIcon.className = "fa-brands fa-apple text-2xl text-white";
       }
     })();
   </script>
