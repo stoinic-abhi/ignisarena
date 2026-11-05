@@ -1,4 +1,4 @@
-// js/adminApp.js — 2026 Master Command Deck (Guaranteed Instant Tournament Creation, 2-Step Wager Flow, Broadcast History with Live Edit/Delete, Median APK Push Bridge, Live Chat Poll, Host IDP Message, Player Withdrawals Queue, Real-Time Hosts + Random, Full Kill Breakdown Leaderboard & SW Push Sync)
+// js/adminApp.js — 2026 Master Command Deck (Guaranteed Instant Tournament Creation, Instant Auto-Logout Trigger on User Delete, 2-Step Wager Flow, Broadcast History with Live Edit/Delete, Median APK Push Bridge, Live Chat Poll, Host IDP Message, Player Withdrawals Queue, Real-Time Hosts + Random, Full Kill Breakdown Leaderboard & SW Push Sync)
 
 const AdminApp = {
   _verifySecretPin(input) {
@@ -99,7 +99,6 @@ const AdminApp = {
   fireDeviceNotification(title, body, tag) {
     const notifTag = tag || 'ignis-admin-' + Date.now();
 
-    // 1. Android APK Native Bridge check (Median.co / GoNative)
     if (window.median && typeof window.median.notifications === 'object') {
       try {
         window.median.notifications.create({
@@ -111,7 +110,6 @@ const AdminApp = {
       } catch (e) {}
     }
 
-    // 2. Service Worker Native Status Bar Trigger
     if (this._swReg && typeof this._swReg.showNotification === 'function') {
       try {
         this._swReg.showNotification(title, {
@@ -148,7 +146,6 @@ const AdminApp = {
     const hosts = SupabaseService.getLocal('ignis_hosts_db', []);
     this.hostsList = Array.isArray(hosts) ? hosts : [];
 
-    // 1. Update Login Host Datalist & Available Hint
     const dl = document.getElementById('liveHostsDatalist');
     const hint = document.getElementById('availableHostsHintText');
     if (dl) {
@@ -160,7 +157,6 @@ const AdminApp = {
         : 'No hosts in panel yet. Add hosts in Super Admin.';
     }
 
-    // 2. Update Add Tournament Modal Host Selector (Real-Time Hosts + Random)
     const sel = document.getElementById('newTourneyHostSelect');
     if (sel) {
       const currentVal = sel.value;
@@ -206,7 +202,6 @@ const AdminApp = {
 
   startLiveAdminPoller() {
     if (this._adminPollTimer) clearInterval(this._adminPollTimer);
-    // Optimized 4s background poll to keep main UI responsive without input freezes
     this._adminPollTimer = setInterval(async () => {
       if (this._isPerformingWrite) return;
       if (SupabaseService.isCloudConnected) {
@@ -407,7 +402,6 @@ const AdminApp = {
     if (tabKey === 'broadcast') this.renderSuperNotificationsHistory();
   },
 
-  /* ==================== BROADCAST NOTIFICATIONS MANAGEMENT WITH EDIT & DELETE ==================== */
   renderSuperNotificationsHistory() {
     const tbody = document.getElementById('superBroadcastHistoryTableBody');
     const countBadge = document.getElementById('superTotalNotifsCount');
@@ -503,7 +497,6 @@ const AdminApp = {
     this.renderSuperNotificationsHistory();
   },
 
-  /* ==================== PLAYER WALLET WITHDRAWAL REQUESTS QUEUE ==================== */
   getConsolidatedPlayerWithdrawals() {
     const dedicatedList = SupabaseService.getLocal('ignis_player_withdrawals_db', []);
     const allTxns = SupabaseService.getLocal('ignis_all_time_transactions', []);
@@ -628,7 +621,6 @@ const AdminApp = {
       if (!req || req.status === 'REJECTED' || req.status === 'APPROVED') return;
       req.status = 'REJECTED';
 
-      // Refund back to player's winnings_bal
       const players = SupabaseService.getLocal('ignis_players_db', []);
       const targetPlayer = players.find(p => String(p.app_id || '').trim().toUpperCase() === String(req.app_id || '').trim().toUpperCase());
       if (targetPlayer) {
@@ -652,7 +644,6 @@ const AdminApp = {
     }
   },
 
-  /* ==================== HOST COMMISSION WITHDRAWAL SYSTEM ==================== */
   async submitHostWithdrawalRequest() {
     if (!this.currentHost) return;
     const upi = (document.getElementById('hostWalletUpiInput')?.value || '').trim();
@@ -771,7 +762,7 @@ const AdminApp = {
     alert(`Rejected & Refunded ₹${req.amount} to ${req.host_name}!`);
   },
 
-  /* ==================== TOURNAMENTS MANAGER (ZERO-FAIL DIRECT CREATION) ==================== */
+  /* ==================== TOURNAMENTS MANAGER ==================== */
   applyPreset(presetKey) {
     const titleInp = document.getElementById('newTourneyTitle');
     const catSel = document.getElementById('newTourneyCategory');
@@ -898,25 +889,21 @@ const AdminApp = {
         created_at: new Date().toISOString()
       };
 
-      // 1. Instant local array update
       const currentList = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
       currentList.unshift(newRoom);
       this.matches = currentList;
       localStorage.setItem(SupabaseService.STORAGE_TOURNEY_KEY, JSON.stringify(currentList));
 
-      // 2. Direct Cloud Sync (non-blocking)
       if (SupabaseService.isCloudConnected && typeof SupabaseService.pushKeyToCloud === 'function') {
         SupabaseService.pushKeyToCloud(SupabaseService.STORAGE_TOURNEY_KEY, currentList).catch(err => {
           console.warn('Background cloud sync:', err);
         });
       }
 
-      // 3. Reset form inputs and close modal
       titleInput.value = '';
       const modal = document.getElementById('addTournamentModal');
       if (modal) modal.classList.add('hidden');
 
-      // 4. Force Instant Re-render on both tables
       this._lastHostTableHash = '';
       this._lastSuperTourneyHash = '';
       this.renderSuperManageTournamentsTable(true);
@@ -981,7 +968,6 @@ const AdminApp = {
     this.renderHostMatches(true);
   },
 
-  /* ==================== AUTOMATED SETTLEMENT LEADERBOARD ==================== */
   async openSettleTournamentModal(tournamentId) {
     this.activeSettleMatchId = tournamentId;
     this.matches = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
@@ -1148,7 +1134,6 @@ const AdminApp = {
     alert(`🏆 MATCH SETTLED & FULL KILL LEADERBOARD SAVED!\n• 1st Place Booyah: ${winnerIgn} (₹${winnerNetPayout})\n• All Players Kill Money Credited: ₹${totalKillPayout}\n• Host Cut (10%): ₹${hostCut}`);
   },
 
-  /* ==================== HOST WORKSPACE DATA ==================== */
   async fetchHostWorkspaceData(force = false) {
     this.matches = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
     this.customRooms = SupabaseService.getLocal(SupabaseService.STORAGE_CUSTOM_KEY, []);
@@ -1209,7 +1194,7 @@ const AdminApp = {
                 <button type="button" onclick="AdminApp.dispatchCredentials(${idx})" class="bg-[#FFC857] text-black px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">PUSH IDP &amp; MSG</button>
                 <button type="button" onclick="AdminApp.toggleLiveLock('${m.id}', '${isRoomLocked ? 'UPCOMING' : 'LIVE'}')" class="${isRoomLocked ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'} px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">${isRoomLocked ? '🔓 UNLOCK' : '🔒 LOCK'}</button>
                 <button type="button" onclick="AdminApp.openSettleTournamentModal('${m.id}')" class="bg-emerald-500 text-black font-russo px-2.5 py-1 rounded-lg text-[10px] cursor-pointer">SETTLE ⚡</button>
-                <button type="button" onclick="AdminApp.openEditTournamentModal('${m.id}')" class="bg-cyan-500/20 text-cyan-300 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">EDIT</button>
+                <button type="button" onclick="AdminApp.openEditTournamentModal('${m.id}')" class="bg-cyan-500/20 text-cyan-300 px-2.5 py-1 rounded-lg font-russo text-[10px] cursor-pointer">EDIT</button>
                 <button type="button" onclick="AdminApp.fastDeleteTournament('${m.id}')" class="bg-red-500/20 text-red-300 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">DEL</button>
               ` : `<span class="text-slate-500 text-[10px]">Locked</span>`}
             </td>
@@ -1218,7 +1203,6 @@ const AdminApp = {
       }).join('');
   },
 
-  /* ==================== 2-STEP PAID WAGER ROOMS ==================== */
   renderOperatorCustomRooms() {
     const container = document.getElementById('operatorCustomRoomsList');
     if (!container) return;
@@ -1500,7 +1484,6 @@ const AdminApp = {
     alert(`₹${amt} successfully transferred to ${res.player.ign} (${appId})!`);
   },
 
-  /* ==================== SUPER ADMIN FETCH, WALLET APPROVAL & CLOUD BROADCAST ==================== */
   async renderHostAccountsTable() {
     const tbody = document.getElementById('hostAccountsTableBody');
     if (!tbody) return;
@@ -1792,15 +1775,33 @@ const AdminApp = {
     `).join('');
   },
 
+  // INSTANT DELETE & LOGOUT BROADCASTER
   async deleteUserAccount(appId) {
-    if (!confirm(`Delete user ${appId} permanently?`)) return;
-    const updated = SupabaseService.getLocal('ignis_players_db', []).filter(p => String(p.app_id || '').toUpperCase() !== String(appId || '').toUpperCase());
+    if (!confirm(`Delete user ${appId} permanently? Target phone will auto-logout immediately.`)) return;
+    
+    const targetClean = String(appId || '').toUpperCase().trim();
+    const updated = SupabaseService.getLocal('ignis_players_db', []).filter(
+      p => String(p.app_id || '').toUpperCase().trim() !== targetClean
+    );
     this.usersList = updated;
+
+    // Set deleted target in blacklist for guaranteed client auto-logout
+    try {
+      const blacklist = JSON.parse(localStorage.getItem('ignis_deleted_accounts_blacklist') || '[]');
+      if (!blacklist.includes(targetClean)) {
+        blacklist.push(targetClean);
+        localStorage.setItem('ignis_deleted_accounts_blacklist', JSON.stringify(blacklist));
+      }
+    } catch (e) {}
+
     if (SupabaseService.client) {
       try { await SupabaseService.client.from('players').delete().eq('app_id', appId); } catch (e) {}
     }
+
     await this.commitKeyGuaranteed('ignis_players_db', updated);
+    window.dispatchEvent(new Event('storage'));
     await this.fetchSuperAdminData(true);
+    alert(`Athlete ${appId} has been deleted. Target device will automatically log out.`);
   },
 
   renderSuperFeedbacksTable() {
