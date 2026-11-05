@@ -206,6 +206,7 @@ const AdminApp = {
 
   startLiveAdminPoller() {
     if (this._adminPollTimer) clearInterval(this._adminPollTimer);
+    // Optimized 4s background poll to keep main UI responsive without input freezes
     this._adminPollTimer = setInterval(async () => {
       if (this._isPerformingWrite) return;
       if (SupabaseService.isCloudConnected) {
@@ -218,7 +219,7 @@ const AdminApp = {
       if (this.currentRole === 'owner') {
         this.refreshPlayerWithdrawalsQueue(false);
       }
-    }, 2200);
+    }, 4000);
   },
 
   stabilizeAdminCloudBridge() {
@@ -627,6 +628,7 @@ const AdminApp = {
       if (!req || req.status === 'REJECTED' || req.status === 'APPROVED') return;
       req.status = 'REJECTED';
 
+      // Refund back to player's winnings_bal
       const players = SupabaseService.getLocal('ignis_players_db', []);
       const targetPlayer = players.find(p => String(p.app_id || '').trim().toUpperCase() === String(req.app_id || '').trim().toUpperCase());
       if (targetPlayer) {
@@ -769,7 +771,7 @@ const AdminApp = {
     alert(`Rejected & Refunded ₹${req.amount} to ${req.host_name}!`);
   },
 
-  /* ==================== TOURNAMENTS MANAGER (GUARANTEED LOCAL + CLOUD PERSISTENCE) ==================== */
+  /* ==================== TOURNAMENTS MANAGER (ZERO-FAIL DIRECT CREATION) ==================== */
   applyPreset(presetKey) {
     const titleInp = document.getElementById('newTourneyTitle');
     const catSel = document.getElementById('newTourneyCategory');
@@ -838,45 +840,56 @@ const AdminApp = {
   },
 
   async createCustomTournament() {
-    const title = (document.getElementById('newTourneyTitle')?.value || '').trim();
-    const category = document.getElementById('newTourneyCategory')?.value || 'CS';
-    const sub_mode = document.getElementById('newTourneySubMode')?.value || 'Squad';
-    const map = document.getElementById('newTourneyMap')?.value || 'Bermuda';
-    const ammo_mode = document.getElementById('newTourneyAmmo')?.value || 'Unlimited';
-    const headshot_mode = document.getElementById('newTourneyHs')?.value || 'NO';
-    const total_slots = parseInt(document.getElementById('newTourneySlots')?.value, 10) || 8;
-    const entry_fee = parseFloat(document.getElementById('newTourneyFee')?.value) || 50;
-    const per_kill = parseFloat(document.getElementById('newTourneyPerKill')?.value) || 0;
-    const match_time = (document.getElementById('newTourneyTime')?.value || 'Today, 06:00 PM').trim();
-    const hostSelectVal = document.getElementById('newTourneyHostSelect')?.value || 'RANDOM';
+    const titleInput = document.getElementById('newTourneyTitle');
+    const title = (titleInput?.value || '').trim();
+    if (!title) {
+      alert('Tournament Title likhna zaroori hai!');
+      titleInput?.focus();
+      return;
+    }
 
-    if (!title) { alert('Tournament Title likhna zaroori hai!'); return; }
     const btn = document.getElementById('btnCreateTournamentSubmit');
-    if (btn) btn.disabled = true;
+    if (btn) {
+      btn.disabled = true;
+      btn.innerText = 'PUBLISHING...';
+    }
 
     try {
-      const assignedHostId = this.currentRole === 'host' && this.currentHost
+      const category = document.getElementById('newTourneyCategory')?.value || 'CS';
+      const sub_mode = document.getElementById('newTourneySubMode')?.value || 'Squad';
+      const map = document.getElementById('newTourneyMap')?.value || 'Bermuda';
+      const ammo_mode = document.getElementById('newTourneyAmmo')?.value || 'Unlimited';
+      const headshot_mode = document.getElementById('newTourneyHs')?.value || 'NO';
+      
+      const total_slots = parseInt(document.getElementById('newTourneySlots')?.value, 10) || 8;
+      const entry_fee = parseFloat(document.getElementById('newTourneyFee')?.value) || 50;
+      const per_kill = parseFloat(document.getElementById('newTourneyPerKill')?.value) || 0;
+      const match_time = (document.getElementById('newTourneyTime')?.value || 'Today, 06:00 PM').trim();
+      const hostSelectVal = document.getElementById('newTourneyHostSelect')?.value || 'RANDOM';
+
+      const assignedHostId = (this.currentRole === 'host' && this.currentHost)
         ? this.currentHost.host_id
         : this.resolveHostSelection(hostSelectVal);
 
       const max_prize_pool = Math.round(total_slots * entry_fee * 0.80);
+
       const newRoom = {
         id: `custom-${Date.now().toString().slice(-6)}`,
-        title,
-        category,
-        sub_mode,
+        title: title,
+        category: category,
+        sub_mode: sub_mode,
         format: `${category} ${sub_mode}`,
-        map,
-        ammo_mode,
-        headshot_mode,
-        total_slots,
+        map: map,
+        ammo_mode: ammo_mode,
+        headshot_mode: headshot_mode,
+        total_slots: total_slots,
         filled_slots: 0,
-        entry_fee,
-        per_kill,
+        entry_fee: entry_fee,
+        per_kill: per_kill,
         prize_pool: 0,
-        max_prize_pool,
+        max_prize_pool: max_prize_pool,
         match_hour: 23,
-        match_time,
+        match_time: match_time,
         room_id: '',
         room_password: '',
         host_message: '',
@@ -885,34 +898,39 @@ const AdminApp = {
         created_at: new Date().toISOString()
       };
 
-      // 1. Guaranteed Local Memory Write
+      // 1. Instant local array update
       const currentList = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
       currentList.unshift(newRoom);
       this.matches = currentList;
       localStorage.setItem(SupabaseService.STORAGE_TOURNEY_KEY, JSON.stringify(currentList));
 
-      // 2. Direct Cloud Sync Attempt
-      try {
-        if (SupabaseService.isCloudConnected && typeof SupabaseService.pushKeyToCloud === 'function') {
-          await SupabaseService.pushKeyToCloud(SupabaseService.STORAGE_TOURNEY_KEY, currentList);
-        }
-      } catch (err) {
-        console.warn('Cloud sync background warning:', err);
+      // 2. Direct Cloud Sync (non-blocking)
+      if (SupabaseService.isCloudConnected && typeof SupabaseService.pushKeyToCloud === 'function') {
+        SupabaseService.pushKeyToCloud(SupabaseService.STORAGE_TOURNEY_KEY, currentList).catch(err => {
+          console.warn('Background cloud sync:', err);
+        });
       }
 
-      // 3. Clear UI & Close Modal
-      document.getElementById('newTourneyTitle').value = '';
-      document.getElementById('addTournamentModal')?.classList.add('hidden');
-      
-      // 4. Force Live Re-render
+      // 3. Reset form inputs and close modal
+      titleInput.value = '';
+      const modal = document.getElementById('addTournamentModal');
+      if (modal) modal.classList.add('hidden');
+
+      // 4. Force Instant Re-render on both tables
       this._lastHostTableHash = '';
       this._lastSuperTourneyHash = '';
       this.renderSuperManageTournamentsTable(true);
       this.renderHostMatches(true);
-      
-      alert(`✅ Tournament "${title}" successfully published & live!`);
+
+      alert(`✅ Tournament "${title}" successfully create ho gaya aur live hai!`);
+    } catch (err) {
+      console.error('Tournament create error:', err);
+      alert('Error creating tournament: ' + err.message);
     } finally {
-      if (btn) btn.disabled = false;
+      if (btn) {
+        btn.disabled = false;
+        btn.innerText = 'PUBLISH TOURNAMENT LIVE';
+      }
     }
   },
 
@@ -1191,7 +1209,7 @@ const AdminApp = {
                 <button type="button" onclick="AdminApp.dispatchCredentials(${idx})" class="bg-[#FFC857] text-black px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">PUSH IDP &amp; MSG</button>
                 <button type="button" onclick="AdminApp.toggleLiveLock('${m.id}', '${isRoomLocked ? 'UPCOMING' : 'LIVE'}')" class="${isRoomLocked ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'} px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">${isRoomLocked ? '🔓 UNLOCK' : '🔒 LOCK'}</button>
                 <button type="button" onclick="AdminApp.openSettleTournamentModal('${m.id}')" class="bg-emerald-500 text-black font-russo px-2.5 py-1 rounded-lg text-[10px] cursor-pointer">SETTLE ⚡</button>
-                <button type="button" onclick="AdminApp.openEditTournamentModal('${m.id}')" class="bg-cyan-500/20 text-cyan-300 px-2.5 py-1 rounded-lg font-russo text-[10px] cursor-pointer">EDIT</button>
+                <button type="button" onclick="AdminApp.openEditTournamentModal('${m.id}')" class="bg-cyan-500/20 text-cyan-300 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">EDIT</button>
                 <button type="button" onclick="AdminApp.fastDeleteTournament('${m.id}')" class="bg-red-500/20 text-red-300 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">DEL</button>
               ` : `<span class="text-slate-500 text-[10px]">Locked</span>`}
             </td>
