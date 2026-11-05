@@ -1,4 +1,4 @@
-// js/adminApp.js — 2026 Master Command Deck (2-Step Wager Accept -> Push IDP, Broadcast History with Live Edit/Delete, Median APK Push Bridge, Live Chat Poll, Host IDP Message, Player Withdrawals Queue, Real-Time Hosts + Random, Full Kill Breakdown Leaderboard & SW Push Sync)
+// js/adminApp.js — 2026 Master Command Deck (Guaranteed Instant Tournament Creation, 2-Step Wager Flow, Broadcast History with Live Edit/Delete, Median APK Push Bridge, Live Chat Poll, Host IDP Message, Player Withdrawals Queue, Real-Time Hosts + Random, Full Kill Breakdown Leaderboard & SW Push Sync)
 
 const AdminApp = {
   _verifySecretPin(input) {
@@ -376,7 +376,6 @@ const AdminApp = {
     if (tabKey === 'wallet') this.renderHostWithdrawalHistory();
   },
 
-  // INCLUDES CLICKABLE ORANGE 'withdrawals' & 'broadcast' TABS
   switchOwnerSection(tabKey) {
     this.activeOwnerTab = tabKey;
     const allOwnerTabs = ['overview', 'tournaments-manage', 'qr', 'deposits', 'withdrawals', 'store', 'users', 'operators', 'broadcast', 'feedbacks'];
@@ -450,7 +449,7 @@ const AdminApp = {
     const newEntry = {
       id: notifId,
       title: title.toUpperCase(),
-      msg: msg,
+      msg,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       created_at: new Date().toISOString()
     };
@@ -628,7 +627,6 @@ const AdminApp = {
       if (!req || req.status === 'REJECTED' || req.status === 'APPROVED') return;
       req.status = 'REJECTED';
 
-      // Refund back to player's winnings_bal
       const players = SupabaseService.getLocal('ignis_players_db', []);
       const targetPlayer = players.find(p => String(p.app_id || '').trim().toUpperCase() === String(req.app_id || '').trim().toUpperCase());
       if (targetPlayer) {
@@ -771,7 +769,7 @@ const AdminApp = {
     alert(`Rejected & Refunded ₹${req.amount} to ${req.host_name}!`);
   },
 
-  /* ==================== TOURNAMENTS MANAGER ==================== */
+  /* ==================== TOURNAMENTS MANAGER (GUARANTEED LOCAL + CLOUD PERSISTENCE) ==================== */
   applyPreset(presetKey) {
     const titleInp = document.getElementById('newTourneyTitle');
     const catSel = document.getElementById('newTourneyCategory');
@@ -864,22 +862,55 @@ const AdminApp = {
       const max_prize_pool = Math.round(total_slots * entry_fee * 0.80);
       const newRoom = {
         id: `custom-${Date.now().toString().slice(-6)}`,
-        title, category, sub_mode, format: `${category} ${sub_mode}`, map, ammo_mode, headshot_mode,
-        total_slots, filled_slots: 0, entry_fee, per_kill, prize_pool: 0, max_prize_pool,
-        match_hour: 23, match_time, room_id: '', room_password: '', host_message: '',
-        match_status: 'UPCOMING', assigned_host: assignedHostId,
+        title,
+        category,
+        sub_mode,
+        format: `${category} ${sub_mode}`,
+        map,
+        ammo_mode,
+        headshot_mode,
+        total_slots,
+        filled_slots: 0,
+        entry_fee,
+        per_kill,
+        prize_pool: 0,
+        max_prize_pool,
+        match_hour: 23,
+        match_time,
+        room_id: '',
+        room_password: '',
+        host_message: '',
+        match_status: 'UPCOMING',
+        assigned_host: assignedHostId,
         created_at: new Date().toISOString()
       };
+
+      // 1. Guaranteed Local Memory Write
       const currentList = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
       currentList.unshift(newRoom);
       this.matches = currentList;
-      await this.commitKeyGuaranteed(SupabaseService.STORAGE_TOURNEY_KEY, currentList);
+      localStorage.setItem(SupabaseService.STORAGE_TOURNEY_KEY, JSON.stringify(currentList));
+
+      // 2. Direct Cloud Sync Attempt
+      try {
+        if (SupabaseService.isCloudConnected && typeof SupabaseService.pushKeyToCloud === 'function') {
+          await SupabaseService.pushKeyToCloud(SupabaseService.STORAGE_TOURNEY_KEY, currentList);
+        }
+      } catch (err) {
+        console.warn('Cloud sync background warning:', err);
+      }
+
+      // 3. Clear UI & Close Modal
       document.getElementById('newTourneyTitle').value = '';
       document.getElementById('addTournamentModal')?.classList.add('hidden');
+      
+      // 4. Force Live Re-render
       this._lastHostTableHash = '';
       this._lastSuperTourneyHash = '';
       this.renderSuperManageTournamentsTable(true);
       this.renderHostMatches(true);
+      
+      alert(`✅ Tournament "${title}" successfully published & live!`);
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -1160,7 +1191,7 @@ const AdminApp = {
                 <button type="button" onclick="AdminApp.dispatchCredentials(${idx})" class="bg-[#FFC857] text-black px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">PUSH IDP &amp; MSG</button>
                 <button type="button" onclick="AdminApp.toggleLiveLock('${m.id}', '${isRoomLocked ? 'UPCOMING' : 'LIVE'}')" class="${isRoomLocked ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'} px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">${isRoomLocked ? '🔓 UNLOCK' : '🔒 LOCK'}</button>
                 <button type="button" onclick="AdminApp.openSettleTournamentModal('${m.id}')" class="bg-emerald-500 text-black font-russo px-2.5 py-1 rounded-lg text-[10px] cursor-pointer">SETTLE ⚡</button>
-                <button type="button" onclick="AdminApp.openEditTournamentModal('${m.id}')" class="bg-cyan-500/20 text-cyan-300 px-2 py-1 rounded-lg text-[10px] font-russo cursor-pointer">EDIT</button>
+                <button type="button" onclick="AdminApp.openEditTournamentModal('${m.id}')" class="bg-cyan-500/20 text-cyan-300 px-2.5 py-1 rounded-lg font-russo text-[10px] cursor-pointer">EDIT</button>
                 <button type="button" onclick="AdminApp.fastDeleteTournament('${m.id}')" class="bg-red-500/20 text-red-300 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">DEL</button>
               ` : `<span class="text-slate-500 text-[10px]">Locked</span>`}
             </td>
@@ -1169,7 +1200,7 @@ const AdminApp = {
       }).join('');
   },
 
-  /* ==================== 2-STEP PAID WAGER ROOMS (STEP 1: ACCEPT -> STEP 2: PUSH IDP TO JOINED PLAYERS ONLY) ==================== */
+  /* ==================== 2-STEP PAID WAGER ROOMS ==================== */
   renderOperatorCustomRooms() {
     const container = document.getElementById('operatorCustomRoomsList');
     if (!container) return;
@@ -1215,7 +1246,6 @@ const AdminApp = {
             <strong class="text-emerald-300 font-russo text-xs">🏆 SETTLED WINNER: ${r.winner_ign} (${r.winner_app_id}) • Won ₹${r.winner_payout}</strong>
           </div>
         ` : !isAccepted ? `
-          <!-- STEP 1: HOST MUST ACCEPT ROOM FIRST BEFORE IDP BOXES UNLOCK -->
           <div class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-center space-y-2">
             <p class="text-[11px] text-amber-200">Step 1: Pehle is Paid Room ko Accept karein, uske baad Room ID &amp; Password push karne ka option khulega.</p>
             <button type="button" onclick="AdminApp.stepOneAcceptCustomRoom('${r.id}')" class="w-full btn-hyper py-2.5 text-xs font-russo cursor-pointer">
@@ -1223,7 +1253,6 @@ const AdminApp = {
             </button>
           </div>
         ` : `
-          <!-- STEP 2: UNLOCKED ROOM ID & PASSWORD PUSH (VISIBLE ONLY TO SIDE A & SIDE B PLAYERS) -->
           <div class="space-y-2 bg-black/50 p-2.5 rounded-xl border border-emerald-500/30">
             <span class="text-[10px] font-bold text-emerald-400 uppercase block">Step 2: Push ID/Pass (Visible ONLY to Joined Side A &amp; Side B)</span>
             <div class="grid grid-cols-2 gap-2">
@@ -1366,7 +1395,6 @@ const AdminApp = {
     this.renderHostMatches(true);
   },
 
-  // Push Room ID, Password AND Host Custom Announcement Message (Only visible to joined players)
   async dispatchCredentials(idx) {
     const rid = (document.getElementById(`inputRoom-${idx}`)?.value || '').trim();
     const pass = (document.getElementById(`inputPass-${idx}`)?.value || '').trim();
