@@ -78,7 +78,7 @@
           <i id="dashboardRoleIcon" class="ph-bold ph-headset"></i>
         </div>
         <div>
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center gap-2">
             <h1 class="font-russo text-base sm:text-lg text-white tracking-tight" id="dashboardTitle">Command Console</h1>
             <span id="roleBadge" class="text-[10px] bg-emerald-500/20 text-emerald-300 font-mono px-2.5 py-0.5 rounded-full border border-emerald-500/40">VERIFIED</span>
             <span id="steadyCloudStatusChip" class="text-[10px] bg-emerald-500/15 text-emerald-300 font-mono px-2.5 py-0.5 rounded-full border border-emerald-500/30">● CLOUD CONNECTED</span>
@@ -159,7 +159,7 @@
         </div>
       </section>
 
-      <!-- Host Paid Wager Rooms Section (2-STEP: ACCEPT FIRST -> THEN PUSH IDP) -->
+      <!-- Host Paid Wager Rooms Section -->
       <section id="host-sec-wager" class="laser-card p-4 sm:p-6 space-y-4 hidden">
         <div class="flex items-center justify-between border-b border-white/10 pb-3">
           <div>
@@ -798,6 +798,169 @@
     </div>
   </div>
 
+  <!-- ADD TOURNAMENT MODAL (ZERO FORM-SUBMIT BLOCKAGE) -->
+  <div id="addTournamentModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-xl w-full p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
+        <div>
+          <span class="text-[10px] font-mono text-[#FF6B00] uppercase block">1-Click Instant Tournament Engine</span>
+          <h3 class="font-russo text-base sm:text-lg text-white">+ ADD NEW CUSTOM TOURNAMENT</h3>
+        </div>
+        <button type="button" onclick="document.getElementById('addTournamentModal').classList.add('hidden')" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <div class="bg-black/60 p-3 rounded-2xl border border-white/10 space-y-1.5">
+        <span class="text-[10px] font-bold text-[#FFC857] block uppercase">FAST 1-CLICK PRESETS:</span>
+        <div class="flex flex-wrap gap-1.5 text-[10px] font-bold">
+          <button type="button" onclick="AdminApp.applyPreset('BR_SQUAD')" class="px-2.5 py-1 bg-white/10 hover:bg-[#FF6B00] hover:text-black rounded-lg transition cursor-pointer">BR Squad (12 Slots • ₹120)</button>
+          <button type="button" onclick="AdminApp.applyPreset('BR_SOLO')" class="px-2.5 py-1 bg-white/10 hover:bg-[#FF6B00] hover:text-black rounded-lg transition cursor-pointer">BR Solo (48 Slots • ₹30)</button>
+          <button type="button" onclick="AdminApp.applyPreset('CS_4V4_UNLIM_HS')" class="px-2.5 py-1 bg-white/10 hover:bg-[#FF6B00] hover:text-black rounded-lg transition cursor-pointer">CS 4v4 Unlimited (HS: YES)</button>
+          <button type="button" onclick="AdminApp.applyPreset('LW_1V1')" class="px-2.5 py-1 bg-white/10 hover:bg-[#FF6B00] hover:text-black rounded-lg transition cursor-pointer">Lone Wolf 1v1 (₹100)</button>
+        </div>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="font-semibold text-slate-300 block mb-1">Tournament Title</label>
+          <input type="text" id="newTourneyTitle" placeholder="e.g. 05:00 PM Bermuda Squad Championship" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-white font-bold focus:outline-none">
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          <div>
+            <label class="font-semibold text-[#FFC857] block mb-1">Category</label>
+            <select id="newTourneyCategory" onchange="AdminApp.autoSetTourneySlots()" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-white font-bold">
+              <option value="BR">Battle Royale (BR)</option>
+              <option value="CS" selected>Clash Squad (CS)</option>
+              <option value="LW">Lone Wolf (LW)</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-semibold text-cyan-400 block mb-1">Sub-Mode</label>
+            <select id="newTourneySubMode" onchange="AdminApp.autoSetTourneySlots()" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-white font-bold">
+              <option value="Solo">Solo</option>
+              <option value="Duo">Duo</option>
+              <option value="Squad" selected>Squad (4v4)</option>
+              <option value="1v1">1v1 Solo</option>
+              <option value="2v2">2v2 Duo</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-semibold text-slate-300 block mb-1">Map</label>
+            <select id="newTourneyMap" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-white">
+              <option value="Bermuda">Bermuda</option>
+              <option value="Purgatory">Purgatory</option>
+              <option value="Kalahari">Kalahari</option>
+              <option value="Alpine">Alpine</option>
+              <option value="NexTerra">NexTerra</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          <div>
+            <label class="font-semibold text-cyan-300 block mb-1">Ammo Mode</label>
+            <select id="newTourneyAmmo" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-cyan-300 font-bold">
+              <option value="Unlimited">Unlimited Ammo</option>
+              <option value="Limited">Limited Ammo</option>
+              <option value="Standard">Standard (BR)</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-semibold text-[#FF6B00] block mb-1">Headshot Mode</label>
+            <select id="newTourneyHs" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-[#FFC857] font-bold">
+              <option value="NO">NO (Normal)</option>
+              <option value="YES">YES (Headshot Only)</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-semibold text-slate-300 block mb-1">Total Slots</label>
+            <input type="number" id="newTourneySlots" value="8" oninput="AdminApp.updateNewTourneyPoolPreview()" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-white font-mono font-bold">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          <div>
+            <label class="font-semibold text-emerald-400 block mb-1">Entry Fee (₹)</label>
+            <input type="number" id="newTourneyFee" value="50" oninput="AdminApp.updateNewTourneyPoolPreview()" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-emerald-400 font-mono font-bold">
+          </div>
+          <div>
+            <label class="font-semibold text-amber-300 block mb-1">Per Kill Bounty (₹)</label>
+            <input type="number" id="newTourneyPerKill" value="0" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-amber-300 font-mono">
+          </div>
+          <div>
+            <label class="font-semibold text-slate-300 block mb-1">Match Time Label</label>
+            <input type="text" id="newTourneyTime" value="Today, 06:00 PM" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-slate-200 font-mono">
+          </div>
+        </div>
+
+        <div>
+          <label class="font-semibold text-[#FFC857] block mb-1">Assign Host (Real-Time Panel Hosts + Random)</label>
+          <select id="newTourneyHostSelect" class="w-full bg-black/70 border border-[#FFC857]/40 clip-esports-sm px-3 py-2 text-white font-mono font-bold">
+            <option value="RANDOM">🎲 Random Host (Auto-Pick From Active Hosts)</option>
+          </select>
+        </div>
+
+        <div class="bg-black/60 p-3 rounded-2xl border border-white/10 flex items-center justify-between font-mono text-xs">
+          <span class="text-slate-400">Auto-Calculated 80% Prize Pool:</span>
+          <strong class="text-emerald-400 text-sm font-bold" id="newTourneyPoolPreview">₹320</strong>
+        </div>
+      </div>
+
+      <button id="btnCreateTournamentSubmit" type="button" onclick="event.preventDefault(); AdminApp.createCustomTournament();" class="w-full btn-hyper py-3.5 text-xs cursor-pointer font-russo">
+        + LAUNCH TOURNAMENT LIVE (OPEN)
+      </button>
+    </div>
+  </div>
+
+  <!-- EDIT TOURNAMENT MODAL -->
+  <div id="editTournamentModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-4 hidden">
+    <div class="laser-card max-w-md w-full p-6 space-y-4">
+      <div class="flex items-center justify-between border-b border-white/10 pb-2">
+        <h3 class="font-russo text-sm text-white">EDIT TOURNAMENT &amp; MANUAL STATUS</h3>
+        <button type="button" onclick="document.getElementById('editTournamentModal').classList.add('hidden')" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <input type="hidden" id="editMatchId">
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="font-semibold text-slate-300 block mb-1">Title</label>
+          <input id="editTitle" type="text" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-white">
+        </div>
+        <div>
+          <label class="font-semibold text-[#FFC857] block mb-1">Match Time Label</label>
+          <input id="editTime" type="text" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-[#FFC857] font-mono font-bold">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="font-semibold text-emerald-400 block mb-1">Fee (₹)</label>
+            <input id="editFee" type="number" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-emerald-400 font-mono">
+          </div>
+          <div>
+            <label class="font-semibold text-[#FF6B00] block mb-1">Headshot Mode</label>
+            <select id="editHeadshotMode" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-[#FFC857] font-bold">
+              <option value="NO">NO</option>
+              <option value="YES">YES</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="font-semibold text-cyan-300 block mb-1">Host Announcement Message (Shown in Room IDP)</label>
+          <input id="editHostMessage" type="text" placeholder="e.g. Match starts sharp at 6:05 PM!" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-white">
+        </div>
+        <div>
+          <label class="font-semibold text-slate-300 block mb-1">Manual Room Lock / Status</label>
+          <select id="editStatus" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-white font-mono">
+            <option value="UPCOMING">OPEN (UNLOCKED FOR JOINING)</option>
+            <option value="LIVE">LOCKED / LIVE (NO NEW JOINS)</option>
+            <option value="COMPLETED">COMPLETED (ENDED)</option>
+          </select>
+        </div>
+      </div>
+      <button type="button" onclick="AdminApp.saveEditedTournament()" class="w-full py-3 btn-hyper clip-esports-sm text-xs cursor-pointer">
+        SAVE CHANGES
+      </button>
+    </div>
+  </div>
+
   <!-- OPERATOR LIVE CHAT MODAL -->
   <div id="adminPaidRoomChatModal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center p-3.5 sm:p-6 hidden">
     <div class="laser-card max-w-2xl w-full p-5 sm:p-7 relative max-h-[92vh] flex flex-col justify-between space-y-4">
@@ -828,7 +991,6 @@
     (function () {
       let swReg = null;
 
-      // XSS Input Sanitizer Helper
       function sanitizeHTML(str) {
         const temp = document.createElement('div');
         temp.textContent = String(str || '');
@@ -845,7 +1007,6 @@
       }
 
       function triggerNativeNotification(title, body) {
-        // 1. Android APK Native Bridge check (Median.co)
         if (window.median && typeof window.median.notifications === 'object') {
           try {
             window.median.notifications.create({
@@ -857,7 +1018,6 @@
           } catch (e) {}
         }
 
-        // 2. Service Worker Native Status Bar Trigger
         if (swReg && typeof swReg.showNotification === 'function') {
           swReg.showNotification(title, {
             body: body,
