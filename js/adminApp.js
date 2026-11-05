@@ -1,4 +1,4 @@
-// js/adminApp.js — 2026 Master Command Deck (2-Step Wager Accept -> Push IDP, Live Chat Poll, Host IDP Message, Player Withdrawals Queue, Real-Time Hosts + Random, Full Kill Breakdown Leaderboard & SW Push Sync)
+// js/adminApp.js — 2026 Master Command Deck (2-Step Wager Accept -> Push IDP, Broadcast History with Live Edit/Delete, Median APK Push Bridge, Live Chat Poll, Host IDP Message, Player Withdrawals Queue, Real-Time Hosts + Random, Full Kill Breakdown Leaderboard & SW Push Sync)
 
 const AdminApp = {
   _verifySecretPin(input) {
@@ -97,20 +97,49 @@ const AdminApp = {
   },
 
   fireDeviceNotification(title, body, tag) {
-    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const notifTag = tag || 'ignis-admin-' + Date.now();
+
+    // 1. Android APK Native Bridge check (Median.co / GoNative)
+    if (window.median && typeof window.median.notifications === 'object') {
+      try {
+        window.median.notifications.create({
+          title: title,
+          message: body,
+          tag: notifTag
+        });
+        return;
+      } catch (e) {}
+    }
+
+    // 2. Service Worker Native Status Bar Trigger
+    if (this._swReg && typeof this._swReg.showNotification === 'function') {
+      try {
+        this._swReg.showNotification(title, {
+          body: body,
+          icon: 'logo.png',
+          badge: 'logo.png',
+          tag: notifTag,
+          vibrate: [250, 100, 250],
+          requireInteraction: true,
+          data: { url: './' }
+        });
+        return;
+      } catch (e) {}
+    }
+
     if (this._swReg && this._swReg.active) {
       this._swReg.active.postMessage({
         type: 'SHOW_SYSTEM_NOTIFICATION',
-        payload: { title, body, tag: tag || 'ignis-admin-' + Date.now(), url: './' }
+        payload: { title, body, tag: notifTag, url: './' }
       });
     } else if (navigator.serviceWorker && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({
         type: 'SHOW_SYSTEM_NOTIFICATION',
-        payload: { title, body, tag: tag || 'ignis-admin-' + Date.now(), url: './' }
+        payload: { title, body, tag: notifTag, url: './' }
       });
-    } else {
+    } else if ('Notification' in window && Notification.permission === 'granted') {
       try {
-        new Notification(title, { body, icon: 'assets/app-icon.png', tag });
+        new Notification(title, { body, icon: 'logo.png', badge: 'logo.png', tag: notifTag });
       } catch (e) {}
     }
   },
@@ -172,7 +201,7 @@ const AdminApp = {
       }
     });
     const fav = document.getElementById('adminDynamicFavicon');
-    if (fav) fav.href = 'data:image/svg+xml;utf8,' + encodeURIComponent(this.IGNIS_4K_LOGO_SVG.trim());
+    if (fav) fav.href = 'logo.png';
   },
 
   startLiveAdminPoller() {
@@ -310,7 +339,7 @@ const AdminApp = {
 
     if (isOwner) {
       document.getElementById('dashboardTitle').innerText = 'SUPER ADMIN MASTER DECK';
-      document.getElementById('dashboardSubtitle').innerHTML = 'Full Control • <span class="text-[#FFC857]">Tournaments, Withdrawals, Host Payouts &amp; 10% Vault</span>';
+      document.getElementById('dashboardSubtitle').innerHTML = 'Full Control • <span class="text-[#FFC857]">Tournaments, Withdrawals, Broadcasts &amp; Vault</span>';
       document.getElementById('roleBadge').innerText = 'MASTER OWNER';
       this.fetchSuperAdminData(true);
       this.switchOwnerSection('overview');
@@ -347,7 +376,7 @@ const AdminApp = {
     if (tabKey === 'wallet') this.renderHostWithdrawalHistory();
   },
 
-  // INCLUDES CLICKABLE ORANGE 'withdrawals' TAB
+  // INCLUDES CLICKABLE ORANGE 'withdrawals' & 'broadcast' TABS
   switchOwnerSection(tabKey) {
     this.activeOwnerTab = tabKey;
     const allOwnerTabs = ['overview', 'tournaments-manage', 'qr', 'deposits', 'withdrawals', 'store', 'users', 'operators', 'broadcast', 'feedbacks'];
@@ -375,15 +404,111 @@ const AdminApp = {
     }
     if (tabKey === 'qr') this.loadDualQrSettings();
     if (tabKey === 'store') this.fetchAdminStoreProducts();
+    if (tabKey === 'broadcast') this.renderSuperNotificationsHistory();
   },
 
-  /* ==================== PLAYER WALLET WITHDRAWAL REQUESTS QUEUE (BUG 2 FIX) ==================== */
+  /* ==================== BROADCAST NOTIFICATIONS MANAGEMENT WITH EDIT & DELETE ==================== */
+  renderSuperNotificationsHistory() {
+    const tbody = document.getElementById('superBroadcastHistoryTableBody');
+    const countBadge = document.getElementById('superTotalNotifsCount');
+    const notifs = SupabaseService.getLocal('ignis_player_notifications', []);
+    
+    if (countBadge) countBadge.innerText = `${notifs.length} Sent`;
+    if (!tbody) return;
+
+    if (notifs.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-500">No broadcasts sent yet.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = notifs.map(n => `
+      <tr class="hover:bg-white/5">
+        <td class="py-2.5 px-3 text-[10px] text-slate-400 whitespace-nowrap">
+          ${n.time || ''}<br><span class="text-[#FFC857] text-[9px] font-mono">${n.id || ''}</span>
+        </td>
+        <td class="py-2.5 px-3">
+          <strong class="text-white block font-sans">${n.title}</strong>
+        </td>
+        <td class="py-2.5 px-3 text-slate-300 font-sans text-xs max-w-xs truncate">
+          ${n.msg}
+        </td>
+        <td class="py-2.5 px-3 text-right space-x-1 whitespace-nowrap">
+          <button type="button" onclick="AdminApp.openEditNotificationModal('${n.id}')" class="bg-cyan-500/20 text-cyan-300 px-2.5 py-1 rounded-lg font-russo text-[10px] cursor-pointer">EDIT</button>
+          <button type="button" onclick="AdminApp.deleteBroadcastNotification('${n.id}')" class="bg-red-500/20 text-red-300 px-2.5 py-1 rounded-lg font-russo text-[10px] cursor-pointer">DELETE</button>
+        </td>
+      </tr>
+    `).join('');
+  },
+
+  async broadcastPushNotification() {
+    const title = (document.getElementById('pushNotifTitle')?.value || '').trim();
+    const msg = (document.getElementById('pushNotifMsg')?.value || '').trim();
+    if (!title || !msg) { alert('Enter Broadcast Title and Message!'); return; }
+    
+    const notifId = 'notif-' + Date.now();
+    const currentNotifs = SupabaseService.getLocal('ignis_player_notifications', []);
+    const newEntry = {
+      id: notifId,
+      title: title.toUpperCase(),
+      msg: msg,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      created_at: new Date().toISOString()
+    };
+    currentNotifs.unshift(newEntry);
+    
+    await this.commitKeyGuaranteed('ignis_player_notifications', currentNotifs);
+    this.fireDeviceNotification('📢 ' + title.toUpperCase(), msg, notifId);
+    
+    document.getElementById('pushNotifTitle').value = '';
+    document.getElementById('pushNotifMsg').value = '';
+    this.renderSuperNotificationsHistory();
+    alert('📢 Broadcast Notification pushed to Supabase Cloud & Device Notification Panels!');
+  },
+
+  openEditNotificationModal(notifId) {
+    const notifs = SupabaseService.getLocal('ignis_player_notifications', []);
+    const target = notifs.find(n => n.id === notifId);
+    if (!target) return;
+
+    document.getElementById('editNotifIdInput').value = target.id;
+    document.getElementById('editNotifTitleInput').value = target.title;
+    document.getElementById('editNotifMsgInput').value = target.msg;
+    document.getElementById('editNotificationModal')?.classList.remove('hidden');
+  },
+
+  async saveEditedNotification() {
+    const id = document.getElementById('editNotifIdInput')?.value;
+    const title = (document.getElementById('editNotifTitleInput')?.value || '').trim();
+    const msg = (document.getElementById('editNotifMsgInput')?.value || '').trim();
+
+    if (!title || !msg) { alert('Title and Message cannot be empty!'); return; }
+
+    const notifs = SupabaseService.getLocal('ignis_player_notifications', []);
+    const target = notifs.find(n => n.id === id);
+    if (target) {
+      target.title = title;
+      target.msg = msg;
+      await this.commitKeyGuaranteed('ignis_player_notifications', notifs);
+    }
+
+    document.getElementById('editNotificationModal')?.classList.add('hidden');
+    this.renderSuperNotificationsHistory();
+    alert('Notification updated successfully!');
+  },
+
+  async deleteBroadcastNotification(notifId) {
+    if (!confirm('Is notification ko delete karein? Yeh sabhi users ke panel se bhi remove ho jayegi.')) return;
+    const notifs = SupabaseService.getLocal('ignis_player_notifications', []).filter(n => n.id !== notifId);
+    await this.commitKeyGuaranteed('ignis_player_notifications', notifs);
+    this.renderSuperNotificationsHistory();
+  },
+
+  /* ==================== PLAYER WALLET WITHDRAWAL REQUESTS QUEUE ==================== */
   getConsolidatedPlayerWithdrawals() {
     const dedicatedList = SupabaseService.getLocal('ignis_player_withdrawals_db', []);
     const allTxns = SupabaseService.getLocal('ignis_all_time_transactions', []);
     const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
 
-    // Merge any WITHDRAWAL transactions from ignis_all_time_transactions that aren't in ignis_player_withdrawals_db yet
     let changed = false;
     allTxns.forEach(t => {
       if (t.type === 'WITHDRAWAL' && t.id) {
@@ -807,7 +932,7 @@ const AdminApp = {
     this.renderHostMatches(true);
   },
 
-  /* ==================== AUTOMATED SETTLEMENT WITH FULL KILL BREAKDOWN FOR EVERY PLAYER (BUG 3 FIX) ==================== */
+  /* ==================== AUTOMATED SETTLEMENT LEADERBOARD ==================== */
   async openSettleTournamentModal(tournamentId) {
     this.activeSettleMatchId = tournamentId;
     this.matches = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
@@ -904,7 +1029,6 @@ const AdminApp = {
       `🏆 1st Place Booyah Winner: ${match.title}`
     );
 
-    // Save detailed per-player kills, kill_prize, booyah_prize, and total prize_won into room_slots & settled_results
     const allSlots = SupabaseService.getLocal('ignis_room_slots_db', []);
     const settledResults = [];
     allSlots.forEach(s => {
@@ -931,7 +1055,6 @@ const AdminApp = {
       }
     });
 
-    // Sort settledResults so Winner is #1 and rest are ordered by total prize/kills
     settledResults.sort((a, b) => {
       if (a.is_winner !== b.is_winner) return a.is_winner ? -1 : 1;
       if (b.prize_won !== a.prize_won) return b.prize_won - a.prize_won;
@@ -940,7 +1063,6 @@ const AdminApp = {
 
     await this.commitKeyGuaranteed('ignis_room_slots_db', allSlots);
 
-    // Update tournament with winner & full settled_results breakdown
     const tourneyList = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
     const tTarget = tourneyList.find(x => x.id === match.id);
     if (tTarget) {
@@ -977,7 +1099,7 @@ const AdminApp = {
     alert(`🏆 MATCH SETTLED & FULL KILL LEADERBOARD SAVED!\n• 1st Place Booyah: ${winnerIgn} (₹${winnerNetPayout})\n• All Players Kill Money Credited: ₹${totalKillPayout}\n• Host Cut (10%): ₹${hostCut}`);
   },
 
-  /* ==================== HOST WORKSPACE & 2-STEP PAID WAGER ROOMS ==================== */
+  /* ==================== HOST WORKSPACE DATA ==================== */
   async fetchHostWorkspaceData(force = false) {
     this.matches = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
     this.customRooms = SupabaseService.getLocal(SupabaseService.STORAGE_CUSTOM_KEY, []);
@@ -1039,7 +1161,7 @@ const AdminApp = {
                 <button type="button" onclick="AdminApp.toggleLiveLock('${m.id}', '${isRoomLocked ? 'UPCOMING' : 'LIVE'}')" class="${isRoomLocked ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'} px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">${isRoomLocked ? '🔓 UNLOCK' : '🔒 LOCK'}</button>
                 <button type="button" onclick="AdminApp.openSettleTournamentModal('${m.id}')" class="bg-emerald-500 text-black font-russo px-2.5 py-1 rounded-lg text-[10px] cursor-pointer">SETTLE ⚡</button>
                 <button type="button" onclick="AdminApp.openEditTournamentModal('${m.id}')" class="bg-cyan-500/20 text-cyan-300 px-2 py-1 rounded-lg text-[10px] font-russo cursor-pointer">EDIT</button>
-                <button type="button" onclick="AdminApp.fastDeleteTournament('${m.id}')" class="bg-red-500/20 text-red-300 px-2 py-1 rounded-lg text-[10px] font-russo cursor-pointer">DEL</button>
+                <button type="button" onclick="AdminApp.fastDeleteTournament('${m.id}')" class="bg-red-500/20 text-red-300 px-2.5 py-1 rounded-lg text-[10px] font-russo cursor-pointer">DEL</button>
               ` : `<span class="text-slate-500 text-[10px]">Locked</span>`}
             </td>
           </tr>
@@ -1474,6 +1596,7 @@ const AdminApp = {
     this.renderSuperFeedbacksTable();
     await this.refreshDepositQueue();
     this.refreshPlayerWithdrawalsQueue();
+    this.renderSuperNotificationsHistory();
   },
 
   async refreshDepositQueue() {
@@ -1632,26 +1755,6 @@ const AdminApp = {
     }
     await this.commitKeyGuaranteed('ignis_players_db', updated);
     await this.fetchSuperAdminData(true);
-  },
-
-  // Cloud-Synced Global Broadcast Notification + Service Worker Device Tray Alert
-  async broadcastPushNotification() {
-    const title = (document.getElementById('pushNotifTitle')?.value || '').trim();
-    const msg = (document.getElementById('pushNotifMsg')?.value || '').trim();
-    if (!title || !msg) { alert('Enter Broadcast Title and Message!'); return; }
-    const notifId = 'notif-' + Date.now();
-    const currentNotifs = SupabaseService.getLocal('ignis_player_notifications', []);
-    currentNotifs.unshift({
-      id: notifId,
-      title: title.toUpperCase(),
-      msg,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    });
-    await this.commitKeyGuaranteed('ignis_player_notifications', currentNotifs);
-    this.fireDeviceNotification('📢 ' + title.toUpperCase(), msg, notifId);
-    document.getElementById('pushNotifTitle').value = '';
-    document.getElementById('pushNotifMsg').value = '';
-    alert('📢 Broadcast Notification pushed to Supabase Cloud & Device Notification Panels!');
   },
 
   renderSuperFeedbacksTable() {
