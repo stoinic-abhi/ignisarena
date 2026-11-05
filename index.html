@@ -9,14 +9,16 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ignis Arena">
   
+  <!-- GOOGLE MASTER SEO & SEARCH FAVICON -->
   <meta name="google-site-verification" content="7BIR1_x4BY5HAVXxUvnEyRaZtXpicMiYO6SK2-I7u70" />
   <title>IGNIS ARENA — Official Esports Platform & Custom Battles</title>
   <meta name="description" content="Join daily Free Fire paid custom matches, esports scrims and tournaments with instant UPI cashouts on Ignis Arena.">
   <link rel="canonical" href="https://ignisarena.vercel.app/">
 
-  <link rel="icon" type="image/png" sizes="192x192" href="logo.png">
-  <link rel="shortcut icon" href="logo.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="logo.png">
+  <!-- OFFICIAL GOOGLE SEARCH BRANDING & FAVICON (ABSOLUTE PATH SPEC) -->
+  <link rel="icon" href="https://ignisarena.vercel.app/logo.png" type="image/png" sizes="192x192">
+  <link rel="shortcut icon" href="https://ignisarena.vercel.app/logo.png" type="image/png">
+  <link rel="apple-touch-icon" href="https://ignisarena.vercel.app/logo.png" sizes="180x180">
 
   <link rel="manifest" href="manifest.json">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -97,7 +99,7 @@
   <canvas id="emberCanvas" class="fixed inset-0 pointer-events-none z-0 opacity-25"></canvas>
   <div id="toastContainer" class="fixed top-4 right-3 left-3 sm:left-auto sm:right-5 z-[100] flex flex-col gap-2 sm:max-w-sm pointer-events-none"></div>
 
-  <!-- ==================== ANIMATED HIGH-TECH ESPORTS GATEWAY ==================== -->
+  <!-- ==================== ANIMATED ESPORTS GATEWAY ==================== -->
   <div id="ignisGatewayScreen" class="fixed inset-0 z-[80] bg-[#06070A] hero-glow-bg flex flex-col items-center justify-between p-5 sm:p-7 overflow-y-auto">
     <div class="pt-3 text-center">
       <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold tracking-wide shadow-lg">
@@ -814,7 +816,7 @@
     </nav>
   </div>
 
-  <!-- ==================== NEW DYNAMIC UPI QR & 5-MIN COUNTDOWN MODAL ==================== -->
+  <!-- ==================== DYNAMIC UPI QR & 5-MIN COUNTDOWN MODAL ==================== -->
   <div id="depositModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-sm w-full p-5 text-center relative space-y-4 border border-[#FF6B00]/40">
       <button onclick="PlayerApp.closeModal('depositModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer text-lg">
@@ -838,7 +840,7 @@
         <strong id="qrExpiryCountdownText" class="font-mono text-sm text-[#FFC857] font-extrabold">05:00</strong>
       </div>
 
-      <!-- High-Res Dynamic QR Container (Pure Vector / Non-ImgBB) -->
+      <!-- High-Res Dynamic QR Container (Pure Vector / Zero ImgBB Dependency) -->
       <div class="relative p-3 bg-white rounded-2xl inline-block shadow-2xl mx-auto">
         <img id="userDynamicDepositQrImg" src="" alt="Dynamic UPI QR" class="w-48 h-48 object-contain mx-auto">
       </div>
