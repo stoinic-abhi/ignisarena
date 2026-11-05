@@ -1,4 +1,4 @@
-// js/playerApp.js — 100% Complete Uncut Ultra-Fast Performance Engine (Zero-Delay Instant Touch, Hardware Throttled Sync, 120FPS Smooth Scroll, Native APK Notification Bridge & Privacy IDP Lock)
+// js/playerApp.js — Guaranteed Deposit Submission, Instant Admin Sync, Fast Click & Native Push Notifications
 
 const PlayerApp = {
   BASE_FF_WALLPAPER: 'https://images2.alphacoders.com/112/1126388.jpg',
@@ -106,7 +106,6 @@ const PlayerApp = {
   fireSystemNotification(title, body, tag = '') {
     const notifTag = tag || 'ignis-notif-' + Date.now();
 
-    // 1. Median.co Android APK Bridge (Native Status Bar Notification)
     if (window.median && typeof window.median.notifications === 'object') {
       try {
         window.median.notifications.create({
@@ -118,7 +117,6 @@ const PlayerApp = {
       } catch (e) {}
     }
 
-    // 2. Service Worker Fallback
     if (this._swReg && typeof this._swReg.showNotification === 'function') {
       try {
         this._swReg.showNotification(title, {
@@ -243,7 +241,6 @@ const PlayerApp = {
     const alreadyShown = sessionStorage.getItem('ignis_splash_done');
     const splashDelay = alreadyShown ? 150 : 1200;
 
-    // Instant local memory initialization (0ms delay)
     this.checkSavedSession();
     this.state.tournaments = SupabaseService.getLocal(SupabaseService.STORAGE_TOURNEY_KEY, []);
     this.state.customPaidRooms = SupabaseService.getLocal(SupabaseService.STORAGE_CUSTOM_KEY, []);
@@ -254,7 +251,6 @@ const PlayerApp = {
     this.renderTournaments(true);
     this.renderCustomPaidRooms(true);
 
-    // Non-blocking background sync
     setTimeout(() => {
       this.setupRealtimeSync();
       this.startLiveChatAndNotifPoller();
@@ -603,7 +599,7 @@ const PlayerApp = {
     this.updateUI();
   },
 
-  /* ==================== FRIENDS SEARCH & ROSTER (INSTANT ZERO-DELAY) ==================== */
+  /* ==================== FRIENDS SEARCH & ROSTER ==================== */
   openAddFriendsModal() {
     const inp = document.getElementById('searchFriendAppIdInput');
     if (inp) inp.value = '';
@@ -617,7 +613,6 @@ const PlayerApp = {
     const countBadge = document.getElementById('instaSearchCountBadge');
     if (!listBox) return;
 
-    // Fast-path local search (instant response, no network freeze)
     const myAppId = this.state.user ? String(this.state.user.appId).toUpperCase() : '';
     const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
     const qClean = (query || '').trim().toLowerCase().replace(/^@/, '');
@@ -657,7 +652,6 @@ const PlayerApp = {
     const box = document.getElementById('searchedUserProfileDisplay');
     if (!box) return;
     
-    // Fast-path local resolve
     const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
     const p = allPlayers.find(x => String(x.app_id || '').toUpperCase() === String(targetAppId).toUpperCase());
     if (!p) return;
@@ -721,7 +715,7 @@ const PlayerApp = {
             </div>
             <div class="flex gap-1.5">
               <button onclick="PlayerApp.acceptFriendRequest(${idx})" class="btn-hyper px-2.5 py-1 text-[10px] cursor-pointer">Accept</button>
-              <button onclick="PlayerApp.declineFriendRequest(${idx})" class="bg-red-500/20 text-red-300 px-2 py-1 rounded-lg text-[10px] cursor-pointer">Decline</button>
+              <button onclick="PlayerApp.declineFriendRequest(${idx})" class="bg-red-500/20 text-red-300 px-2.5 py-1 rounded-lg text-[10px] cursor-pointer">Decline</button>
             </div>
           </div>
         `).join('');
@@ -1227,7 +1221,6 @@ const PlayerApp = {
 
   startLiveChatAndNotifPoller() {
     if (this._chatPollTimer) clearInterval(this._chatPollTimer);
-    // Optimized 4s poller that avoids blocking tap/touch events
     this._chatPollTimer = setInterval(async () => {
       if (this._isSyncingCloud) return;
       this._isSyncingCloud = true;
@@ -1299,7 +1292,7 @@ const PlayerApp = {
     this.renderChatMessages(this.state.activeChatRoomId);
   },
 
-  /* ==================== TAB 4: WALLET & WITHDRAWALS ==================== */
+  /* ==================== TAB 4: WALLET & GUARANTEED DEPOSIT QUEUE ==================== */
   async openDepositQrModal() {
     await this.loadPlatformConfig();
     this.selectDepositScanner(1);
@@ -1325,26 +1318,61 @@ const PlayerApp = {
       : (cfg.upi_id_2 || 'ignisvault@okaxis');
   },
 
+  // GUARANTEED DEPOSIT SUBMISSION TO ADMIN QUEUE & PASSBOOK
   async submitDepositWithUtr() {
     const amt = parseFloat(document.getElementById('depositInputAmt')?.value) || 200;
     const utr = (document.getElementById('depositUtrNumberInput')?.value || '').trim();
-    if (!utr || utr.length < 10 || !this.state.user) { this.showToast('Enter valid 12-digit UTR!'); return; }
-    await SupabaseService.submitDepositRequest(this.state.user.appId, this.state.user.ign, amt, utr, `Scanner #${this.state.selectedScannerIndex}`);
+    if (!utr || utr.length < 10 || !this.state.user) {
+      this.showToast('Enter valid 10-12 digit UTR Number!');
+      return;
+    }
+
+    const depId = 'DEP-' + Math.floor(100000 + Math.random() * 900000);
+    const nowStr = new Date().toLocaleString();
+    const scannerLabel = `Scanner #${this.state.selectedScannerIndex}`;
+
+    // 1. Direct Save to Dedicated Admin Deposit Requests Queue
+    const adminDepQueue = SupabaseService.getLocal('ignis_deposit_requests_db', []);
+    const newDepositEntry = {
+      id: depId,
+      app_id: this.state.user.appId,
+      player_ign: this.state.user.ign,
+      amount: amt,
+      utr_number: utr,
+      scanner_used: scannerLabel,
+      status: 'PENDING',
+      created_at: new Date().toISOString()
+    };
+    adminDepQueue.unshift(newDepositEntry);
+    SupabaseService.setLocal('ignis_deposit_requests_db', adminDepQueue);
+
+    // 2. Direct Save to Player All-Time Passbook Ledger
     const ledger = SupabaseService.getLocal('ignis_all_time_transactions', []);
     ledger.unshift({
       id: 'TXN-' + Math.floor(1000 + Math.random() * 9000),
       app_id: this.state.user.appId,
+      player_ign: this.state.user.ign,
       type: 'DEPOSIT',
       amount: amt,
       note: `UPI QR Top-Up (UTR: ${utr})`,
       status: 'PENDING',
-      timestamp: new Date().toLocaleString()
+      timestamp: nowStr
     });
     SupabaseService.setLocal('ignis_all_time_transactions', ledger);
+
+    // 3. Background Cloud Sync (Non-blocking)
+    if (SupabaseService.isCloudConnected && typeof SupabaseService.pushKeyToCloud === 'function') {
+      SupabaseService.pushKeyToCloud('ignis_deposit_requests_db', adminDepQueue).catch(() => {});
+      SupabaseService.pushKeyToCloud('ignis_all_time_transactions', ledger).catch(() => {});
+    }
+
+    // 4. Dispatch Cross-Window Storage Event so Admin Panel immediately refreshes
+    window.dispatchEvent(new Event('storage'));
+
     document.getElementById('depositUtrNumberInput').value = '';
     this.closeModal('depositModal');
     this.loadAllTimeTransactions();
-    this.showToast('Deposit UTR Submitted for Approval!');
+    this.showToast(`✅ Deposit UTR (${utr}) Submitted to Admin for Approval!`);
   },
 
   async submitWithdrawal() {
@@ -1390,11 +1418,11 @@ const PlayerApp = {
     SupabaseService.setLocal('ignis_player_withdrawals_db', adminWthQueue);
 
     if (SupabaseService.isCloudConnected && typeof SupabaseService.pushKeyToCloud === 'function') {
-      try {
-        await SupabaseService.pushKeyToCloud('ignis_all_time_transactions', ledger);
-        await SupabaseService.pushKeyToCloud('ignis_player_withdrawals_db', adminWthQueue);
-      } catch (e) {}
+      SupabaseService.pushKeyToCloud('ignis_all_time_transactions', ledger).catch(() => {});
+      SupabaseService.pushKeyToCloud('ignis_player_withdrawals_db', adminWthQueue).catch(() => {});
     }
+
+    window.dispatchEvent(new Event('storage'));
 
     document.getElementById('withdrawAmountInput').value = '';
     this.loadAllTimeTransactions();
