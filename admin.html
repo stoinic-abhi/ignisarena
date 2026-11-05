@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#06070A">
   <title>IGNIS ARENA — Master Command Deck</title>
-  <link id="adminDynamicFavicon" rel="icon" type="image/png" href="assets/app-icon.png">
+  <link id="adminDynamicFavicon" rel="icon" type="image/png" href="logo.png">
+  <link rel="shortcut icon" href="logo.png">
   
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -77,7 +78,7 @@
           <i id="dashboardRoleIcon" class="ph-bold ph-headset"></i>
         </div>
         <div>
-          <div class="flex flex-wrap items-center gap-2">
+          <div class="flex items-center gap-2">
             <h1 class="font-russo text-base sm:text-lg text-white tracking-tight" id="dashboardTitle">Command Console</h1>
             <span id="roleBadge" class="text-[10px] bg-emerald-500/20 text-emerald-300 font-mono px-2.5 py-0.5 rounded-full border border-emerald-500/40">VERIFIED</span>
             <span id="steadyCloudStatusChip" class="text-[10px] bg-emerald-500/15 text-emerald-300 font-mono px-2.5 py-0.5 rounded-full border border-emerald-500/30">● CLOUD CONNECTED</span>
@@ -425,7 +426,7 @@
           </table>
         </div>
 
-        <!-- INLINE MIRROR OF PLAYER WITHDRAWAL REQUESTS SO ADMIN CAN SEE BOTH IN ONE PLACE -->
+        <!-- INLINE MIRROR OF PLAYER WITHDRAWAL REQUESTS -->
         <div class="pt-4 border-t border-white/15 space-y-3">
           <div class="flex items-center justify-between">
             <div>
@@ -580,7 +581,7 @@
         <div class="space-y-4">
           <h3 class="font-russo text-sm text-white uppercase flex items-center gap-2">
             <i class="ph-bold ph-shield-star text-[#FFC857]"></i>
-            <span>OFFICIAL REAL-TIME HOSTS DIRECTORY (JITNE HOSTS YAHAN HONGE UTNE HI SELECT HOST MEIN DIKHENGE)</span>
+            <span>OFFICIAL REAL-TIME HOSTS DIRECTORY</span>
           </h3>
 
           <div class="bg-black/60 p-4 rounded-2xl border border-white/10 space-y-2">
@@ -612,18 +613,60 @@
         </div>
       </section>
 
-      <!-- Super Admin Section 8: CLOUD BROADCAST NOTIFICATION TERMINAL -->
-      <section id="owner-sec-broadcast" class="laser-card p-5 space-y-3 hidden">
-        <div>
-          <h3 class="font-russo text-sm text-pink-400 uppercase">GLOBAL CLOUD &amp; BACKGROUND DEVICE PUSH BROADCAST TERMINAL</h3>
-          <p class="text-xs text-slate-400">Yahan se bheja gaya notification Supabase Cloud aur Service Worker (`sw.js`) ke zariye app band hone par bhi device ke notification panel mein aayega.</p>
+      <!-- Super Admin Section 8: CLOUD & NATIVE BROADCAST NOTIFICATIONS MANAGEMENT -->
+      <section id="owner-sec-broadcast" class="space-y-4 hidden">
+        <div class="laser-card p-5 space-y-4">
+          <div class="flex items-center justify-between border-b border-white/10 pb-3">
+            <div>
+              <span class="text-[10px] font-bold text-[#FF6B00] uppercase block">Global Push Alert Engine</span>
+              <h3 class="text-base font-extrabold text-white">Broadcast Cloud &amp; Native Device Notifications</h3>
+            </div>
+            <span class="bg-cyan-500/15 text-cyan-300 font-mono text-[10px] font-bold px-2.5 py-1 rounded-full border border-cyan-500/30">
+              Live Synced (Web + APK)
+            </span>
+          </div>
+
+          <div class="space-y-3 text-xs">
+            <div>
+              <label class="font-semibold text-slate-300 block mb-1">Broadcast Title</label>
+              <input type="text" id="pushNotifTitle" placeholder="e.g. 6 PM BERMUDA MATCH IS LIVE!" class="w-full bg-white/5 border border-white/15 focus:border-[#FF6B00] rounded-xl px-3.5 py-2.5 text-white font-bold">
+            </div>
+            <div>
+              <label class="font-semibold text-slate-300 block mb-1">Broadcast Message Body</label>
+              <textarea id="pushNotifMsg" rows="3" placeholder="Enter alert text sent to all players and phone system bars..." class="w-full bg-white/5 border border-white/15 focus:border-[#FF6B00] rounded-xl p-3 text-white"></textarea>
+            </div>
+            <button type="button" onclick="AdminApp.broadcastPushNotification()" class="w-full btn-hyper py-3 text-xs font-russo flex items-center justify-center gap-2 cursor-pointer">
+              <i class="fa-solid fa-paper-plane"></i>
+              <span>SEND LIVE BROADCAST ALERT NOW</span>
+            </button>
+          </div>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
-          <input id="pushNotifTitle" type="text" placeholder="Title (e.g. 6 PM Room ID Out)" class="bg-black/70 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-white font-bold">
-          <input id="pushNotifMsg" type="text" placeholder="Message to all athletes across all devices..." class="sm:col-span-2 bg-black/70 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-white">
-          <button type="button" onclick="AdminApp.broadcastPushNotification()" class="btn-hyper clip-esports-sm py-2.5 cursor-pointer font-russo">
-            📢 BROADCAST TO ALL PHONES
-          </button>
+
+        <!-- SENT NOTIFICATIONS HISTORY TABLE (EDIT & DELETE) -->
+        <div class="laser-card p-5 space-y-3.5">
+          <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
+            <div>
+              <span class="text-[10px] font-bold text-[#FFC857] uppercase block">Active Database</span>
+              <h3 class="text-sm font-extrabold text-white">Sent Notifications History (Edit / Delete)</h3>
+            </div>
+            <span id="superTotalNotifsCount" class="text-xs font-mono text-cyan-400">0 Sent</span>
+          </div>
+
+          <div class="overflow-x-auto bg-black/50 rounded-2xl border border-white/10">
+            <table class="w-full text-left text-xs">
+              <thead>
+                <tr class="border-b border-white/10 text-slate-400 font-bold text-[10px]">
+                  <th class="py-2.5 px-3">DATE / TIME</th>
+                  <th class="py-2.5 px-3">TITLE</th>
+                  <th class="py-2.5 px-3">MESSAGE</th>
+                  <th class="py-2.5 px-3 text-right">ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody id="superBroadcastHistoryTableBody" class="divide-y divide-white/5 font-mono">
+                <tr><td colspan="4" class="py-6 text-center text-slate-500">No broadcasts sent yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -698,6 +741,28 @@
     </button>
   </nav>
 
+  <!-- ==================== EDIT NOTIFICATION MODAL ==================== -->
+  <div id="editNotificationModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-md w-full p-5 space-y-3.5 relative border border-[#FF6B00]/40">
+      <button onclick="document.getElementById('editNotificationModal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+      <h3 class="font-extrabold text-base text-white">Edit Broadcast Message</h3>
+      <input type="hidden" id="editNotifIdInput">
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="text-slate-400 block mb-1">Notification Title</label>
+          <input type="text" id="editNotifTitleInput" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white font-bold">
+        </div>
+        <div>
+          <label class="text-slate-400 block mb-1">Message Body</label>
+          <textarea id="editNotifMsgInput" rows="3" class="w-full bg-white/5 border border-white/15 rounded-xl p-3 text-white"></textarea>
+        </div>
+      </div>
+      <button type="button" onclick="AdminApp.saveEditedNotification()" class="w-full btn-hyper py-3 text-xs font-russo cursor-pointer">
+        UPDATE &amp; RE-SYNC BROADCAST
+      </button>
+    </div>
+  </div>
+
   <!-- ==================== AUTOMATED TOURNAMENT SETTLEMENT MODAL ==================== -->
   <div id="tournamentSettleModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-lg w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto">
@@ -733,170 +798,6 @@
     </div>
   </div>
 
-  <!-- ADD TOURNAMENT MODAL -->
-  <div id="addTournamentModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
-    <div class="laser-card max-w-xl w-full p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto">
-      <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
-        <div>
-          <span class="text-[10px] font-mono text-[#FF6B00] uppercase block">1-Click Instant Tournament Engine</span>
-          <h3 class="font-russo text-base sm:text-lg text-white">+ ADD NEW CUSTOM TOURNAMENT</h3>
-        </div>
-        <button type="button" onclick="document.getElementById('addTournamentModal').classList.add('hidden')" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
-      </div>
-
-      <div class="bg-black/60 p-3 rounded-2xl border border-white/10 space-y-1.5">
-        <span class="text-[10px] font-bold text-[#FFC857] block uppercase">FAST 1-CLICK PRESETS:</span>
-        <div class="flex flex-wrap gap-1.5 text-[10px] font-bold">
-          <button type="button" onclick="AdminApp.applyPreset('BR_SQUAD')" class="px-2.5 py-1 bg-white/10 hover:bg-[#FF6B00] hover:text-black rounded-lg transition cursor-pointer">BR Squad (12 Slots • ₹120)</button>
-          <button type="button" onclick="AdminApp.applyPreset('BR_SOLO')" class="px-2.5 py-1 bg-white/10 hover:bg-[#FF6B00] hover:text-black rounded-lg transition cursor-pointer">BR Solo (48 Slots • ₹30)</button>
-          <button type="button" onclick="AdminApp.applyPreset('CS_4V4_UNLIM_HS')" class="px-2.5 py-1 bg-white/10 hover:bg-[#FF6B00] hover:text-black rounded-lg transition cursor-pointer">CS 4v4 Unlimited (HS: YES)</button>
-          <button type="button" onclick="AdminApp.applyPreset('LW_1V1')" class="px-2.5 py-1 bg-white/10 hover:bg-[#FF6B00] hover:text-black rounded-lg transition cursor-pointer">Lone Wolf 1v1 (₹100)</button>
-        </div>
-      </div>
-
-      <div class="space-y-3 text-xs">
-        <div>
-          <label class="font-semibold text-slate-300 block mb-1">Tournament Title</label>
-          <input type="text" id="newTourneyTitle" placeholder="e.g. 05:00 PM Bermuda Squad Championship" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3.5 py-2.5 text-white font-bold focus:outline-none">
-        </div>
-
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-          <div>
-            <label class="font-semibold text-[#FFC857] block mb-1">Category</label>
-            <select id="newTourneyCategory" onchange="AdminApp.autoSetTourneySlots()" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-white font-bold">
-              <option value="BR">Battle Royale (BR)</option>
-              <option value="CS" selected>Clash Squad (CS)</option>
-              <option value="LW">Lone Wolf (LW)</option>
-            </select>
-          </div>
-          <div>
-            <label class="font-semibold text-cyan-400 block mb-1">Sub-Mode</label>
-            <select id="newTourneySubMode" onchange="AdminApp.autoSetTourneySlots()" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-white font-bold">
-              <option value="Solo">Solo</option>
-              <option value="Duo">Duo</option>
-              <option value="Squad" selected>Squad (4v4)</option>
-              <option value="1v1">1v1 Solo</option>
-              <option value="2v2">2v2 Duo</option>
-            </select>
-          </div>
-          <div>
-            <label class="font-semibold text-slate-300 block mb-1">Map</label>
-            <select id="newTourneyMap" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-white">
-              <option value="Bermuda">Bermuda</option>
-              <option value="Purgatory">Purgatory</option>
-              <option value="Kalahari">Kalahari</option>
-              <option value="Alpine">Alpine</option>
-              <option value="NexTerra">NexTerra</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-          <div>
-            <label class="font-semibold text-cyan-300 block mb-1">Ammo Mode</label>
-            <select id="newTourneyAmmo" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-cyan-300 font-bold">
-              <option value="Unlimited">Unlimited Ammo</option>
-              <option value="Limited">Limited Ammo</option>
-              <option value="Standard">Standard (BR)</option>
-            </select>
-          </div>
-          <div>
-            <label class="font-semibold text-[#FF6B00] block mb-1">Headshot Mode</label>
-            <select id="newTourneyHs" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-[#FFC857] font-bold">
-              <option value="NO">NO (Normal)</option>
-              <option value="YES">YES (Headshot Only)</option>
-            </select>
-          </div>
-          <div>
-            <label class="font-semibold text-slate-300 block mb-1">Total Slots</label>
-            <input type="number" id="newTourneySlots" value="8" oninput="AdminApp.updateNewTourneyPoolPreview()" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-white font-mono font-bold">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-          <div>
-            <label class="font-semibold text-emerald-400 block mb-1">Entry Fee (₹)</label>
-            <input type="number" id="newTourneyFee" value="50" oninput="AdminApp.updateNewTourneyPoolPreview()" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-emerald-400 font-mono font-bold">
-          </div>
-          <div>
-            <label class="font-semibold text-amber-300 block mb-1">Per Kill Bounty (₹)</label>
-            <input type="number" id="newTourneyPerKill" value="0" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-amber-300 font-mono">
-          </div>
-          <div>
-            <label class="font-semibold text-slate-300 block mb-1">Match Time Label</label>
-            <input type="text" id="newTourneyTime" value="Today, 06:00 PM" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-slate-200 font-mono">
-          </div>
-        </div>
-
-        <!-- REAL-TIME PANEL HOSTS + RANDOM OPTION -->
-        <div>
-          <label class="font-semibold text-[#FFC857] block mb-1">Assign Host (Real-Time Panel Hosts + Random)</label>
-          <select id="newTourneyHostSelect" class="w-full bg-black/70 border border-[#FFC857]/40 clip-esports-sm px-3 py-2 text-white font-mono font-bold">
-            <option value="RANDOM">🎲 Random Host (Auto-Pick From Active Hosts)</option>
-          </select>
-        </div>
-
-        <div class="bg-black/60 p-3 rounded-2xl border border-white/10 flex items-center justify-between font-mono text-xs">
-          <span class="text-slate-400">Auto-Calculated 80% Prize Pool:</span>
-          <strong class="text-emerald-400 text-sm font-bold" id="newTourneyPoolPreview">₹320</strong>
-        </div>
-      </div>
-
-      <button id="btnCreateTournamentSubmit" type="button" onclick="AdminApp.createCustomTournament()" class="w-full btn-hyper py-3.5 text-xs cursor-pointer font-russo">
-        + LAUNCH TOURNAMENT LIVE (OPEN)
-      </button>
-    </div>
-  </div>
-
-  <!-- EDIT TOURNAMENT MODAL -->
-  <div id="editTournamentModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-4 hidden">
-    <div class="laser-card max-w-md w-full p-6 space-y-4">
-      <div class="flex items-center justify-between border-b border-white/10 pb-2">
-        <h3 class="font-russo text-sm text-white">EDIT TOURNAMENT &amp; MANUAL STATUS</h3>
-        <button type="button" onclick="document.getElementById('editTournamentModal').classList.add('hidden')" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <input type="hidden" id="editMatchId">
-      <div class="space-y-3 text-xs">
-        <div>
-          <label class="font-semibold text-slate-300 block mb-1">Title</label>
-          <input id="editTitle" type="text" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-white">
-        </div>
-        <div>
-          <label class="font-semibold text-[#FFC857] block mb-1">Match Time Label</label>
-          <input id="editTime" type="text" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-[#FFC857] font-mono font-bold">
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="font-semibold text-emerald-400 block mb-1">Fee (₹)</label>
-            <input id="editFee" type="number" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-emerald-400 font-mono">
-          </div>
-          <div>
-            <label class="font-semibold text-[#FF6B00] block mb-1">Headshot Mode</label>
-            <select id="editHeadshotMode" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-[#FFC857] font-bold">
-              <option value="NO">NO</option>
-              <option value="YES">YES</option>
-            </select>
-          </div>
-        </div>
-        <div>
-          <label class="font-semibold text-cyan-300 block mb-1">Host Announcement Message (Shown in Room IDP)</label>
-          <input id="editHostMessage" type="text" placeholder="e.g. Match starts sharp at 6:05 PM!" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-white">
-        </div>
-        <div>
-          <label class="font-semibold text-slate-300 block mb-1">Manual Room Lock / Status</label>
-          <select id="editStatus" class="w-full bg-black/70 border border-white/15 clip-esports-sm px-3 py-2 text-white font-mono">
-            <option value="UPCOMING">OPEN (UNLOCKED FOR JOINING)</option>
-            <option value="LIVE">LOCKED / LIVE (NO NEW JOINS)</option>
-            <option value="COMPLETED">COMPLETED (ENDED)</option>
-          </select>
-        </div>
-      </div>
-      <button type="button" onclick="AdminApp.saveEditedTournament()" class="w-full py-3 btn-hyper clip-esports-sm text-xs cursor-pointer">
-        SAVE CHANGES
-      </button>
-    </div>
-  </div>
-
   <!-- OPERATOR LIVE CHAT MODAL -->
   <div id="adminPaidRoomChatModal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center p-3.5 sm:p-6 hidden">
     <div class="laser-card max-w-2xl w-full p-5 sm:p-7 relative max-h-[92vh] flex flex-col justify-between space-y-4">
@@ -922,12 +823,18 @@
   <script src="js/supabaseClient.js"></script>
   <script src="js/adminApp.js"></script>
 
-  <!-- ==================== SURGICAL PATCH FOR ALL 4 BUGS (WORKS WITH js/adminApp.js) ==================== -->
+  <!-- ==================== SURGICAL SECURITY & EXTENSION CONTROLLER ==================== -->
   <script>
     (function () {
       let swReg = null;
 
-      // 1. REGISTER SERVICE WORKER & ASK NOTIFICATION PERMISSION ON STARTUP
+      // XSS Input Sanitizer Helper
+      function sanitizeHTML(str) {
+        const temp = document.createElement('div');
+        temp.textContent = String(str || '');
+        return temp.innerHTML;
+      }
+
       async function setupAdminPushNotifications() {
         if ('serviceWorker' in navigator) {
           try { swReg = await navigator.serviceWorker.register('./sw.js'); } catch (e) {}
@@ -938,23 +845,46 @@
       }
 
       function triggerNativeNotification(title, body) {
-        if (!('Notification' in window) || Notification.permission !== 'granted') return;
+        // 1. Android APK Native Bridge check (Median.co)
+        if (window.median && typeof window.median.notifications === 'object') {
+          try {
+            window.median.notifications.create({
+              title: title,
+              message: body,
+              tag: 'ignis-bc-' + Date.now()
+            });
+            return;
+          } catch (e) {}
+        }
+
+        // 2. Service Worker Native Status Bar Trigger
+        if (swReg && typeof swReg.showNotification === 'function') {
+          swReg.showNotification(title, {
+            body: body,
+            icon: 'logo.png',
+            badge: 'logo.png',
+            tag: 'ignis-bc-' + Date.now(),
+            vibrate: [250, 100, 250],
+            requireInteraction: true,
+            data: { url: './' }
+          });
+          return;
+        }
+
         if (swReg && swReg.active) {
           swReg.active.postMessage({
             type: 'SHOW_SYSTEM_NOTIFICATION',
             payload: { title, body, tag: 'ignis-bc-' + Date.now(), url: './' }
           });
-        } else {
-          try { new Notification(title, { body, icon: 'assets/app-icon.png' }); } catch (e) {}
+        } else if ('Notification' in window && Notification.permission === 'granted') {
+          try { new Notification(title, { body, icon: 'logo.png', badge: 'logo.png' }); } catch (e) {}
         }
       }
 
-      // 2. GET REAL-TIME ACTIVE HOSTS FROM ADMIN PANEL (NO DEMO HARDCODED 5 HOSTS)
       function getRealActiveHosts() {
         const A = window.AdminApp || {};
-        let list = A.hosts || A.operators || A.hostAccounts || [];
+        let list = A.hostsList || A.hosts || A.operators || [];
         if (!Array.isArray(list) || list.length === 0) {
-          // Scrape from #superHostsTableBody if already rendered by adminApp.js
           const rows = document.querySelectorAll('#superHostsTableBody tr');
           const scraped = [];
           rows.forEach(r => {
@@ -967,7 +897,6 @@
           });
           if (scraped.length > 0) list = scraped;
         }
-        // Also persist real hosts list to localStorage & Supabase metadata so Player App sees exact same hosts
         if (Array.isArray(list) && list.length > 0) {
           try {
             localStorage.setItem('IGNIS_REALTIME_HOSTS_LIST', JSON.stringify(list));
@@ -984,77 +913,46 @@
         const dl = document.getElementById('liveHostsDatalist');
         const hint = document.getElementById('availableHostsHintText');
         if (dl && hosts.length > 0) {
-          dl.innerHTML = hosts.map(h => `<option value="${h.id || h.host_id || h.username}">${h.name || h.id}</option>`).join('');
+          dl.innerHTML = hosts.map(h => `<option value="${sanitizeHTML(h.id || h.host_id || h.username)}">${sanitizeHTML(h.name || h.id)}</option>`).join('');
           if (hint) hint.textContent = 'Active Panel Hosts (' + hosts.length + '): ' + hosts.map(h => h.id || h.host_id || h.username).join(', ');
         }
 
         const sel = document.getElementById('newTourneyHostSelect');
         if (sel) {
+          const currentVal = sel.value;
           let html = `<option value="RANDOM">🎲 Random Host (Auto-Pick from ${hosts.length || 'Active'} Hosts)</option>`;
           hosts.forEach(h => {
             const hid = h.id || h.host_id || h.username;
             const hname = h.name || hid;
-            html += `<option value="${hid}">${hname} (${hid})</option>`;
+            html += `<option value="${sanitizeHTML(hid)}">${sanitizeHTML(hname)} (${sanitizeHTML(hid)})</option>`;
           });
           sel.innerHTML = html;
+          if (currentVal) sel.value = currentVal;
         }
       }
 
-      // 3. PLAYER WALLET WITHDRAWAL REQUESTS QUEUE (APPROVE / PAY VIA UPI / REJECT & REFUND)
       async function fetchAllPlayerWithdrawals() {
         const A = window.AdminApp || {};
         let withdrawals = [];
 
-        // Check AdminApp arrays first
-        if (Array.isArray(A.withdrawals) && A.withdrawals.length > 0) {
-          withdrawals = A.withdrawals;
-        } else if (Array.isArray(A.playerWithdrawals) && A.playerWithdrawals.length > 0) {
-          withdrawals = A.playerWithdrawals;
-        } else if (Array.isArray(A.depositRequests)) {
-          // Many setups store both deposits and withdrawals in transactions/requests table with type='WITHDRAW' or negative amount
-          const fromDep = A.depositRequests.filter(r =>
-            (r.type && String(r.type).toUpperCase().includes('WITHDRAW')) ||
-            (r.utr && String(r.utr).includes('@')) ||
-            (r.category && String(r.category).toUpperCase().includes('WITHDRAW'))
-          );
-          if (fromDep.length > 0) withdrawals = fromDep;
+        if (Array.isArray(A.playerWithdrawalsList) && A.playerWithdrawalsList.length > 0) {
+          return A.playerWithdrawalsList;
         }
 
-        // Also check Supabase tables ('withdrawals', 'withdrawal_requests', 'transactions')
-        const sb = window.supabaseClient || window.sb || (window.AdminApp && window.AdminApp.supabase);
-        if (sb && typeof sb.from === 'function') {
-          for (const tableName of ['withdrawals', 'withdrawal_requests', 'wallet_requests']) {
-            try {
-              const { data, error } = await sb.from(tableName).select('*').order('created_at', { ascending: false });
-              if (!error && Array.isArray(data) && data.length > 0) {
-                withdrawals = data;
-                break;
-              }
-            } catch (e) {}
-          }
+        if (typeof SupabaseService !== 'undefined') {
+          const dedicated = SupabaseService.getLocal('ignis_player_withdrawals_db', []);
+          if (Array.isArray(dedicated) && dedicated.length > 0) return dedicated;
         }
-
-        // Also check localStorage shared state keys
-        try {
-          for (let i = 0; i < localStorage.length; i++) {
-            const k = localStorage.key(i);
-            const raw = localStorage.getItem(k);
-            if (raw && (raw.includes('withdrawals') || raw.includes('WITHDRAW'))) {
-              const parsed = JSON.parse(raw);
-              if (Array.isArray(parsed.withdrawals) && parsed.withdrawals.length > 0) {
-                withdrawals = parsed.withdrawals;
-              } else if (Array.isArray(parsed.walletRequests)) {
-                const wReqs = parsed.walletRequests.filter(x => x.type === 'WITHDRAW' || x.type === 'withdrawal');
-                if (wReqs.length > 0) withdrawals = wReqs;
-              }
-            }
-          }
-        } catch (e) {}
 
         return withdrawals;
       }
 
       async function renderPlayerWithdrawalsQueue() {
+        if (window.AdminApp && typeof AdminApp.refreshPlayerWithdrawalsQueue === 'function') {
+          AdminApp.refreshPlayerWithdrawalsQueue();
+          return;
+        }
+
         const list = await fetchAllPlayerWithdrawals();
         const pendingCount = list.filter(w => String(w.status || 'PENDING').toUpperCase() === 'PENDING').length;
 
@@ -1066,112 +964,8 @@
           badgeEl.textContent = String(pendingCount);
           badgeEl.classList.toggle('hidden', pendingCount === 0);
         }
-
-        const rowsHtml = list.length === 0
-          ? `<tr><td colspan="6" class="py-6 text-center text-slate-500">No player withdrawal requests pending.</td></tr>`
-          : list.map(w => {
-              const wid = w.id || w.req_id || w.requestId;
-              const playerAppId = w.app_id || w.appId || w.user_id || w.userId || '-';
-              const playerName = w.ign || w.userName || w.player_name || w.username || 'Athlete';
-              const upi = w.upi_id || w.upiId || w.upi || w.utr || '-';
-              const phone = w.phone || w.mobile || '';
-              const amt = Number(w.amount || 0);
-              const status = String(w.status || 'PENDING').toUpperCase();
-              const time = w.time || (w.created_at ? new Date(w.created_at).toLocaleString() : 'Just now');
-
-              return `
-                <tr class="hover:bg-white/5 transition">
-                  <td class="py-3 px-3">
-                    <strong class="text-white block">${wid}</strong>
-                    <span class="text-[10px] text-slate-400">${time}</span>
-                  </td>
-                  <td class="py-3 px-3">
-                    <strong class="text-cyan-400 block">${playerName}</strong>
-                    <span class="text-[10px] text-slate-400">ID: ${playerAppId}</span>
-                  </td>
-                  <td class="py-3 px-3">
-                    <span class="text-[#FFC857] font-bold">${upi}</span>
-                    ${phone ? `<span class="block text-[10px] text-slate-400">📞 ${phone}</span>` : ''}
-                  </td>
-                  <td class="py-3 px-3 font-bold text-emerald-400 text-sm">₹${amt}</td>
-                  <td class="py-3 px-3">
-                    <span class="px-2 py-0.5 rounded text-[10px] font-bold ${status === 'APPROVED' || status === 'PAID' ? 'bg-emerald-500/20 text-emerald-300' : status === 'REJECTED' ? 'bg-red-500/20 text-red-300' : 'bg-amber-500/20 text-amber-300'}">${status}</span>
-                  </td>
-                  <td class="py-3 px-3 text-right space-x-1">
-                    ${status === 'PENDING' ? `
-                      <a href="upi://pay?pa=${encodeURIComponent(upi)}&pn=${encodeURIComponent(playerName)}&am=${amt}&cu=INR" class="inline-block px-2.5 py-1.5 bg-cyan-500/20 hover:bg-cyan-500 text-cyan-300 hover:text-black rounded-lg font-russo text-[10px] transition">⚡ PAY UPI</a>
-                      <button type="button" onclick="AdminApp.handlePlayerWithdrawalAction('${wid}', 'APPROVED')" class="px-2.5 py-1.5 bg-emerald-500/20 hover:bg-emerald-500 text-emerald-300 hover:text-black rounded-lg font-russo text-[10px] cursor-pointer transition">APPROVE ✓</button>
-                      <button type="button" onclick="AdminApp.handlePlayerWithdrawalAction('${wid}', 'REJECTED')" class="px-2.5 py-1.5 bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white rounded-lg font-russo text-[10px] cursor-pointer transition">REJECT &amp; REFUND</button>
-                    ` : `<span class="text-[10px] text-slate-500">Processed</span>`}
-                  </td>
-                </tr>`;
-            }).join('');
-
-        const mainBody = document.getElementById('superPlayerWithdrawalsTableBody');
-        if (mainBody) mainBody.innerHTML = rowsHtml;
-
-        const mirrorBody = document.getElementById('superDepositPageWithdrawalsMirrorBody');
-        if (mirrorBody) mirrorBody.innerHTML = rowsHtml;
       }
 
-      async function handlePlayerWithdrawalAction(reqId, newStatus) {
-        const sb = window.supabaseClient || window.sb || (window.AdminApp && window.AdminApp.supabase);
-        const list = await fetchAllPlayerWithdrawals();
-        const target = list.find(w => String(w.id || w.req_id || w.requestId) === String(reqId));
-
-        if (target) {
-          target.status = newStatus;
-          const uid = target.user_id || target.userId || target.app_id || target.appId;
-          const amt = Number(target.amount || 0);
-
-          // Update in Supabase if connected
-          if (sb && typeof sb.from === 'function') {
-            for (const tName of ['withdrawals', 'withdrawal_requests', 'wallet_requests']) {
-              try { await sb.from(tName).update({ status: newStatus }).eq('id', reqId); } catch (e) {}
-            }
-          }
-
-          // If REJECTED, refund back to player's winnings wallet
-          if (newStatus === 'REJECTED' && uid && amt > 0) {
-            if (window.AdminApp && Array.isArray(AdminApp.users)) {
-              const usr = AdminApp.users.find(u => u.id === uid || u.app_id === uid || u.appId === uid);
-              if (usr) {
-                usr.winnings = (Number(usr.winnings) || 0) + amt;
-                if (typeof AdminApp.saveState === 'function') AdminApp.saveState();
-              }
-            }
-          }
-        }
-
-        // Also update in any localStorage store
-        try {
-          for (let i = 0; i < localStorage.length; i++) {
-            const k = localStorage.key(i);
-            const raw = localStorage.getItem(k);
-            if (raw && raw.includes(reqId)) {
-              const parsed = JSON.parse(raw);
-              if (Array.isArray(parsed.withdrawals)) {
-                const w = parsed.withdrawals.find(x => String(x.id) === String(reqId));
-                if (w) {
-                  w.status = newStatus;
-                  if (newStatus === 'REJECTED' && Array.isArray(parsed.users)) {
-                    const u = parsed.users.find(usr => usr.id === w.userId || usr.appId === w.appId);
-                    if (u) u.winnings = (Number(u.winnings) || Number(u.wallet) || 0) + Number(w.amount || 0);
-                  }
-                }
-                localStorage.setItem(k, JSON.stringify(parsed));
-              }
-            }
-          }
-        } catch (e) {}
-
-        await renderPlayerWithdrawalsQueue();
-        if (window.AdminApp && typeof AdminApp.manualForceSync === 'function') {
-          AdminApp.manualForceSync();
-        }
-      }
-
-      // 4. HOOK INTO AdminApp AFTER LOAD
       window.addEventListener('load', () => {
         setupAdminPushNotifications();
         syncHostSelectorsAndCounters();
@@ -1179,79 +973,8 @@
 
         if (!window.AdminApp) return;
 
-        AdminApp.renderPlayerWithdrawalsQueue = renderPlayerWithdrawalsQueue;
-        AdminApp.handlePlayerWithdrawalAction = handlePlayerWithdrawalAction;
+        AdminApp.triggerNativeNotification = triggerNativeNotification;
 
-        // Extend switchOwnerSection to support 'withdrawals' tab cleanly
-        const origSwitchOwner = AdminApp.switchOwnerSection;
-        if (typeof origSwitchOwner === 'function') {
-          AdminApp.switchOwnerSection = function (sec) {
-            const customSec = document.getElementById('owner-sec-withdrawals');
-            const customTabD = document.getElementById('d-owner-tab-withdrawals');
-            const customTabM = document.getElementById('m-owner-tab-withdrawals');
-
-            if (sec === 'withdrawals') {
-              document.querySelectorAll('#ownerDeskContainer > section').forEach(s => s.classList.add('hidden'));
-              if (customSec) customSec.classList.remove('hidden');
-
-              document.querySelectorAll('#desktopOwnerNav button').forEach(b => {
-                b.style.background = 'transparent';
-                b.classList.remove('text-black');
-                b.classList.add('text-slate-400');
-              });
-              if (customTabD) {
-                customTabD.style.background = '#FF6B00';
-                customTabD.classList.remove('text-slate-400');
-                customTabD.classList.add('text-black');
-              }
-              if (customTabM) customTabM.style.color = '#FF6B00';
-              renderPlayerWithdrawalsQueue();
-              return;
-            }
-
-            if (customSec) customSec.classList.add('hidden');
-            if (customTabD) {
-              customTabD.style.background = 'transparent';
-              customTabD.classList.remove('text-black');
-              customTabD.classList.add('text-slate-400');
-            }
-            if (customTabM) customTabM.style.color = '';
-
-            const res = origSwitchOwner.apply(this, arguments);
-            syncHostSelectorsAndCounters();
-            renderPlayerWithdrawalsQueue();
-            return res;
-          };
-        }
-
-        // Hook openAddTournamentModal to always populate real hosts + Random
-        const origOpenAddModal = AdminApp.openAddTournamentModal;
-        if (typeof origOpenAddModal === 'function') {
-          AdminApp.openAddTournamentModal = function () {
-            syncHostSelectorsAndCounters();
-            return origOpenAddModal.apply(this, arguments);
-          };
-        }
-
-        // Hook createCustomTournament so if RANDOM host is selected, it assigns a real active host from panel
-        const origCreateTourney = AdminApp.createCustomTournament;
-        if (typeof origCreateTourney === 'function') {
-          AdminApp.createCustomTournament = function () {
-            const sel = document.getElementById('newTourneyHostSelect');
-            const hosts = getRealActiveHosts();
-            if (sel && hosts.length > 0) {
-              let chosenHostId = sel.value;
-              if (chosenHostId === 'RANDOM') {
-                const pick = hosts[Math.floor(Math.random() * hosts.length)];
-                chosenHostId = pick.id || pick.host_id || pick.username;
-              }
-              this.selectedNewTourneyHost = chosenHostId;
-            }
-            return origCreateTourney.apply(this, arguments);
-          };
-        }
-
-        // Hook broadcastPushNotification so it also fires system notification via Service Worker
         const origBroadcast = AdminApp.broadcastPushNotification;
         if (typeof origBroadcast === 'function') {
           AdminApp.broadcastPushNotification = async function () {
@@ -1263,48 +986,8 @@
           };
         }
 
-        // Hook executeMatchSettlementCalculation so ALL players' kills & kill money breakdown are saved & displayed
-        const origSettle = AdminApp.executeMatchSettlementCalculation;
-        if (typeof origSettle === 'function') {
-          AdminApp.executeMatchSettlementCalculation = async function () {
-            const matchId = this.activeSettleMatchId || this.currentSettleMatchId;
-            const winnerVal = (document.getElementById('settleBooyahWinnerSelect') || {}).value;
-            const killInputs = document.querySelectorAll('#settlePlayerKillsList input[type="number"]');
-            const killBreakdown = [];
-
-            killInputs.forEach(inp => {
-              const pid = inp.dataset.playerId || inp.dataset.appId || inp.id.replace('kill_', '');
-              const pname = inp.dataset.playerName || inp.getAttribute('placeholder') || pid;
-              const kills = Math.max(0, Number(inp.value) || 0);
-              killBreakdown.push({
-                playerId: pid,
-                playerName: pname,
-                kills: kills,
-                isWinner: String(pid) === String(winnerVal)
-              });
-            });
-
-            // Save full breakdown in localStorage & tournament object so Player App shows every player's kills & payout
-            if (matchId && killBreakdown.length > 0) {
-              try {
-                const mapRaw = localStorage.getItem('IGNIS_SETTLEMENT_BREAKDOWNS') || '{}';
-                const mapObj = JSON.parse(mapRaw);
-                mapObj[matchId] = {
-                  settledAt: new Date().toISOString(),
-                  winnerId: winnerVal,
-                  standings: killBreakdown
-                };
-                localStorage.setItem('IGNIS_SETTLEMENT_BREAKDOWNS', JSON.stringify(mapObj));
-              } catch (e) {}
-            }
-
-            return await origSettle.apply(this, arguments);
-          };
-        }
-
         setInterval(() => {
           syncHostSelectorsAndCounters();
-          renderPlayerWithdrawalsQueue();
         }, 4000);
       });
     })();
