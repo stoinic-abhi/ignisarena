@@ -1,4 +1,4 @@
-// js/playerApp.js — 100% Complete Uncut Ultra-Fast Player Engine (Guaranteed Cloud-Synced Auto-Logout on Account Delete, Anti-Resurrection Guard, Zero-Delay Instant Touch, 120FPS Smooth Scroll, Native APK Notification Bridge & Privacy IDP Lock)
+// js/playerApp.js — 100% Complete Uncut Ultra-Fast Player Engine (Dynamic UPI QR with 5-Min Timer, Cloud-Synced Auto-Logout on Account Delete, Anti-Resurrection Guard, Zero-Delay Instant Touch, 120FPS Smooth Scroll, Native APK Notification Bridge & Privacy IDP Lock)
 
 const PlayerApp = {
   BASE_FF_WALLPAPER: 'https://images2.alphacoders.com/112/1126388.jpg',
@@ -10,6 +10,8 @@ const PlayerApp = {
   _chatPollTimer: null,
   _swReg: null,
   _isSyncingCloud: false,
+  _depositCountdownInterval: null,
+  _currentDepositTxnId: null,
 
   FALLBACK_CROWN_LOGO_SVG_URI: 'data:image/svg+xml;utf8,' + encodeURIComponent(`
     <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -278,12 +280,10 @@ const PlayerApp = {
     }, splashDelay);
   },
 
-  // GUARANTEED AUTOMATIC LOGOUT ON CLOUD / LOCAL DELETION
   verifyAccountExistence() {
     if (!this.state.user) return;
     const myAppId = String(this.state.user.appId || '').toUpperCase().trim();
 
-    // 1. Check cloud-synced deleted blacklist
     try {
       const blacklist = SupabaseService.getLocal('ignis_deleted_users_sync', []);
       if (Array.isArray(blacklist) && blacklist.includes(myAppId)) {
@@ -292,7 +292,6 @@ const PlayerApp = {
       }
     } catch (e) {}
 
-    // 2. Check local blacklist
     try {
       const localBlacklist = JSON.parse(localStorage.getItem('ignis_deleted_accounts_blacklist') || '[]');
       if (Array.isArray(localBlacklist) && localBlacklist.includes(myAppId)) {
@@ -301,7 +300,6 @@ const PlayerApp = {
       }
     } catch (e) {}
 
-    // 3. Check active players database
     const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
     if (Array.isArray(allPlayers) && allPlayers.length > 0) {
       const match = allPlayers.find(p => String(p.app_id || '').toUpperCase().trim() === myAppId);
@@ -394,7 +392,6 @@ const PlayerApp = {
     return hasUid && hasIgn && hasEmail;
   },
 
-  // FIXED ANTI-RESURRECTION: NEVER AUTO-INSERT GHOST USER
   checkSavedSession() {
     const saved = localStorage.getItem('ignis_player_session');
     if (saved) {
@@ -402,7 +399,6 @@ const PlayerApp = {
         const sessionUser = JSON.parse(saved);
         const myAppId = String(sessionUser.appId || '').toUpperCase().trim();
 
-        // Check if blacklisted
         const cloudBlacklist = SupabaseService.getLocal('ignis_deleted_users_sync', []);
         if (Array.isArray(cloudBlacklist) && cloudBlacklist.includes(myAppId)) {
           this.forceImmediateAccountLogout();
@@ -430,7 +426,6 @@ const PlayerApp = {
           this.updateUI();
           return;
         } else if (allPlayers.length > 0) {
-          // Account was deleted in admin panel, do NOT resurrect!
           this.forceImmediateAccountLogout();
           return;
         } else {
@@ -1299,7 +1294,6 @@ const PlayerApp = {
           await SupabaseService.pullAllFromCloud(false);
         }
 
-        // Live check if account was deleted by Admin
         this.verifyAccountExistence();
         if (!this.state.user) return;
 
@@ -1366,30 +1360,89 @@ const PlayerApp = {
     this.renderChatMessages(this.state.activeChatRoomId);
   },
 
-  /* ==================== TAB 4: WALLET & GUARANTEED DEPOSIT QUEUE ==================== */
-  async openDepositQrModal() {
-    await this.loadPlatformConfig();
-    this.selectDepositScanner(1);
+  /* ==================== TAB 4: WALLET & DYNAMIC AMOUNT UPI QR ENGINE ==================== */
+  openDepositQrModal() {
+    if (!this.state.user) return;
+    
+    const amt = parseFloat(document.getElementById('depositInputAmt')?.value) || 200;
+    if (amt < 50) {
+      this.showToast('Minimum deposit amount is ₹50!');
+      return;
+    }
+
+    const payeeUpi = 'huerush33@ybl';
+    const payeeName = 'IGNIS ARENA ESPORTS';
+    const txnId = 'IGNIS_' + (this.state.user.appId || 'ATH') + '_' + Date.now().toString().slice(-6);
+    this._currentDepositTxnId = txnId;
+
+    const upiUri = `upi://pay?pa=${encodeURIComponent(payeeUpi)}&pn=${encodeURIComponent(payeeName)}&am=${amt.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Ignis Wallet ' + txnId)}&tr=${encodeURIComponent(txnId)}`;
+    const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(upiUri)}`;
+
+    const qrImg = document.getElementById('userDynamicDepositQrImg');
+    const amtLabel = document.getElementById('modalLockedAmountText');
+    const utrInput = document.getElementById('depositUtrNumberInput');
+    
+    if (amtLabel) amtLabel.innerText = `₹${amt.toFixed(0)}`;
+    if (utrInput) utrInput.value = '';
+    if (qrImg) qrImg.src = qrApiUrl;
+
+    this.startDepositTimer(300);
     this.openModal('depositModal');
   },
 
-  selectDepositScanner(idx) {
-    this.state.selectedScannerIndex = idx;
-    const cfg = this.state.platformSettings || {};
-    const b1 = document.getElementById('btnScannerTab1');
-    const b2 = document.getElementById('btnScannerTab2');
-    if (b1 && b2) {
-      b1.style.background = idx === 1 ? '#FF6B00' : 'transparent';
-      b1.style.color = idx === 1 ? '#06070A' : '#94a3b8';
-      b2.style.background = idx === 2 ? '#FF6B00' : 'transparent';
-      b2.style.color = idx === 2 ? '#06070A' : '#94a3b8';
+  startDepositTimer(durationSeconds) {
+    if (this._depositCountdownInterval) {
+      clearInterval(this._depositCountdownInterval);
     }
-    document.getElementById('userDepositQrImg').src = idx === 1
-      ? (cfg.qr_image_1 || 'https://i.ibb.co/vzB79fV/phonepe-qr.png')
-      : (cfg.qr_image_2 || 'https://i.ibb.co/vzB79fV/phonepe-qr.png');
-    document.getElementById('userDepositUpiText').innerText = idx === 1
-      ? (cfg.upi_id_1 || 'ignisarena@ybl')
-      : (cfg.upi_id_2 || 'ignisvault@okaxis');
+
+    let remaining = durationSeconds;
+    const timerEl = document.getElementById('qrExpiryCountdownText');
+    const confirmBtn = document.getElementById('btnConfirmDynamicDeposit');
+
+    if (confirmBtn) {
+      confirmBtn.disabled = false;
+      confirmBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+
+    const updateDisplay = () => {
+      const minutes = Math.floor(remaining / 60);
+      const seconds = remaining % 60;
+      if (timerEl) {
+        timerEl.innerText = `${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+      }
+    };
+
+    updateDisplay();
+
+    this._depositCountdownInterval = setInterval(() => {
+      remaining--;
+      if (remaining >= 0) {
+        updateDisplay();
+        this.checkLiveDepositSettlement(this._currentDepositTxnId);
+      } else {
+        clearInterval(this._depositCountdownInterval);
+        if (timerEl) timerEl.innerText = 'EXPIRED (00:00)';
+        if (confirmBtn) {
+          confirmBtn.disabled = true;
+          confirmBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+        alert('⚠️ Is QR Code ka 5 minute ka session expire ho gaya hai. Naya deposit karne ke liye Add Cash par dubara tap karein.');
+        this.closeModal('depositModal');
+      }
+    }, 1000);
+  },
+
+  async checkLiveDepositSettlement(txnId) {
+    if (!txnId || !this.state.user) return;
+    const allTxns = SupabaseService.getLocal('ignis_all_time_transactions', []);
+    const matching = allTxns.find(t => t.app_id === this.state.user.appId && t.note && t.note.includes(txnId) && t.status === 'APPROVED');
+    
+    if (matching) {
+      clearInterval(this._depositCountdownInterval);
+      this.closeModal('depositModal');
+      this.showToast(`🎉 ₹${matching.amount} Automatically Credited to Wallet!`);
+      this.updateUI();
+    }
   },
 
   async submitDepositWithUtr() {
@@ -1402,9 +1455,8 @@ const PlayerApp = {
 
     const depId = 'DEP-' + Math.floor(100000 + Math.random() * 900000);
     const nowStr = new Date().toLocaleString();
-    const scannerLabel = `Scanner #${this.state.selectedScannerIndex}`;
+    const scannerLabel = 'Dynamic UPI (IGNIS ARENA ESPORTS)';
 
-    // 1. Direct Save to Dedicated Admin Deposit Requests Queue
     const adminDepQueue = SupabaseService.getLocal('ignis_deposit_requests_db', []);
     const newDepositEntry = {
       id: depId,
@@ -1419,7 +1471,6 @@ const PlayerApp = {
     adminDepQueue.unshift(newDepositEntry);
     SupabaseService.setLocal('ignis_deposit_requests_db', adminDepQueue);
 
-    // 2. Direct Save to Player Passbook Ledger
     const ledger = SupabaseService.getLocal('ignis_all_time_transactions', []);
     ledger.unshift({
       id: 'TXN-' + Math.floor(1000 + Math.random() * 9000),
@@ -1427,19 +1478,17 @@ const PlayerApp = {
       player_ign: this.state.user.ign,
       type: 'DEPOSIT',
       amount: amt,
-      note: `UPI QR Top-Up (UTR: ${utr})`,
+      note: `UPI Dynamic QR (UTR: ${utr})`,
       status: 'PENDING',
       timestamp: nowStr
     });
     SupabaseService.setLocal('ignis_all_time_transactions', ledger);
 
-    // 3. Background Cloud Sync
     if (SupabaseService.isCloudConnected && typeof SupabaseService.pushKeyToCloud === 'function') {
       SupabaseService.pushKeyToCloud('ignis_deposit_requests_db', adminDepQueue).catch(() => {});
       SupabaseService.pushKeyToCloud('ignis_all_time_transactions', ledger).catch(() => {});
     }
 
-    // 4. Trigger Cross-Window Event
     window.dispatchEvent(new Event('storage'));
 
     document.getElementById('depositUtrNumberInput').value = '';
@@ -2035,6 +2084,9 @@ const PlayerApp = {
 
   openModal(id) { document.getElementById(id)?.classList.remove('hidden'); },
   closeModal(id) {
+    if (id === 'depositModal' && this._depositCountdownInterval) {
+      clearInterval(this._depositCountdownInterval);
+    }
     if (id === 'paidRoomChatModal') this.state.activeChatRoomId = null;
     document.getElementById(id)?.classList.add('hidden');
   },
