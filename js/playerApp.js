@@ -1,4 +1,4 @@
-// js/playerApp.js — 100% Complete Uncut Ultra-Fast Player Engine (Auto-Logout on Account Delete, Guaranteed Deposit Queue, Zero-Delay Instant Touch, 120FPS Smooth Scroll, Native APK Notification Bridge & Privacy IDP Lock)
+// js/playerApp.js — 100% Complete Uncut Ultra-Fast Player Engine (Guaranteed Cloud-Synced Auto-Logout on Account Delete, Anti-Resurrection Guard, Zero-Delay Instant Touch, 120FPS Smooth Scroll, Native APK Notification Bridge & Privacy IDP Lock)
 
 const PlayerApp = {
   BASE_FF_WALLPAPER: 'https://images2.alphacoders.com/112/1126388.jpg',
@@ -278,25 +278,34 @@ const PlayerApp = {
     }, splashDelay);
   },
 
-  // GUARANTEED AUTOMATIC LOGOUT WHEN ACCOUNT IS DELETED IN ADMIN PANEL
+  // GUARANTEED AUTOMATIC LOGOUT ON CLOUD / LOCAL DELETION
   verifyAccountExistence() {
     if (!this.state.user) return;
     const myAppId = String(this.state.user.appId || '').toUpperCase().trim();
 
-    // 1. Check if user is in deleted blacklist
+    // 1. Check cloud-synced deleted blacklist
     try {
-      const blacklist = JSON.parse(localStorage.getItem('ignis_deleted_accounts_blacklist') || '[]');
-      if (blacklist.includes(myAppId)) {
+      const blacklist = SupabaseService.getLocal('ignis_deleted_users_sync', []);
+      if (Array.isArray(blacklist) && blacklist.includes(myAppId)) {
         this.forceImmediateAccountLogout();
         return;
       }
     } catch (e) {}
 
-    // 2. Check if user exists in active players db
+    // 2. Check local blacklist
+    try {
+      const localBlacklist = JSON.parse(localStorage.getItem('ignis_deleted_accounts_blacklist') || '[]');
+      if (Array.isArray(localBlacklist) && localBlacklist.includes(myAppId)) {
+        this.forceImmediateAccountLogout();
+        return;
+      }
+    } catch (e) {}
+
+    // 3. Check active players database
     const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
-    if (allPlayers.length > 0) {
-      const exists = allPlayers.some(p => String(p.app_id || '').toUpperCase().trim() === myAppId);
-      if (!exists) {
+    if (Array.isArray(allPlayers) && allPlayers.length > 0) {
+      const match = allPlayers.find(p => String(p.app_id || '').toUpperCase().trim() === myAppId);
+      if (!match || match.status === 'DELETED') {
         this.forceImmediateAccountLogout();
       }
     }
@@ -385,30 +394,52 @@ const PlayerApp = {
     return hasUid && hasIgn && hasEmail;
   },
 
+  // FIXED ANTI-RESURRECTION: NEVER AUTO-INSERT GHOST USER
   checkSavedSession() {
     const saved = localStorage.getItem('ignis_player_session');
     if (saved) {
       try {
         const sessionUser = JSON.parse(saved);
+        const myAppId = String(sessionUser.appId || '').toUpperCase().trim();
+
+        // Check if blacklisted
+        const cloudBlacklist = SupabaseService.getLocal('ignis_deleted_users_sync', []);
+        if (Array.isArray(cloudBlacklist) && cloudBlacklist.includes(myAppId)) {
+          this.forceImmediateAccountLogout();
+          return;
+        }
+
         const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
-        const dbMatch = allPlayers.find(p => (p.app_id || '').toUpperCase() === (sessionUser.appId || '').toUpperCase());
+        const dbMatch = allPlayers.find(p => String(p.app_id || '').toUpperCase().trim() === myAppId);
+
         if (dbMatch) {
+          if (dbMatch.status === 'DELETED') {
+            this.forceImmediateAccountLogout();
+            return;
+          }
           const mapped = SupabaseService.mapDbRecordToUser(dbMatch);
           mapped.profileCompleted = sessionUser.profileCompleted || this.isProfileComplete(mapped);
           mapped.created_at = dbMatch.created_at || sessionUser.created_at;
           this.state.user = mapped;
           localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
+          document.getElementById('playerAuthGate')?.classList.add('hidden');
+          document.getElementById('mainPlayerPortal')?.classList.remove('hidden');
+          this.syncJoinedMatchesFromSlots();
+          this.populateOpponentFriendsDropdown();
+          this.populatePaidRoomOperatorsDropdown();
+          this.updateUI();
+          return;
+        } else if (allPlayers.length > 0) {
+          // Account was deleted in admin panel, do NOT resurrect!
+          this.forceImmediateAccountLogout();
+          return;
         } else {
           this.state.user = sessionUser;
-          SupabaseService.upsertPlayerProfile(this.state.user);
+          document.getElementById('playerAuthGate')?.classList.add('hidden');
+          document.getElementById('mainPlayerPortal')?.classList.remove('hidden');
+          this.updateUI();
+          return;
         }
-        document.getElementById('playerAuthGate')?.classList.add('hidden');
-        document.getElementById('mainPlayerPortal')?.classList.remove('hidden');
-        this.syncJoinedMatchesFromSlots();
-        this.populateOpponentFriendsDropdown();
-        this.populatePaidRoomOperatorsDropdown();
-        this.updateUI();
-        return;
       } catch (e) {}
     }
     const existingPlayers = SupabaseService.getLocal('ignis_players_db', []);
@@ -656,7 +687,7 @@ const PlayerApp = {
     const qClean = (query || '').trim().toLowerCase().replace(/^@/, '');
 
     const matched = allPlayers.filter(p => {
-      if (String(p.app_id || '').toUpperCase() === myAppId) return false;
+      if (String(p.app_id || '').toUpperCase() === myAppId || p.status === 'DELETED') return false;
       if (!qClean) return true;
       const u = (p.username || '').toLowerCase();
       const ign = (p.ign || '').toLowerCase();
@@ -692,7 +723,7 @@ const PlayerApp = {
     
     const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
     const p = allPlayers.find(x => String(x.app_id || '').toUpperCase() === String(targetAppId).toUpperCase());
-    if (!p) return;
+    if (!p || p.status === 'DELETED') return;
 
     box.classList.remove('hidden');
     const isAlreadyFriend = this.state.user && (this.state.user.friendsList || []).some(f => f.appId === p.app_id);
@@ -1268,7 +1299,7 @@ const PlayerApp = {
           await SupabaseService.pullAllFromCloud(false);
         }
 
-        // Verify account existence in real-time
+        // Live check if account was deleted by Admin
         this.verifyAccountExistence();
         if (!this.state.user) return;
 
@@ -1931,6 +1962,10 @@ const PlayerApp = {
         const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
         const fresh = allPlayers.find(p => (p.app_id || '').toUpperCase() === this.state.user.appId.toUpperCase());
         if (fresh) {
+          if (fresh.status === 'DELETED') {
+            this.forceImmediateAccountLogout();
+            return;
+          }
           const mapped = SupabaseService.mapDbRecordToUser(fresh);
           mapped.profileCompleted = this.state.user.profileCompleted || this.isProfileComplete(mapped);
           mapped.created_at = fresh.created_at || this.state.user.created_at;
