@@ -144,7 +144,7 @@ const PlayerApp = {
 
     if ('Notification' in window && Notification.permission === 'granted') {
       try {
-        new Notification(title, { body: body, icon: 'logo.png', badge: 'logo.png', tag: notifTag });
+        new Notification(title, { body, icon: 'logo.png', badge: 'logo.png', tag: notifTag });
       } catch (e) {}
     }
   },
@@ -871,7 +871,7 @@ const PlayerApp = {
             </div>
             <div class="flex gap-1.5">
               <button onclick="PlayerApp.acceptFriendRequest(${idx})" class="btn-hyper px-2.5 py-1 text-[10px] cursor-pointer">Accept</button>
-              <button onclick="PlayerApp.declineFriendRequest(${idx})" class="bg-red-500/20 text-red-300 px-2 py-1 rounded-lg text-[10px] cursor-pointer">Decline</button>
+              <button onclick="PlayerApp.declineFriendRequest(${idx})" class="bg-red-500/20 text-red-300 px-2.5 py-1 rounded-lg text-[10px] cursor-pointer">Decline</button>
             </div>
           </div>
         `).join('');
@@ -1119,6 +1119,56 @@ const PlayerApp = {
       `).join('');
   },
 
+  /* ==================== TELEGRAM PRE-FILLED HOST APPROVAL ENGINE ==================== */
+  generateTelegramApprovalUrl(roomData) {
+    const tgUsername = 'ignisarena1';
+    const textMsg = 
+`🔥 *IGNIS ARENA — PAID ROOM APPROVAL REQUEST* 🔥
+━━━━━━━━━━━━━━━━━━━━
+🎮 *Room ID:* ${roomData.id}
+🏆 *Title:* ${roomData.title}
+⚔️ *Mode:* ${roomData.team_size} (${roomData.ammo_mode} Ammo | HS: ${roomData.headshot_mode})
+💰 *Entry Fee:* ₹${roomData.bet_amount}
+🎯 *Total Pool:* ₹${roomData.total_pool} (Winner Payout: ₹${roomData.winner_payout})
+👤 *Challenger (Side A):* ${roomData.team_a_ign} (${roomData.team_a_app_id})
+📱 *Challenger UID:* ${this.state.user?.uid || 'Not Set'}
+━━━━━━━━━━━━━━━━━━━━
+Host bhai room accept karke Room ID & Pass panel par push kar do!`;
+
+    return `https://t.me/${tgUsername}?text=${encodeURIComponent(textMsg)}`;
+  },
+
+  sendCurrentRoomToTelegram() {
+    if (!this.state.user) {
+      this.showToast('Pehle sign in karein!');
+      return;
+    }
+
+    const title = (document.getElementById('customRoomTitle')?.value || '').trim() || `${this.state.user.ign}'s Wager Room`;
+    const teamSize = document.getElementById('customTeamSize')?.value || 'CS 4v4';
+    const ammoMode = document.getElementById('customAmmoMode')?.value || 'Unlimited';
+    const hsMode = document.getElementById('customAimRule')?.value || 'YES';
+    const bet = parseFloat(document.getElementById('customRoomBet')?.value) || 200;
+    const totalPool = bet * 2;
+    const winnerPayout = Math.round(totalPool * 0.90);
+
+    const tempRoom = {
+      id: 'DRAFT-' + Date.now().toString().slice(-4),
+      title: title,
+      team_size: teamSize,
+      ammo_mode: ammoMode,
+      headshot_mode: hsMode,
+      bet_amount: bet,
+      total_pool: totalPool,
+      winner_payout: winnerPayout,
+      team_a_ign: this.state.user.ign,
+      team_a_app_id: this.state.user.appId
+    };
+
+    const targetUrl = this.generateTelegramApprovalUrl(tempRoom);
+    window.open(targetUrl, '_blank');
+  },
+
   /* ==================== TAB 3: PAID ROOMS (90% WINNER / 10% HOST PLATFORM FEE) ==================== */
   populatePaidRoomOperatorsDropdown() {
     const sel = document.getElementById('customRoomOperator');
@@ -1214,7 +1264,7 @@ const PlayerApp = {
 
     const totalPool = bet * 2;
     const roomId = 'WGR-' + Date.now().toString().slice(-5);
-    await SupabaseService.createCustomPaidRoom({
+    const roomPayload = {
       id: roomId,
       title,
       map: 'Bermuda',
@@ -1237,14 +1287,19 @@ const PlayerApp = {
       room_password: '',
       room_status: 'WAITING_HOST',
       created_at: new Date().toISOString()
-    });
+    };
+    await SupabaseService.createCustomPaidRoom(roomPayload);
 
     document.getElementById('customRoomTitle').value = '';
     this._lastCustomRoomRenderHash = '';
     await this.fetchCustomPaidRooms(true);
     this.updateUI();
     this.sharePaidRoomLink(roomId);
-    this.showToast(`✅ Room Created! Tap 'GET APPROVAL' to notify host on Telegram.`);
+
+    // Auto-open Telegram with complete pre-filled details
+    const tgUrl = this.generateTelegramApprovalUrl(roomPayload);
+    window.open(tgUrl, '_blank');
+    this.showToast(`✅ Room created! Redirecting to Telegram with details...`);
   },
 
   sharePaidRoomLink(roomId) {
@@ -1311,7 +1366,11 @@ const PlayerApp = {
             </div>
             <div class="flex items-center gap-1.5">
               <button onclick="PlayerApp.sharePaidRoomLink('${r.id}')" class="bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer">
-                <i class="fa-solid fa-share-nodes mr-1"></i>Share Link
+                <i class="fa-solid fa-share-nodes mr-1"></i>Share
+              </button>
+              <!-- POST-CREATION TELEGRAM APPROVAL BUTTON -->
+              <button onclick="window.open('${this.generateTelegramApprovalUrl(r)}', '_blank')" class="bg-sky-500/20 border border-sky-500/40 text-sky-300 px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer flex items-center gap-1">
+                <i class="fa-brands fa-telegram"></i><span>GET APPROVAL</span>
               </button>
               <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${isCompleted ? 'bg-[#FFC857]/20 text-[#FFC857]' : r.operator_accepted ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-slate-300'}">
                 ${isCompleted ? 'COMPLETED' : r.operator_accepted ? 'HOST ACCEPTED' : 'WAITING HOST'}
@@ -1679,7 +1738,7 @@ const PlayerApp = {
       timestamp: new Date().toLocaleString()
     });
     SupabaseService.setLocal('ignis_all_time_transactions', ledger);
-    if (SupabaseService.isCloudConnected && typeof SupabaseService.pushKeyToCloud === 'function') {
+    if (SupabaseService.isCloudConnected) {
       SupabaseService.pushKeyToCloud('ignis_all_time_transactions', ledger).catch(() => {});
     }
     this.loadAllTimeTransactions();
