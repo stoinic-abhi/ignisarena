@@ -1,4 +1,4 @@
-// js/playerApp.js — 100% Complete Uncut Ultra-Fast Player Engine (Dynamic UPI QR with 5-Min Timer, Cloud-Synced Auto-Logout on Account Delete, Anti-Resurrection Guard, Zero-Delay Instant Touch, 120FPS Smooth Scroll, Native APK Notification Bridge & Privacy IDP Lock)
+// js/playerApp.js — 100% Complete Uncut Ultra-Fast Player Engine (Dynamic UPI QR with 5-Min Timer, Cloud-Synced Auto-Logout on Account Delete, Anti-Resurrection Guard, Zero-Delay Instant Touch, 120FPS Smooth Scroll, Native APK Notification Bridge, Splash Screen Handler, 90/10 Platform Fee, Self-Number Conflict Fix & Passbook Entry Debit)
 
 const PlayerApp = {
   BASE_FF_WALLPAPER: 'https://images2.alphacoders.com/112/1126388.jpg',
@@ -144,7 +144,7 @@ const PlayerApp = {
 
     if ('Notification' in window && Notification.permission === 'granted') {
       try {
-        new Notification(title, { body, icon: 'logo.png', badge: 'logo.png', tag: notifTag });
+        new Notification(title, { body: body, icon: 'logo.png', badge: 'logo.png', tag: notifTag });
       } catch (e) {}
     }
   },
@@ -153,6 +153,7 @@ const PlayerApp = {
     if (!this.state.user) return;
     const myAppId = String(this.state.user.appId || '').toUpperCase();
 
+    // 1. Tournament Room ID & Pass Alert
     this.syncJoinedMatchesFromSlots();
     this.state.joinedMatches.forEach(jm => {
       const m = this.state.tournaments.find(t => t.id === jm.id);
@@ -169,11 +170,27 @@ const PlayerApp = {
       }
     });
 
+    // 2. Paid Room Host Acceptance, Credentials & Settlement Alert
     this.state.customPaidRooms.forEach(r => {
       const isParticipant =
         String(r.team_a_app_id || '').toUpperCase() === myAppId ||
         String(r.team_b_app_id || '').toUpperCase() === myAppId;
-      if (isParticipant && r.room_id) {
+
+      if (!isParticipant) return;
+
+      if (r.operator_accepted) {
+        const keyAcc = `ignis_wgr_accepted_${r.id}`;
+        if (!localStorage.getItem(keyAcc)) {
+          localStorage.setItem(keyAcc, '1');
+          this.fireSystemNotification(
+            `⚔️ Host Accepted: ${r.title}`,
+            `Host ne match challenge accept kar liya hai!`,
+            keyAcc
+          );
+        }
+      }
+
+      if (r.room_id) {
         const key = `ignis_wager_idp_alert_${r.id}_${r.room_id}_${r.room_password || ''}`;
         if (!localStorage.getItem(key)) {
           localStorage.setItem(key, '1');
@@ -181,6 +198,18 @@ const PlayerApp = {
             `⚔️ Paid Room ID Ready: ${r.title}`,
             `Room ID: ${r.room_id} | Pass: ${r.room_password || '---'} (Host: ${r.assigned_operator})`,
             key
+          );
+        }
+      }
+
+      if (r.room_status === 'COMPLETED' && r.winner_ign) {
+        const keyWin = `ignis_wgr_win_${r.id}_${r.winner_app_id}`;
+        if (!localStorage.getItem(keyWin)) {
+          localStorage.setItem(keyWin, '1');
+          this.fireSystemNotification(
+            `🏆 Match Settled: ${r.title}`,
+            `Winner: ${r.winner_ign} • Won ₹${r.winner_payout}!`,
+            keyWin
           );
         }
       }
@@ -491,7 +520,7 @@ const PlayerApp = {
       this.switchTab('tournaments');
       this.showToast(`Welcome back, ${this.state.user.username}!`);
     } finally {
-      if (btn) btn.innerHTML = '<span>Sign In &amp; Open Arena</span><i class="ph-bold ph-sign-in"></i>';
+      if (btn) btn.innerHTML = '<span>Sign In & Open Arena</span><i class="ph-bold ph-sign-in"></i>';
     }
   },
 
@@ -661,6 +690,69 @@ const PlayerApp = {
     localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
     SupabaseService.upsertPlayerProfile(this.state.user);
     this.updateUI();
+  },
+
+  /* ==================== EDIT PROFILE & SELF-CONFLICT RESOLUTION ==================== */
+  openEditProfileModal() {
+    if (!this.state.user) return;
+    const nameEl = document.getElementById('editProfName');
+    const ignEl = document.getElementById('editProfIgn');
+    const uidEl = document.getElementById('editProfUid');
+    const phoneEl = document.getElementById('editProfPhone');
+    const bioEl = document.getElementById('editProfBio');
+    const errBox = document.getElementById('editProfErrorBox');
+
+    if (nameEl) nameEl.value = this.state.user.fullName || '';
+    if (ignEl) ignEl.value = this.state.user.ign || '';
+    if (uidEl) uidEl.value = this.state.user.uid || '';
+    if (phoneEl) phoneEl.value = this.state.user.phone || '';
+    if (bioEl) bioEl.value = this.state.user.bio || '';
+    if (errBox) errBox.classList.add('hidden');
+
+    this.openModal('editProfileModal');
+  },
+
+  async saveEditedProfile() {
+    if (!this.state.user) return;
+    const name = (document.getElementById('editProfName')?.value || '').trim();
+    const ign = (document.getElementById('editProfIgn')?.value || '').trim();
+    const uid = (document.getElementById('editProfUid')?.value || '').trim();
+    const phone = (document.getElementById('editProfPhone')?.value || '').trim();
+    const bio = (document.getElementById('editProfBio')?.value || '').trim();
+    const errBox = document.getElementById('editProfErrorBox');
+
+    if (!name || !ign || uid.length < 5 || phone.length < 10) {
+      if (errBox) {
+        errBox.innerText = 'Sabhi fields (Name, IGN, UID, 10-digit WhatsApp) bharna zaroori hai!';
+        errBox.classList.remove('hidden');
+      }
+      return;
+    }
+
+    // CHECK CONFLICT EXCLUDING CURRENT USER SELF APP_ID
+    const allPlayers = SupabaseService.getLocal('ignis_players_db', []);
+    const phoneConflict = allPlayers.some(p => p.app_id !== this.state.user.appId && String(p.phone).trim() === phone);
+    if (phoneConflict) {
+      if (errBox) {
+        errBox.innerText = 'Yeh WhatsApp number kisi aur athlete ke account me already registered hai!';
+        errBox.classList.remove('hidden');
+      }
+      return;
+    }
+
+    this.state.user.fullName = name;
+    this.state.user.ign = ign;
+    this.state.user.uid = uid;
+    this.state.user.phone = phone;
+    this.state.user.bio = bio || '🔥 Official Ignis Arena Athlete';
+    this.state.user.profileCompleted = true;
+
+    localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
+    await SupabaseService.upsertPlayerProfile(this.state.user);
+
+    this.closeModal('editProfileModal');
+    this.updateUI();
+    this.showToast('✅ Profile successfully update ho gayi!');
   },
 
   /* ==================== FRIENDS SEARCH & ROSTER ==================== */
@@ -930,7 +1022,7 @@ const PlayerApp = {
         <div class="p-3.5 pt-0">
           ${eco.isCompleted ? `
             <button onclick="PlayerApp.openTournamentDetailsModal('${m.id}')" class="w-full bg-[#FFC857]/20 border border-[#FFC857]/50 text-[#FFC857] font-extrabold text-xs py-2.5 rounded-xl cursor-pointer">
-              🏆 View All Players Kills &amp; Prize Breakdown
+              🏆 View All Players Kills & Prize Breakdown
             </button>
           ` : hasJoined ? `
             <button onclick="PlayerApp.switchTab('roomidp')" class="w-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-xs py-2.5 rounded-xl cursor-pointer">
@@ -1020,14 +1112,14 @@ const PlayerApp = {
 
           ${m.match_status === 'COMPLETED' ? `
             <button onclick="PlayerApp.openTournamentDetailsModal('${m.id}')" class="w-full bg-[#FFC857]/20 border border-[#FFC857]/40 text-[#FFC857] font-bold text-xs py-2 rounded-xl cursor-pointer">
-              🏆 View Match Winner &amp; All Players Kill Money
+              🏆 View Match Winner & All Players Kill Money
             </button>
           ` : ''}
         </div>
       `).join('');
   },
 
-  /* ==================== TAB 3: PAID ROOMS ==================== */
+  /* ==================== TAB 3: PAID ROOMS (90% WINNER / 10% HOST PLATFORM FEE) ==================== */
   populatePaidRoomOperatorsDropdown() {
     const sel = document.getElementById('customRoomOperator');
     if (!sel) return;
@@ -1058,10 +1150,12 @@ const PlayerApp = {
   recalcCustomWagerMath() {
     const bet = parseFloat(document.getElementById('customRoomBet')?.value) || 200;
     const totalPool = bet * 2;
-    document.getElementById('wagerTotalPool').innerText = `₹${totalPool}`;
-    document.getElementById('wagerWinnerGets').innerText = `₹${Math.round(totalPool * 0.80)}`;
-    document.getElementById('wagerHostGets').innerText = `₹${Math.round(totalPool * 0.10)}`;
-    document.getElementById('wagerAdminGets').innerText = `₹${Math.round(totalPool * 0.10)}`;
+    const winnerPayout = Math.round(totalPool * 0.90); // 90% WINNER
+    const platformFee = Math.round(totalPool * 0.10);  // 10% TO HOST
+
+    if (document.getElementById('wagerTotalPool')) document.getElementById('wagerTotalPool').innerText = `₹${totalPool}`;
+    if (document.getElementById('wagerWinnerGets')) document.getElementById('wagerWinnerGets').innerText = `₹${winnerPayout}`;
+    if (document.getElementById('wagerHostGets')) document.getElementById('wagerHostGets').innerText = `₹${platformFee}`;
   },
 
   async createPaidCustomChallenge() {
@@ -1110,6 +1204,14 @@ const PlayerApp = {
     localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
     SupabaseService.upsertPlayerProfile(this.state.user);
 
+    // Record Room Fee Debit in Ledger
+    this.recordPassbookEntry({
+      type: 'ENTRY',
+      amount: bet,
+      note: `Paid Room Created: ${title} (${teamSize})`,
+      status: 'DEBITED'
+    });
+
     const totalPool = bet * 2;
     const roomId = 'WGR-' + Date.now().toString().slice(-5);
     await SupabaseService.createCustomPaidRoom({
@@ -1121,9 +1223,9 @@ const PlayerApp = {
       headshot_mode: hsMode,
       bet_amount: bet,
       total_pool: totalPool,
-      winner_payout: Math.round(totalPool * 0.80),
+      winner_payout: Math.round(totalPool * 0.90),
       host_cut: Math.round(totalPool * 0.10),
-      admin_cut: Math.round(totalPool * 0.10),
+      admin_cut: 0,
       team_a_app_id: this.state.user.appId,
       team_a_ign: this.state.user.ign,
       invited_opponent_app_id: invitedAppId,
@@ -1142,6 +1244,7 @@ const PlayerApp = {
     await this.fetchCustomPaidRooms(true);
     this.updateUI();
     this.sharePaidRoomLink(roomId);
+    this.showToast(`✅ Room Created! Tap 'GET APPROVAL' to notify host on Telegram.`);
   },
 
   sharePaidRoomLink(roomId) {
@@ -1192,7 +1295,7 @@ const PlayerApp = {
         } else {
           credentialsHtml = `
             <div class="p-2.5 rounded-xl bg-red-950/30 border border-red-500/30 flex items-center justify-between text-xs">
-              <span class="text-red-300 font-bold text-[11px]"><i class="fa-solid fa-lock mr-1.5 text-red-400"></i>Room ID &amp; Pass Locked (Joined Players Only)</span>
+              <span class="text-red-300 font-bold text-[11px]"><i class="fa-solid fa-lock mr-1.5 text-red-400"></i>Room ID & Pass Locked (Joined Players Only)</span>
               <span class="text-[9px] font-mono bg-red-500/20 text-red-300 px-2 py-0.5 rounded">PRIVATE</span>
             </div>
           `;
@@ -1229,16 +1332,15 @@ const PlayerApp = {
               <strong class="text-sm font-extrabold text-white">🏆 Winner: ${r.winner_ign} (${r.winner_app_id}) • Won ₹${r.winner_payout}</strong>
             </div>
           ` : `
-            <div class="grid grid-cols-3 gap-1 bg-black/30 p-2 rounded-xl text-xs text-center font-bold">
+            <div class="grid grid-cols-2 gap-1 bg-black/30 p-2 rounded-xl text-xs text-center font-bold">
               <div>Pool: ₹${r.total_pool}</div>
-              <div class="text-emerald-400">Win: ₹${r.winner_payout}</div>
-              <div class="text-[#FFC857]">Host: ₹${r.host_cut}</div>
+              <div class="text-emerald-400">Winner (90%): ₹${r.winner_payout}</div>
             </div>
           `}
 
           <div class="flex gap-2">
             ${canJoinSideB ? `
-              <button onclick="PlayerApp.acceptPaidChallengeAsTeamB('${r.id}')" class="flex-1 btn-hyper py-2 text-xs cursor-pointer">Accept &amp; Join (₹${r.bet_amount})</button>
+              <button onclick="PlayerApp.acceptPaidChallengeAsTeamB('${r.id}')" class="flex-1 btn-hyper py-2 text-xs cursor-pointer">Accept & Join (₹${r.bet_amount})</button>
             ` : ''}
             ${isJoinedParticipant ? `
               <button onclick="PlayerApp.openPaidRoomChat('${r.id}')" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 py-2 rounded-xl text-xs text-slate-200 font-bold cursor-pointer">
@@ -1246,7 +1348,7 @@ const PlayerApp = {
               </button>
             ` : `
               <button disabled class="flex-1 bg-white/5 border border-white/5 py-2 rounded-xl text-[11px] text-slate-500 font-semibold cursor-not-allowed">
-                🔒 Chat &amp; IDP for Joined Players Only
+                🔒 Chat & IDP for Joined Players Only
               </button>
             `}
           </div>
@@ -1276,6 +1378,15 @@ const PlayerApp = {
     }
     localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
     SupabaseService.upsertPlayerProfile(this.state.user);
+
+    // Record Room Fee Debit in Ledger
+    this.recordPassbookEntry({
+      type: 'ENTRY',
+      amount: room.bet_amount,
+      note: `Paid Room Joined Side B: ${room.title}`,
+      status: 'DEBITED'
+    });
+
     await SupabaseService.joinCustomPaidRoomAsOpponent(roomId, this.state.user.appId, this.state.user.ign);
     this._lastCustomRoomRenderHash = '';
     await this.fetchCustomPaidRooms(true);
@@ -1471,22 +1582,16 @@ const PlayerApp = {
     adminDepQueue.unshift(newDepositEntry);
     SupabaseService.setLocal('ignis_deposit_requests_db', adminDepQueue);
 
-    const ledger = SupabaseService.getLocal('ignis_all_time_transactions', []);
-    ledger.unshift({
-      id: 'TXN-' + Math.floor(1000 + Math.random() * 9000),
-      app_id: this.state.user.appId,
-      player_ign: this.state.user.ign,
+    this.recordPassbookEntry({
       type: 'DEPOSIT',
       amount: amt,
       note: `UPI Dynamic QR (UTR: ${utr})`,
-      status: 'PENDING',
-      timestamp: nowStr
+      status: 'PENDING'
     });
-    SupabaseService.setLocal('ignis_all_time_transactions', ledger);
 
     if (SupabaseService.isCloudConnected && typeof SupabaseService.pushKeyToCloud === 'function') {
       SupabaseService.pushKeyToCloud('ignis_deposit_requests_db', adminDepQueue).catch(() => {});
-      SupabaseService.pushKeyToCloud('ignis_all_time_transactions', ledger).catch(() => {});
+      SupabaseService.pushKeyToCloud('ignis_all_time_transactions', SupabaseService.getLocal('ignis_all_time_transactions', [])).catch(() => {});
     }
 
     window.dispatchEvent(new Event('storage'));
@@ -1511,19 +1616,12 @@ const PlayerApp = {
     const wthId = 'WTH-' + Math.floor(100000 + Math.random() * 900000);
     const nowStr = new Date().toLocaleString();
 
-    const ledger = SupabaseService.getLocal('ignis_all_time_transactions', []);
-    ledger.unshift({
-      id: wthId,
-      app_id: this.state.user.appId,
-      player_ign: this.state.user.ign,
-      upi_id: upi,
+    this.recordPassbookEntry({
       type: 'WITHDRAWAL',
       amount: amt,
       note: `Bank Cashout to ${upi}`,
-      status: 'PENDING',
-      timestamp: nowStr
+      status: 'PENDING'
     });
-    SupabaseService.setLocal('ignis_all_time_transactions', ledger);
 
     const adminWthQueue = SupabaseService.getLocal('ignis_player_withdrawals_db', []);
     adminWthQueue.unshift({
@@ -1540,7 +1638,7 @@ const PlayerApp = {
     SupabaseService.setLocal('ignis_player_withdrawals_db', adminWthQueue);
 
     if (SupabaseService.isCloudConnected && typeof SupabaseService.pushKeyToCloud === 'function') {
-      SupabaseService.pushKeyToCloud('ignis_all_time_transactions', ledger).catch(() => {});
+      SupabaseService.pushKeyToCloud('ignis_all_time_transactions', SupabaseService.getLocal('ignis_all_time_transactions', [])).catch(() => {});
       SupabaseService.pushKeyToCloud('ignis_player_withdrawals_db', adminWthQueue).catch(() => {});
     }
 
@@ -1566,9 +1664,30 @@ const PlayerApp = {
     }
   },
 
+  /* ==================== PASSBOOK ROUTER (WITH ENTRY FEE TRACKING) ==================== */
+  recordPassbookEntry(entry) {
+    if (!this.state.user) return;
+    const ledger = SupabaseService.getLocal('ignis_all_time_transactions', []);
+    ledger.unshift({
+      id: 'TXN-' + Math.floor(1000 + Math.random() * 9000),
+      app_id: this.state.user.appId,
+      player_ign: this.state.user.ign,
+      type: entry.type || 'ENTRY',
+      amount: entry.amount,
+      note: entry.note,
+      status: entry.status || 'CONFIRMED',
+      timestamp: new Date().toLocaleString()
+    });
+    SupabaseService.setLocal('ignis_all_time_transactions', ledger);
+    if (SupabaseService.isCloudConnected && typeof SupabaseService.pushKeyToCloud === 'function') {
+      SupabaseService.pushKeyToCloud('ignis_all_time_transactions', ledger).catch(() => {});
+    }
+    this.loadAllTimeTransactions();
+  },
+
   switchHistoryView(type) {
     this.state.activeHistoryView = type;
-    ['all', 'winnings', 'deposit', 'withdraw'].forEach(t => {
+    ['all', 'entry', 'winnings', 'deposit', 'withdraw'].forEach(t => {
       const btn = document.getElementById(`btnHistTab${t.charAt(0).toUpperCase() + t.slice(1)}`);
       if (btn) {
         btn.className = t === type
@@ -1591,6 +1710,7 @@ const PlayerApp = {
 
     const filtered = myTxns.filter(t => {
       if (this.state.activeHistoryView === 'all') return true;
+      if (this.state.activeHistoryView === 'entry') return t.type === 'ENTRY';
       if (this.state.activeHistoryView === 'winnings') return t.type === 'WINNINGS';
       if (this.state.activeHistoryView === 'deposit') return t.type === 'DEPOSIT';
       if (this.state.activeHistoryView === 'withdraw') return t.type === 'WITHDRAWAL';
@@ -1601,11 +1721,12 @@ const PlayerApp = {
       ? `<div class="py-10 text-center text-slate-500 text-xs">No transactions in this category yet.</div>`
       : filtered.map(t => {
         const isCredit = t.type === 'DEPOSIT' || t.type === 'WINNINGS';
+        const isEntry = t.type === 'ENTRY';
         return `
           <div class="p-3 bg-black/50 rounded-xl border border-white/10 flex items-center justify-between gap-2 text-xs">
             <div class="flex items-center gap-2.5 min-w-0">
-              <div class="w-8 h-8 rounded-lg ${t.type === 'WINNINGS' ? 'bg-[#FFC857]/20 text-[#FFC857]' : isCredit ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'} flex items-center justify-center font-bold">
-                <i class="${t.type === 'WINNINGS' ? 'ph-bold ph-trophy' : isCredit ? 'ph-bold ph-arrow-down-left' : 'ph-bold ph-arrow-up-right'}"></i>
+              <div class="w-8 h-8 rounded-lg ${isEntry ? 'bg-amber-500/20 text-[#FFC857]' : isCredit ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'} flex items-center justify-center font-bold">
+                <i class="${isEntry ? 'ph-bold ph-ticket' : isCredit ? 'ph-bold ph-arrow-down-left' : 'ph-bold ph-arrow-up-right'}"></i>
               </div>
               <div class="min-w-0">
                 <strong class="text-white block truncate">${t.note}</strong>
@@ -1709,6 +1830,14 @@ const PlayerApp = {
     localStorage.setItem('ignis_player_session', JSON.stringify(this.state.user));
     SupabaseService.upsertPlayerProfile(this.state.user);
 
+    // Record Room Fee Debit in Ledger
+    this.recordPassbookEntry({
+      type: 'ENTRY',
+      amount: fee,
+      note: `Slot #${this.state.selectedSlotNumber} Fee: ${match.title}`,
+      status: 'DEBITED'
+    });
+
     await SupabaseService.bookSquadSlot(match.id, this.state.selectedSlotNumber, this.state.user.appId, this.state.user.uid, this.state.user.ign, selectedMates, fee);
     this.syncJoinedMatchesFromSlots();
     this.closeModal('joinModal');
@@ -1758,7 +1887,7 @@ const PlayerApp = {
         const winBooyahMoney = Number(match.winner_prize || 0);
         winnerBanner.classList.remove('hidden');
         winnerBanner.innerHTML = `
-          <div class="text-[10px] font-mono text-[#FFC857] uppercase font-bold">🏆 1st Place Booyah Champion &amp; Match Settlement Summary</div>
+          <div class="text-[10px] font-mono text-[#FFC857] uppercase font-bold">🏆 1st Place Booyah Champion & Match Settlement Summary</div>
           <div class="text-lg font-extrabold text-white mt-0.5">${match.winner_ign} <span class="text-xs text-[#FFC857] font-mono">(${match.winner_app_id || ''})</span></div>
           <div class="text-xs font-bold text-emerald-400 mt-0.5">
             Booyah Prize: ₹${winBooyahMoney} ${winKills > 0 ? `+ ${winKills} Kills (₹${winKillMoney}) = Total ₹${winBooyahMoney + winKillMoney}` : ''}
@@ -1951,6 +2080,45 @@ const PlayerApp = {
     this.showToast(`Callback Requested on ${phone}!`);
   },
 
+  handleProofImageSelect(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      this.state.tempProofBase64 = ev.target.result;
+      const prev = document.getElementById('proofPreviewImg');
+      if (prev) {
+        prev.src = ev.target.result;
+        prev.classList.remove('hidden');
+      }
+    };
+    reader.readAsDataURL(file);
+  },
+
+  async submitMatchProofToAdmin() {
+    const title = (document.getElementById('proofMatchTitleInput')?.value || '').trim();
+    if (!title || !this.state.tempProofBase64) {
+      this.showToast('Match Title aur Screenshot attach karein!');
+      return;
+    }
+    const proofs = SupabaseService.getLocal('ignis_proofs_db', []);
+    proofs.unshift({
+      id: 'PRF-' + Date.now().toString().slice(-6),
+      app_id: this.state.user?.appId || 'GUEST',
+      player_ign: this.state.user?.ign || 'Guest',
+      match_title: title,
+      proof_image: this.state.tempProofBase64,
+      created_at: new Date().toISOString()
+    });
+    SupabaseService.setLocal('ignis_proofs_db', proofs);
+    this.state.tempProofBase64 = '';
+    document.getElementById('proofMatchTitleInput').value = '';
+    const prev = document.getElementById('proofPreviewImg');
+    if (prev) prev.classList.add('hidden');
+    this.closeModal('proofUploadModal');
+    this.showToast('✅ Proof submitted for verification!');
+  },
+
   /* ==================== 5-TAB ROUTER ==================== */
   switchTab(tabId) {
     this.state.currentTab = tabId;
@@ -2041,6 +2209,11 @@ const PlayerApp = {
     document.getElementById('walletDeckBalance').innerText = `₹${total.toFixed(0)}`;
     document.getElementById('walletDepositBal').innerText = `₹${Number(this.state.user.depositBal || 0).toFixed(0)}`;
     document.getElementById('walletWinningsBal').innerText = `₹${Number(this.state.user.winningsBal || 0).toFixed(0)}`;
+
+    // PERMANENT DISABLE 20% FIRST DEPOSIT BANNER ONCE COMPLETED
+    if (this.state.user.firstDepositDone === true) {
+      document.getElementById('firstDepositBonusBanner')?.classList.add('hidden');
+    }
 
     document.getElementById('profileUsernameDisplay').innerText = this.state.user.username || '@athlete';
     document.getElementById('profileFullName').innerText = this.state.user.fullName || 'Athlete';
