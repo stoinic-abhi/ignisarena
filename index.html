@@ -105,7 +105,7 @@
 </head>
 <body class="apk-safe-bottom lg:pb-16 select-none bg-[#06070A]">
 
-  <!-- SPLASH SCREEN OVERLAY (FIXED & ANIMATED) -->
+  <!-- SPLASH SCREEN OVERLAY -->
   <div id="ignisSplashScreen" class="fixed inset-0 z-[120] bg-[#06070A] flex flex-col items-center justify-center p-4 transition-opacity duration-300">
     <div class="relative w-44 h-44 rounded-3xl overflow-hidden border-2 border-[#FF6B00]/40 shadow-2xl mb-4">
       <img id="customSplashPosterImg" src="assets/splash.png" alt="Ignis Splash" class="w-full h-full object-cover">
@@ -413,14 +413,13 @@
             Battle Royale • Clash Squad • Lone Wolf
           </h1>
           <p class="text-xs text-slate-400">
-            Tap any match card to view complete standings, kills and cash breakdowns!
+            Join official Free Fire competitive tournaments & win cash prizes!
           </p>
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
           <button onclick="PlayerApp.quickJoinNextMatch()" class="flex-1 sm:flex-initial btn-hyper px-4 py-2.5 text-xs cursor-pointer flex items-center justify-center gap-1.5">
             <i class="ph-bold ph-lightning"></i><span>Quick Join</span>
           </button>
-          <!-- RENAMED TO PAID MATCHES -->
           <button onclick="PlayerApp.switchTab('paidmatches')" class="flex-1 sm:flex-initial bg-white/5 hover:bg-white/10 border border-white/15 text-white font-bold rounded-xl px-4 py-2.5 text-xs cursor-pointer flex items-center justify-center gap-1.5">
             <i class="ph-bold ph-sword text-[#FF6B00]"></i><span>Paid Matches</span>
           </button>
@@ -497,7 +496,7 @@
       </div>
     </section>
 
-    <!-- TAB 3: PAID ROOMS (90% WINNER / 10% HOST FEE & TELEGRAM APPROVAL) -->
+    <!-- TAB 3: PAID ROOMS (90% WINNER / 10% PLATFORM FEE & GET APPROVAL TELEGRAM LINK) -->
     <section id="view-paidmatches" class="space-y-4 hidden">
       <div class="laser-card p-4 sm:p-6 space-y-4">
         <div class="flex items-center justify-between gap-2 border-b border-white/10 pb-3">
@@ -543,13 +542,13 @@
             <input id="customRoomBet" type="number" value="200" min="50" oninput="PlayerApp.recalcCustomWagerMath()" class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-emerald-400 font-bold focus:outline-none">
           </div>
 
-          <!-- TELEGRAM APPROVAL BUTTON -->
+          <!-- DIRECT PRE-FILLED TELEGRAM APPROVAL BUTTON -->
           <div>
             <label class="font-semibold text-[#FFC857] block mb-1 text-[11px]">Host Verification Status</label>
-            <a href="https://t.me/ignisarena" target="_blank" class="w-full py-2.5 px-3 bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/40 text-sky-300 font-bold rounded-xl flex items-center justify-center gap-1.5 transition text-[11px]">
+            <button type="button" onclick="PlayerApp.sendCurrentRoomToTelegram()" class="w-full py-2.5 px-3 bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/40 text-sky-300 font-bold rounded-xl flex items-center justify-center gap-1.5 transition text-[11px] cursor-pointer">
               <i class="fa-brands fa-telegram text-sm"></i>
               <span>GET APPROVAL (TELEGRAM)</span>
-            </a>
+            </button>
           </div>
 
           <div class="col-span-2 sm:col-span-3">
@@ -560,6 +559,7 @@
           </div>
         </div>
 
+        <!-- 90% WINNER POOL / 10% PLATFORM FEE -->
         <div class="grid grid-cols-3 gap-2 bg-black/40 p-3 rounded-2xl border border-white/10 text-center">
           <div>
             <span class="text-[9px] text-slate-400 font-semibold block uppercase">Total Wager Pool</span>
@@ -664,7 +664,7 @@
       </div>
     </section>
 
-    <!-- TAB 5: PROFILE -->
+    <!-- TAB 5: PROFILE (EDIT BUTTON WORKING) -->
     <section id="view-profile" class="space-y-4 hidden">
       <div id="incompleteProfileBanner" onclick="PlayerApp.openCompleteProfileModal()" class="hidden p-3.5 rounded-2xl bg-[#FF6B00]/15 border border-[#FF6B00]/50 flex items-center justify-between gap-2 cursor-pointer">
         <div class="flex items-center gap-2.5 text-xs">
@@ -703,7 +703,6 @@
           </div>
 
           <div class="grid grid-cols-2 sm:flex sm:flex-col gap-2">
-            <!-- EDIT PROFILE BUTTON (WORKING ONCLICK) -->
             <button type="button" onclick="PlayerApp.openEditProfileModal()" class="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs px-4 py-2.5 rounded-xl cursor-pointer flex items-center justify-center gap-1.5 transition">
               <i class="fa-solid fa-pen-to-square text-[#FFC857]"></i><span>Edit Profile</span>
             </button>
@@ -789,7 +788,7 @@
           <i class="fa-brands fa-instagram text-xl"></i>
           <span class="font-bold text-xs text-white">Instagram Page</span>
         </a>
-        <a href="https://t.me/ignisarena" target="_blank" class="laser-card p-3.5 flex flex-col items-center justify-center gap-1.5 text-sky-400 hover:border-sky-500 cursor-pointer">
+        <a href="https://t.me/ignisarena1" target="_blank" class="laser-card p-3.5 flex flex-col items-center justify-center gap-1.5 text-sky-400 hover:border-sky-500 cursor-pointer">
           <i class="fa-brands fa-telegram text-xl"></i>
           <span class="font-bold text-xs text-white">Telegram Group</span>
         </a>
@@ -927,12 +926,41 @@
     </div>
   </div>
 
+  <div id="xpPerksModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
+    <div class="laser-card max-w-md w-full p-5 space-y-4 relative">
+      <button onclick="PlayerApp.closeModal('xpPerksModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+      <div>
+        <span class="text-[10px] font-bold text-[#FF6B00] uppercase block">Progression Roadmap</span>
+        <h3 class="font-extrabold text-base text-white">Ignis Level XP Perks & Rewards</h3>
+      </div>
+      <div class="space-y-2.5 text-xs text-slate-300">
+        <div class="p-3 bg-white/5 rounded-xl border border-white/10 flex items-center justify-between">
+          <div><strong class="text-white block">Level 1 - 5 (Rookie Tier)</strong><span class="text-[10px] text-slate-400">Unlock custom paid wager challenge creation</span></div>
+          <span class="text-[#FFC857] font-bold">Active</span>
+        </div>
+        <div class="p-3 bg-white/5 rounded-xl border border-white/10 flex items-center justify-between">
+          <div><strong class="text-white block">Level 6 - 15 (Challenger Tier)</strong><span class="text-[10px] text-slate-400">Zero withdrawal fee on all UPI payouts</span></div>
+          <span class="text-slate-500 font-bold">500 XP</span>
+        </div>
+        <div class="p-3 bg-white/5 rounded-xl border border-white/10 flex items-center justify-between">
+          <div><strong class="text-white block">Level 16+ (Grandmaster Pro)</strong><span class="text-[10px] text-slate-400">Gold Verified badge</span></div>
+          <span class="text-slate-500 font-bold">1500 XP</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="joinModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3.5 hidden">
     <div class="laser-card max-w-md w-full p-5 relative max-h-[90vh] overflow-y-auto space-y-3.5">
       <button onclick="PlayerApp.closeModal('joinModal')" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-slate-300 cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
       <div>
         <h3 class="font-extrabold text-base text-white">Select Lobby Slot & Squad</h3>
         <p class="text-xs text-slate-400" id="joinModalSubtitle">Bermuda Match</p>
+      </div>
+
+      <div id="squadFriendsCoPaySection" class="hidden space-y-2">
+        <span class="text-[11px] font-bold text-[#FFC857] block">Select Teammate from Friends:</span>
+        <div id="squadTeammateDropdownsList" class="space-y-1.5"></div>
       </div>
 
       <div>
