@@ -38,14 +38,13 @@
       scroll-behavior: smooth;
     }
 
-    /* STATUS BAR & DYNAMIC ISLAND NOTCH SAFE PADDING */
-    .apk-safe-top {
-      padding-top: max(env(safe-area-inset-top), 2.5rem) !important;
-    }
-    @supports (-webkit-touch-callout: none) {
-      .apk-safe-top {
-        padding-top: max(env(safe-area-inset-top), 2.85rem) !important;
-      }
+    /* INSTAGRAM-STYLE SEAMLESS STATUS BAR (NO WHITE/ODD PATCH) */
+    .app-status-bar-spacer {
+      height: env(safe-area-inset-top, 28px);
+      min-height: 28px;
+      width: 100%;
+      background: transparent;
+      pointer-events: none;
     }
 
     .apk-safe-bottom {
@@ -135,8 +134,9 @@
   <div id="toastContainer" class="fixed top-4 right-3 left-3 sm:left-auto sm:right-5 z-[100] flex flex-col gap-2 sm:max-w-sm pointer-events-none"></div>
 
   <!-- GATEWAY SCREEN -->
-  <div id="ignisGatewayScreen" class="fixed inset-0 z-[80] bg-[#06070A] hero-glow-bg flex flex-col items-center justify-between p-5 sm:p-7 overflow-y-auto apk-safe-top">
-    <div class="pt-3 text-center">
+  <div id="ignisGatewayScreen" class="fixed inset-0 z-[80] bg-[#06070A] hero-glow-bg flex flex-col items-center justify-between p-5 sm:p-7 overflow-y-auto">
+    <div class="app-status-bar-spacer"></div>
+    <div class="pt-1 text-center">
       <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold tracking-wide shadow-lg">
         <i class="fa-solid fa-shield-halved text-emerald-400"></i>
         <span>Official Esports Platform • 100% Anti-Cheat Verified</span>
@@ -353,11 +353,13 @@
     </div>
   </div>
 
-  <!-- MAIN AUTHENTICATED PORTAL (SAFE AREA FIXED) -->
-  <div id="mainPlayerPortal" class="relative z-10 max-w-5xl mx-auto px-3 sm:px-5 apk-safe-top hidden">
+  <!-- MAIN AUTHENTICATED PORTAL (SEAMLESS EDGE-TO-EDGE LIKE INSTAGRAM) -->
+  <div id="mainPlayerPortal" class="relative z-10 max-w-5xl mx-auto px-3 sm:px-5 hidden">
+    <!-- NATIVE TRANSPARENT STATUS BAR SPACE -->
+    <div class="app-status-bar-spacer"></div>
 
-    <!-- TOP BAR -->
-    <header class="sticky top-1 z-30 laser-card px-3 py-2.5 mb-3 flex items-center justify-between gap-2 shadow-2xl">
+    <!-- TOP BAR (CLEAN & NON-FLOATING UNDER STATUS BAR) -->
+    <header class="laser-card px-3 py-2.5 mb-3 flex items-center justify-between gap-2 shadow-2xl">
       <div class="flex items-center gap-2.5 cursor-pointer min-w-0" onclick="PlayerApp.switchTab('tournaments')">
         <div class="w-10 h-10 rounded-xl flex items-center justify-center text-black text-lg shadow-md flex-shrink-0 overflow-hidden border border-[#FF6B00]/40" style="background: linear-gradient(135deg, #FF6B00, #FFC857);">
           <img id="headerBrandLogo" src="logo.png" alt="Ignis Logo" class="w-full h-full object-cover">
@@ -969,11 +971,6 @@
       <div>
         <h3 class="font-extrabold text-base text-white">Select Lobby Slot & Squad</h3>
         <p class="text-xs text-slate-400" id="joinModalSubtitle">Bermuda Match</p>
-      </div>
-
-      <div id="squadFriendsCoPaySection" class="hidden space-y-2">
-        <span class="text-[11px] font-bold text-[#FFC857] block">Select Teammate from Friends:</span>
-        <div id="squadTeammateDropdownsList" class="space-y-1.5"></div>
       </div>
 
       <div>
